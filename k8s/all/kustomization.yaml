@@ -9,15 +9,3 @@ configMapGenerator:
   - name: web
     envs:
       - config.env
-# resources:
-#   - ../../base/
-# patches:
-#   - target:
-#       kind: Ingress
-#       name: orion-grpc-ingress
-#     path: ingress-patch.json
-# configMapGenerator:
-#   - name: web
-#     # behavior: merge
-#     envs:
-#       - config.env
