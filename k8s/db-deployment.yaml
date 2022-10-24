@@ -28,12 +28,12 @@ spec:
             - name: POSTGRES_DB
               valueFrom:
                 configMapKeyRef:
-                  name: web
+                  name: defguard-config-map
                   key: DEFGUARD_DB_NAME
             - name: POSTGRES_USER
               valueFrom:
                 configMapKeyRef:
-                  name: web
+                  name: defguard-config-map
                   key: DEFGUARD_DB_USER
             - name: POSTGRES_PASSWORD
               valueFrom:

@@ -25,7 +25,7 @@ spec:
           imagePullPolicy: Always
           envFrom:
             - configMapRef:
-                name: web
+                name: defguard-config-map
             - secretRef:
                 name: db-password
           ports:
