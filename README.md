@@ -1,9 +1,5 @@
 # Kubernetes deployment
 
-```
-cd k8s
-```
-
 Create database password secret:
 
 ```
@@ -13,5 +9,5 @@ kubectl create secret generic db-password --from-literal=DEFGUARD_DB_PASSWORD=<Y
 Apply configuration:
 
 ```
-kubectl apply
+kubectl apply -k k8s
 ```
