@@ -1,0 +1,23 @@
+resources:
+  - core-service.yaml
+  - core-deployment.yaml
+  - core-ingress.yaml
+  - db-deployment.yaml
+  - db-service.yaml
+  - db-persistentvolumeclaim.yaml
+configMapGenerator:
+  - name: web
+    envs:
+      - config.env
+# resources:
+#   - ../../base/
+# patches:
+#   - target:
+#       kind: Ingress
+#       name: orion-grpc-ingress
+#     path: ingress-patch.json
+configMapGenerator:
+  - name: web
+    behavior: merge
+    envs:
+      - config.env
