@@ -1,3 +1,2 @@
 docker-compose/.env
 docker-compose/.volumes
-k8s/config.env
