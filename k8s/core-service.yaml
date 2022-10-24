@@ -3,7 +3,7 @@ kind: Service
 metadata:
   name: core
   labels:
-    app: orion
+    app: defguard
     service: core
 spec:
   ports:
@@ -12,5 +12,5 @@ spec:
       targetPort: "http"
       protocol: TCP
   selector:
-    app: orion
+    app: defguard
     service: core

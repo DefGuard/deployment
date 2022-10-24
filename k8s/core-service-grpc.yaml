@@ -5,7 +5,7 @@ metadata:
     traefik.ingress.kubernetes.io/service.serversscheme: h2c
   name: core-grpc
   labels:
-    app: orion
+    app: defguard
     service: core
 spec:
   ports:
@@ -14,5 +14,5 @@ spec:
       targetPort: "grpc"
       protocol: TCP
   selector:
-    app: orion
+    app: defguard
     service: core

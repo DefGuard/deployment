@@ -2,7 +2,7 @@ apiVersion: v1
 kind: Service
 metadata:
   labels:
-    app: orion
+    app: defguard
     service: db
   name: db
 spec:
@@ -11,5 +11,5 @@ spec:
       port: 5432
       targetPort: 5432
   selector:
-    app: orion
+    app: defguard
     service: db

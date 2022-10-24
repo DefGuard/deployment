@@ -3,7 +3,7 @@ kind: Ingress
 metadata:
   annotations:
     ingress.kubernetes.io/protocol: h2c
-  name: orion-grpc-ingress
+  name: defguard-grpc-ingress
 spec:
   rules:
     # TODO: configured from env

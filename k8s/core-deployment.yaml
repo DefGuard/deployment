@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: core
   labels:
-    app: orion
+    app: defguard
     service: core
 spec:
   strategy:
@@ -11,12 +11,12 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app: orion
+      app: defguard
       service: core
   template:
     metadata:
       labels:
-        app: orion
+        app: defguard
         service: core
     spec:
       containers:

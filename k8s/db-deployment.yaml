@@ -2,21 +2,21 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
-    app: orion
+    app: defguard
     service: db
   name: db
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: orion
+      app: defguard
       service: db
   strategy:
     type: Recreate
   template:
     metadata:
       labels:
-        app: orion
+        app: defguard
         service: db
     spec:
       containers:
