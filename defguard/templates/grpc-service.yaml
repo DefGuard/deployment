@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    traefik.ingress.kubernetes.io/service.serversscheme: h2c
+  name: {{ include "defguard.fullname" . }}-grpc
+  labels:
+    {{- include "defguard.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - port: {{ .Values.service.ports.grpc }}
+      targetPort: grpc
+      protocol: TCP
+      name: grpc
+  selector:
+    {{- include "defguard.selectorLabels" . | nindent 4 }}

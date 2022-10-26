@@ -1,9 +1,0 @@
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: defguard-config-map
-data:
-  DEFGUARD_DB_HOST: "db"
-  DEFGUARD_DB_USER: "defguard"
-  DEFGUARD_DB_NAME: "defguard"
-

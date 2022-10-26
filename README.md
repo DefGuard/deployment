@@ -1,13 +1,5 @@
 # Kubernetes deployment
 
-Create database password secret:
-
-```
-kubectl create secret generic db-password --from-literal=DEFGUARD_DB_PASSWORD=<YOUR_DB_PASSWORD>
-```
-
-Apply configuration:
-
-```
-kubectl apply -k k8s
-```
+1. Install Helm binary from https://github.com/helm/helm/releases/latest
+2. Create namespace, e.g.: `kubectl create namespace defguard`
+3. Install Helm chart, e.g.: `helm install --wait=true --namespace defguard defguard defguard`
