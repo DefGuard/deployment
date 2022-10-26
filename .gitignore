@@ -1,2 +1,2 @@
-.env
-.volumes
+docker-compose/.env
+docker-compose/.volumes

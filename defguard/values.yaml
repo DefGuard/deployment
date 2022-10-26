@@ -1,0 +1,42 @@
+affinity: {}
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 10
+image:
+  pullPolicy: IfNotPresent
+  repository: ghcr.io/defguard/defguard
+  tag: ""
+imagePullSecrets: []
+fullnameOverride: ""
+ingress:
+  annotations: {}
+  className: ""
+  enabled: true
+  hosts:
+    grpc: defguard-grpc.local
+    web: defguard.local
+  tls: []
+nameOverride: ""
+nodeSelector: {}
+podAnnotations: {}
+podLabels: {}
+podSecurityContext: {}
+# sub-chart bitnami/postgresql
+postgresql:
+  auth:
+    database: defguard
+    existingSecret: postgres-password
+    username: defguard
+replicaCount: 1
+resources: {}
+securityContext: {}
+service:
+  ports: 
+    grpc: 50055
+    http: 80
+  type: ClusterIP
+serviceAccount:
+  annotations: {}
+  create: true
+tolerations: []
