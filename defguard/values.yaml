@@ -17,6 +17,7 @@ ingress:
     grpc: defguard-grpc.local
     web: defguard.local
   tls: []
+jwtSecret: jwt-secrets
 nameOverride: ""
 nodeSelector: {}
 podAnnotations: {}

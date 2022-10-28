@@ -35,6 +35,21 @@ spec:
                 secretKeyRef:
                   name: {{ .Values.postgresql.auth.existingSecret }}
                   key: password
+            - name: DEFGUARD_AUTH_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.jwtSecret }}
+                  key: auth
+            - name: DEFGUARD_GATEWAY_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.jwtSecret }}
+                  key: gateway
+            - name: DEFGUARD_YUBIBRIDGE_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.jwtSecret }}
+                  key: yubi-bridge
           envFrom:
             - configMapRef:
                 name: {{ include "defguard.fullname" . }}-config
@@ -49,14 +64,14 @@ spec:
             - name: grpc
               containerPort: 50055
               protocol: TCP
-          # livenessProbe:
-          #   httpGet:
-          #     path: /health
-          #     port: http
-          # readinessProbe:
-          #   httpGet:
-          #     path: /health
-          #     port: http
+          livenessProbe:
+            httpGet:
+              path: /api/v1/health
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /api/v1/health
+              port: http
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
       {{- with .Values.nodeSelector }}
