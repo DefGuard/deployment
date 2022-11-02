@@ -40,7 +40,7 @@ Helm's [documentation](https://helm.sh/docs) to get started.
 Once Helm has been set up correctly, add the repo as follows:
 
 ```
-helm repo add <alias> https://defguard.github.io/helm-charts
+helm repo add <alias> https://defguard.github.io/deployment
 ```
 
 If you had already added this repo earlier, run `helm repo update` to retrieve
@@ -50,7 +50,7 @@ the latest versions of the packages.  You can then run `helm search repo
 To install the defguard chart:
 
 ```
-helm install my-defguard defguard/defguard
+helm install my-defguard <alias>/defguard
 ```
 
 To uninstall the chart:
