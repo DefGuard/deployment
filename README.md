@@ -7,8 +7,9 @@ git clone git@github.com:DefGuard/deployment.git
 ```
 The repository contains configuration files for:
 
-* [docker-compose](#docker-compose-deployment)
-* [kubernetes](#kubernetes-deployment) (helm)
+- [Defguard deployment](#defguard-deployment)
+- [Docker Compose deployment](#docker-compose-deployment)
+- [Kubernetes deployment](#kubernetes-deployment)
 
 # Docker Compose deployment
 
@@ -33,6 +34,27 @@ That's it, Defguard should be running on port 80 of your server ([http://localho
 
 # Kubernetes deployment
 
-1. Install Helm binary from https://github.com/helm/helm/releases/latest
-2. Create namespace, e.g.: `kubectl create namespace defguard`
-3. Install Helm chart, e.g.: `helm install --wait=true --namespace defguard defguard defguard`
+[Helm](https://helm.sh) must be installed to use the charts.  Please refer to
+Helm's [documentation](https://helm.sh/docs) to get started.
+
+Once Helm has been set up correctly, add the repo as follows:
+
+```
+helm repo add <alias> https://defguard.github.io/helm-charts
+```
+
+If you had already added this repo earlier, run `helm repo update` to retrieve
+the latest versions of the packages.  You can then run `helm search repo
+<alias>` to see the charts.
+
+To install the defguard chart:
+
+```
+helm install my-defguard defguard/defguard
+```
+
+To uninstall the chart:
+
+```
+helm delete my-defguard
+```
