@@ -1,0 +1,14 @@
+version: "3"
+services:
+  gateway:
+    image: registry.teonite.net/defguard/wireguard:latest
+    environment:
+      DEFGUARD_GRPC_URL: <URL_OF_YOUR_DEFGUARD_GRPC_SERVICE> # If it's on the same machine it's localhost:50055
+      DEFGUARD_STATS_PERIOD: 60
+      DEFGUARD_TOKEN: <DEFGUARD_TOKEN>
+      RUST_LOG: debug
+    ports:
+      # wireguard endpoint
+      - "50051:50051/udp"
+    cap_add:
+      - NET_ADMIN
