@@ -9,3 +9,5 @@ data:
   DEFGUARD_DB_NAME: {{ .Values.postgresql.auth.database }}
   DEFGUARD_DB_USER: {{ .Values.postgresql.auth.username }}
   DEFGUARD_GRPC_PORT: {{ .Values.service.ports.grpc | quote }}
+  DEFGUARD_URL: http{{ if $.Values.ingress.tls }}s{{ end }}://{{ .Values.ingress.hosts.web }}
+  DEFGUARD_WEBAUTHN_RP_ID: {{ .Values.ingress.hosts.web }}
