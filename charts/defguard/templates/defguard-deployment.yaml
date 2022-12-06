@@ -50,6 +50,11 @@ spec:
                 secretKeyRef:
                   name: {{ .Values.jwtSecret }}
                   key: yubi-bridge
+            - name: DEFGUARD_LICENSE
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "defguard.fullname" . }}-license
+                  key: license
           envFrom:
             - configMapRef:
                 name: {{ include "defguard.fullname" . }}-config
