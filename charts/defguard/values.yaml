@@ -41,3 +41,4 @@ serviceAccount:
   annotations: {}
   create: true
 tolerations: []
+license: ""
