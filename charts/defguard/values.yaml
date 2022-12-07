@@ -3,12 +3,12 @@ autoscaling:
   enabled: false
   minReplicas: 1
   maxReplicas: 10
+fullnameOverride: ""
 image:
   pullPolicy: IfNotPresent
   repository: ghcr.io/defguard/defguard
   tag: ""
 imagePullSecrets: []
-fullnameOverride: ""
 ingress:
   annotations: {}
   className: ""
@@ -29,11 +29,12 @@ postgresql:
     database: defguard
     existingSecret: postgres-password
     username: defguard
+publicUrl: "http://defguard.local"
 replicaCount: 1
 resources: {}
 securityContext: {}
 service:
-  ports: 
+  ports:
     grpc: 50055
     http: 80
   type: ClusterIP
