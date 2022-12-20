@@ -29,6 +29,9 @@ spec:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
       containers:
         - name: {{ .Chart.Name }}
+        volumeMounts:
+        - name: secret-volume
+          mountPath: /etc/secret
           env:
             - name: DEFGUARD_DB_PASSWORD
               valueFrom:
@@ -55,6 +58,10 @@ spec:
                 secretKeyRef:
                   name: {{ include "defguard.fullname" . }}-license
                   key: license
+            - name: DEFGUARD_OPENID_KEY
+              valueFrom:
+                - secretRef:
+                name: {.Values.openidkeySecret}
           envFrom:
             - configMapRef:
                 name: {{ include "defguard.fullname" . }}-config
@@ -91,3 +98,8 @@ spec:
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      volumes:
+      - name: secret-volume
+        secret:
+          secretName: 
+            {.Values.openidkeySecret}
