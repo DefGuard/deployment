@@ -29,9 +29,9 @@ spec:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
       containers:
         - name: {{ .Chart.Name }}
-        volumeMounts:
-        - name: secret-volume
-          mountPath: /etc/secret
+          volumeMounts:
+          - name: secret-volume
+            mountPath: /etc/secret
           env:
             - name: DEFGUARD_DB_PASSWORD
               valueFrom:
