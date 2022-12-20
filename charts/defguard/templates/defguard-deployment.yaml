@@ -30,7 +30,7 @@ spec:
       containers:
         - name: {{ .Chart.Name }}
           volumeMounts:
-            mountPath: /etc/secret
+            mountPath: /etc/defguard-volume
             name: secret-volume
           env:
             - name: DEFGUARD_DB_PASSWORD
