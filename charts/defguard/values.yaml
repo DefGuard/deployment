@@ -18,6 +18,7 @@ ingress:
     web: defguard.local
   tls: []
 jwtSecret: jwt-secrets
+openidkeySecret: openidkey-secret
 nameOverride: ""
 nodeSelector: {}
 podAnnotations: {}
