@@ -30,8 +30,8 @@ spec:
       containers:
         - name: {{ .Chart.Name }}
           volumeMounts:
-          - name: secret-volume
             mountPath: /etc/secret
+            name: secret-volume
           env:
             - name: DEFGUARD_DB_PASSWORD
               valueFrom:
@@ -60,8 +60,8 @@ spec:
                   key: license
             - name: DEFGUARD_OPENID_KEY
               valueFrom:
-                - secretRef:
-                name: {.Values.openidkeySecret}
+                secretRef:
+                  name: {{ .Values.openidkeySecret }}
           envFrom:
             - configMapRef:
                 name: {{ include "defguard.fullname" . }}-config
@@ -99,7 +99,7 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       volumes:
-      - name: secret-volume
-        secret:
-          secretName: 
-            {.Values.openidkeySecret}
+        - name: secret-volume
+          secret:
+            secretName: 
+              {.Values.openidkeySecret}
