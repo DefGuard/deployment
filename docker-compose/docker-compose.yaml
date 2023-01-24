@@ -5,15 +5,20 @@ services:
   core:
     image: ghcr.io/defguard/defguard:latest
     environment:
-      DEFGUARD_JWT_SECRET: ${DEFGUARD_JWT_SECRET}
+      DEFGUARD_AUTH_SECRET: ${DEFGUARD_AUTH_SECRET}
+      DEFGUARD_GATEWAY_SECRET: ${DEFGUARD_GATEWAY_SECRET}
+      DEFGUARD_YUBIBRIDGE_SECRET: ${DEFGUARD_GATEWAY_SECRET}
       DEFGUARD_DB_HOST: db
       DEFGUARD_DB_PORT: 5432
       DEFGUARD_DB_USER: defguard
       DEFGUARD_DB_PASSWORD: ${DEFGUARD_DB_PASSWORD}
       DEFGUARD_DB_NAME: defguard
+      DEFGUARD_URL: ${DEFGUARD_URL}
+      DEDGUARD_LOG_LEVEL: ${DEFGUARD_LOG_LEVEL}
+      DEFGUARD_OPENID_KEY: ${DEFGUARD_OPENID_KEY}
     ports:
       # web
-      - "8000:80"
+      - "80:8000"
       # grpc
       - "50055:50055"
     depends_on:
