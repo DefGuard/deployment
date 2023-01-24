@@ -11,9 +11,10 @@ services:
       DEFGUARD_DB_USER: defguard
       DEFGUARD_DB_PASSWORD: ${DEFGUARD_DB_PASSWORD}
       DEFGUARD_DB_NAME: defguard
+      DEFGUARD_URL: ${DEFGUARD_URL}
     ports:
       # web
-      - "8000:80"
+      - "80:8000"
       # grpc
       - "50055:50055"
     depends_on:
