@@ -15,7 +15,6 @@ services:
       DEFGUARD_DB_NAME: defguard
       DEFGUARD_URL: ${DEFGUARD_URL}
       DEDGUARD_LOG_LEVEL: ${DEFGUARD_LOG_LEVEL}
-      DEFGUARD_OPENID_KEY: ${DEFGUARD_OPENID_KEY}
     ports:
       # web
       - "80:8000"
