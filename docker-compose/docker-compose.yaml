@@ -15,6 +15,7 @@ services:
       DEFGUARD_DB_NAME: defguard
       DEFGUARD_URL: ${DEFGUARD_URL}
       DEFGUARD_LOG_LEVEL: ${DEFGUARD_LOG_LEVEL}
+      DEFGUARD_WEBAUTHN_RP_ID: ${DEFGUARD_WEBAUTHN_RP_ID}
       # RSA setup guide: https://defguard.gitbook.io/defguard/community-features/setting-up-your-instance/docker-compose#openid-rsa-setup
       # DEFGUARD_OPENID_KEY: /keys/rsakey.pem
 
