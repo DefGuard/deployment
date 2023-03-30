@@ -35,7 +35,7 @@ services:
     volumes:
       # RSA setup guide: https://defguard.gitbook.io/defguard/community-features/setting-up-your-instance/docker-compose#openid-rsa-setup
       # - ./.volumes/core/rsakey.pem:/keys/rsakey.pem
-      # SSL setup guide: TODO
+      # SSL setup guide: https://defguard.gitbook.io/defguard/features/setting-up-your-instance/docker-compose#ssl-setup
       - ./.volumes/ssl:/ssl
 
   db:
