@@ -16,6 +16,8 @@ services:
       DEFGUARD_URL: ${DEFGUARD_URL}
       DEFGUARD_LOG_LEVEL: info
       DEFGUARD_WEBAUTHN_RP_ID: ${DEFGUARD_WEBAUTHN_RP_ID}
+      DEFGUARD_GRPC_CERT: /ssl/defguard.crt
+      DEFGUARD_GRPC_KEY: /ssl/defguard.key
       ## RSA setup guide: https://defguard.gitbook.io/defguard/community-features/setting-up-your-instance/docker-compose#openid-rsa-setup
       # DEFGUARD_OPENID_KEY: /keys/rsakey.pem
       ## LDAP setup guide: https://defguard.gitbook.io/defguard/features/ldap-synchronization-setup
@@ -30,9 +32,11 @@ services:
       - "50055:50055"
     depends_on:
       - db
-    # RSA setup guide: https://defguard.gitbook.io/defguard/community-features/setting-up-your-instance/docker-compose#openid-rsa-setup
-    # volumes:
-    #   - ./.volumes/core/rsakey.pem:/keys/rsakey.pem
+    volumes:
+      # RSA setup guide: https://defguard.gitbook.io/defguard/community-features/setting-up-your-instance/docker-compose#openid-rsa-setup
+      # - ./.volumes/core/rsakey.pem:/keys/rsakey.pem
+      # SSL setup guide: https://defguard.gitbook.io/defguard/features/setting-up-your-instance/docker-compose#ssl-setup
+      - ./.volumes/ssl:/ssl
 
   db:
     image: postgres:14-alpine
