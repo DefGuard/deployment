@@ -50,6 +50,11 @@ spec:
                 secretKeyRef:
                   name: {{ .Values.jwtSecret }}
                   key: yubi-bridge
+            - name: DEFGUARD_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: { { .Values.jwtSecret } }
+                  key: secret-key
             - name: DEFGUARD_LICENSE
               valueFrom:
                 secretKeyRef:
