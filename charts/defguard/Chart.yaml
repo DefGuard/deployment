@@ -3,7 +3,7 @@ name: defguard
 description: Defguard is an open-source identity management system
 
 type: application
-version: 0.3.4
+version: 0.3.5
 appVersion: 0.3.0
 
 dependencies:
