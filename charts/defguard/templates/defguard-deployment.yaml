@@ -53,7 +53,7 @@ spec:
             - name: DEFGUARD_SECRET_KEY
               valueFrom:
                 secretKeyRef:
-                  name: { { .Values.jwtSecret } }
+                  name: {{ .Values.jwtSecret }}
                   key: secret-key
             - name: DEFGUARD_LICENSE
               valueFrom:
