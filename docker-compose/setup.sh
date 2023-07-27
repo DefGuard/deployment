@@ -1,12 +1,12 @@
 #!/bin/bash
 
 VERSION="0.0.1"
-BASENAME=$(basename $0)
+BASENAME=$(basename "$0")
 ENV_TEMPLATE=".env.template"
 ENV_PRODUCTION=".env"
 COMPOSE="docker-compose.yaml"
 CFG_LENGTH=64
-SSL_DIR="./.volumes/ssl"
+SSL_DIR=".volumes/ssl"
 
 function print_header
 {
@@ -25,7 +25,7 @@ function usage
     echo 'Available options:'
     echo
     echo -e "\t-h                       this help message"
-    echo -e "\t-d <defguard_domaiin>    domain/url under which to configure defguard instance"
+    echo -e "\t-u <defguard_url>        url under which to configure defguard instance"
     echo -e "\t-s [pass length]         generated secrets length, default: 64"
     echo
 }
@@ -40,7 +40,7 @@ function check_environment
 
   OPENSSL=$(openssl version 2>&1 &> /dev/null)
 
-  if [ $? -ne 0 ]; then
+  if [ "${OPENSSL}" -ne 0 ]; then
     echo "ERROR: openssl command not found"
     echo "ERROR: dependency failed, exiting..."
     exit 4
@@ -49,18 +49,18 @@ function check_environment
 
 function set_env_file_value
 {
-  sed -i~ "s@\(${1}\)=.*@\1=${2}@" ${3}
+  sed -i~ "s@\(${1}\)=.*@\1=${2}@" "${3}"
   echo "Set value for ${1} in ${3} file"
 }
 
 function set_env_file_secret
 {
-  set_env_file_value ${1} $(generate_secret) ${2}
+  set_env_file_value "${1}" "$(generate_secret)" "${2}"
 }
 
 function generate_secret
 {
-  echo `openssl rand -base64 ${CFG_LENGTH} | tr -d '[:blank:]' | tr -d '\n'`
+  echo "$(openssl rand -base64 ${CFG_LENGTH} | tr -d '[:blank:]' | tr -d '\n')"
 }
 
 function create_env_file
@@ -80,8 +80,9 @@ function create_env_file
   set_env_file_secret "DEFGUARD_GATEWAY_SECRET" ${ENV_PRODUCTION}
   set_env_file_secret "DEFGUARD_SECRET_KEY" ${ENV_PRODUCTION}
   set_env_file_secret "DEFGUARD_DB_PASSWORD" ${ENV_PRODUCTION}
-  set_env_file_value "DEFGUARD_URL" "https://${CFG_DOMAIN}" ${ENV_PRODUCTION}
-  set_env_file_value "DEFGUARD_WEBAUTHN_RP_ID" ${CFG_DOMAIN} ${ENV_PRODUCTION}
+  set_env_file_value "DEFGUARD_URL" "${CFG_DEFGUARD_URL}" ${ENV_PRODUCTION}
+  DEFGUARD_DOMAIN=$(echo "${CFG_DEFGUARD_URL}" | sed -e 's/^http:\/\///g' -e 's/^https:\/\///g')
+  set_env_file_value "DEFGUARD_WEBAUTHN_RP_ID" "${DEFGUARD_DOMAIN}" ${ENV_PRODUCTION}
 }
 
 function generate_certs
@@ -90,16 +91,24 @@ function generate_certs
   mkdir -p ${SSL_DIR}
 
   while true; do
-    read -s -p "Enter PEM pass phrase:" PASSPHRASE
+    read -r -s -p "Enter PEM pass phrase:" PASSPHRASE
     echo
-    read -s -p "Verifying - Enter PEM pass phrase:" PASSPHRASE2
+    read -r -s -p "Verifying - Enter PEM pass phrase:" PASSPHRASE2
     echo
     [ "$PASSPHRASE" = "$PASSPHRASE2" ] && break
     echo "Please try again"
   done
 
-  openssl genrsa -des3 -out ${SSL_DIR}/myCA.key -passout pass:${PASSPHRASE} 2048
-  openssl req -x509 -new -nodes -key ${SSL_DIR}/myCA.key -sha256 -days 1825 -out ${SSL_DIR}/myCA.pem -passin pass:${PASSPHRASE}
+  openssl genrsa -des3 -out ${SSL_DIR}/myCA.key -passout pass:"${PASSPHRASE}" 2048
+  openssl req -x509 -new -nodes -key ${SSL_DIR}/myCA.key -sha256 -days 1825 -out ${SSL_DIR}/myCA.pem -passin pass:"${PASSPHRASE}"
+}
+
+function print_followup
+{
+  echo "Your environment is set up correctly!"
+  echo "To start the stack run 'docker compose up -d'."
+  echo "defguard should be then running on port 80 of your server."
+  echo "Default admin credentials are admin/pass123. Please change the password after signing in."
 }
 
 # GET OPTIONS {{{
@@ -108,14 +117,14 @@ if [ $? != 0 ]; then
     exit 1
 fi
 
-while getopts ":hd:p:s:" arg; do
+while getopts ":hu:s:" arg; do
   case $arg in
-    d)
-      CFG_DOMAIN="${OPTARG}"
+    u)
+      CFG_DEFGUARD_URL="${OPTARG}"
       ;;
     s)
       CFG_LENGTH="${OPTARG}"
-      if [ ${CFG_LENGTH} -lt 8 -o ${CFG_LENGTH} -gt 128 ]; then
+      if [ "${CFG_LENGTH}" -lt 8 ] || [ "${CFG_LENGTH}" -gt 128 ]; then
         echo "Recommended secrets length is more then 8 and less then 128"
         echo "Length: ${CFG_LENGTH} is bogus..."
         exit 1
@@ -129,15 +138,15 @@ while getopts ":hd:p:s:" arg; do
 done
 # end: get options }}}
 
-if [ "X${CFG_DOMAIN}" == "X" ]; then
-  echo "ERROR: no defguard domain set. "
+if [ "X${CFG_DEFGUARD_URL}" == "X" ]; then
+  echo "ERROR: no defguard URL set. "
   usage
   exit 2
 fi
 
 print_header
 
-echo " + defguard domain: ${CFG_DOMAIN}"
+echo " + defguard URL: ${CFG_DEFGUARD_URL}"
 echo " + secrets length will be: ${CFG_LENGTH}"
 echo
 
@@ -147,6 +156,7 @@ then
 else
   create_env_file
 fi
+echo
 
 if [ -d ${SSL_DIR} ] && [ "$(ls -A ${SSL_DIR})" ]
 then
@@ -154,3 +164,6 @@ then
 else
   generate_certs
 fi
+echo
+
+print_followup
