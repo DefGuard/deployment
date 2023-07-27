@@ -26,7 +26,6 @@ function usage
     echo
     echo -e "\t-h                       this help message"
     echo -e "\t-d <defguard_domaiin>    domain/url under which to configure defguard instance"
-    echo -e "\t-p [vpn_port]            port number under which to expose your VPN - if not set, gateway will not be configured"
     echo -e "\t-s [pass length]         generated secrets length, default: 64"
     echo
 }
@@ -114,14 +113,6 @@ while getopts ":hd:p:s:" arg; do
     d)
       CFG_DOMAIN="${OPTARG}"
       ;;
-    p)
-      CFG_PORT="${OPTARG}"
-      if [ ${CFG_PORT} -lt 1 -o ${CFG_PORT} -gt 65535 ]; then
-        echo "Port must be between 1-65535"
-        echo "Length: ${CFG_PORT} is bogus..."
-        exit 1
-      fi
-      ;;
     s)
       CFG_LENGTH="${OPTARG}"
       if [ ${CFG_LENGTH} -lt 8 -o ${CFG_LENGTH} -gt 128 ]; then
@@ -147,12 +138,6 @@ fi
 print_header
 
 echo " + defguard domain: ${CFG_DOMAIN}"
-
-if [ "X${CFG_PORT}" == "X" ]; then
-  echo " - no VPN port was set, will not configure defguard VPN gateway, just the core..."
-else
-  echo " + defguard vpn port: ${CFG_PORT}, will include VPN gateway"
-fi
 echo " + secrets length will be: ${CFG_LENGTH}"
 echo
 
