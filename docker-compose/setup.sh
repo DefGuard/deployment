@@ -60,7 +60,7 @@ function set_env_file_secret
 
 function generate_secret
 {
-  echo "$(openssl rand -base64 ${CFG_LENGTH} | tr -d '[:blank:]' | tr -d '\n')"
+  echo "$(openssl rand -base64 ${CFG_LENGTH} | tr -d "=+/"  | tr -d '\n' | cut -c1-${CFG_LENGTH-1})"
 }
 
 function create_env_file
