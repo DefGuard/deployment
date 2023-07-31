@@ -7,6 +7,7 @@ ENV_PRODUCTION=".env"
 COMPOSE="docker-compose.yaml"
 CFG_LENGTH=64
 SSL_DIR=".volumes/ssl"
+RSA_DIR=".volumes/core"
 
 function print_header
 {
@@ -50,7 +51,7 @@ function check_environment
 function set_env_file_value
 {
   sed -i~ "s@\(${1}\)=.*@\1=${2}@" "${3}"
-  echo "Set value for ${1} in ${3} file"
+  echo "Set value for ${1} in ${3} file."
 }
 
 function set_env_file_secret
@@ -65,7 +66,7 @@ function generate_secret
 
 function create_env_file
 {
-  echo "Creating ${ENV_PRODUCTION} file based on ${ENV_TEMPLATE}"
+  echo "Creating ${ENV_PRODUCTION} file based on ${ENV_TEMPLATE}..."
 
   if [ ! -f ${ENV_TEMPLATE} ]; then
     echo "ERROR: no environment template configuration found at: ${ENV_TEMPLATE}"
@@ -87,20 +88,28 @@ function create_env_file
 
 function generate_certs
 {
-  echo "Creating new SSL certificates in ${SSL_DIR}"
+  echo "Creating new SSL certificates in ${SSL_DIR}..."
   mkdir -p ${SSL_DIR}
 
-  while true; do
-    read -r -s -p "Enter PEM pass phrase:" PASSPHRASE
-    echo
-    read -r -s -p "Verifying - Enter PEM pass phrase:" PASSPHRASE2
-    echo
-    [ "$PASSPHRASE" = "$PASSPHRASE2" ] && break
-    echo "Please try again"
-  done
+  PASSPHRASE=$(generate_secret)
+
+  echo "PEM pass phrase for set to '${PASSPHRASE}'."
 
   openssl genrsa -des3 -out ${SSL_DIR}/myCA.key -passout pass:"${PASSPHRASE}" 2048
-  openssl req -x509 -new -nodes -key ${SSL_DIR}/myCA.key -sha256 -days 1825 -out ${SSL_DIR}/myCA.pem -passin pass:"${PASSPHRASE}"
+  openssl req -x509 -new -nodes -key ${SSL_DIR}/myCA.key -sha256 -days 1825 -out ${SSL_DIR}/myCA.pem -passin pass:"${PASSPHRASE}" -subj "/C=PL/ST=Zachodniopomorskie/L=Szczecin/O=Example/OU=IT Department/CN=example.com"
+}
+
+function generate_rsa
+{
+  echo "Generating RSA keys in ${RSA_DIR}..."
+  mkdir -p ${RSA_DIR}
+  openssl genpkey -out ${RSA_DIR}/rsakey.pem -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -quiet
+}
+
+function enable_compose_env_variable
+{
+  sed -i~ "s@# ${1}@${1}@" "${COMPOSE}"
+  echo "Set ${1} environment variable in ${COMPOSE}."
 }
 
 function print_followup
@@ -152,7 +161,7 @@ echo
 
 if [ -f ${ENV_PRODUCTION} ]
 then
-  echo "Using existing ${ENV_PRODUCTION} file"
+  echo "Using existing ${ENV_PRODUCTION} file."
 else
   create_env_file
 fi
@@ -160,10 +169,20 @@ echo
 
 if [ -d ${SSL_DIR} ] && [ "$(ls -A ${SSL_DIR})" ]
 then
-  echo "Using existing SSL certificates from ${SSL_DIR}"
+  echo "Using existing SSL certificates from ${SSL_DIR}."
 else
   generate_certs
 fi
+echo
+
+if [ -d ${RSA_DIR} ] && [ "$(ls -A ${RSA_DIR})" ]
+then
+  echo "Using existing RSA keys from ${RSA_DIR}."
+else
+  generate_rsa
+fi
+enable_compose_env_variable "DEFGUARD_OPENID_KEY"
+
 echo
 
 print_followup
