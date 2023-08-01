@@ -106,10 +106,9 @@ function generate_rsa
   openssl genpkey -out ${RSA_DIR}/rsakey.pem -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -quiet
 }
 
-function enable_compose_env_variable
+function uncomment
 {
   sed -i~ "s@# ${1}@${1}@" "${COMPOSE}"
-  echo "Set ${1} environment variable in ${COMPOSE}."
 }
 
 function print_followup
@@ -181,7 +180,9 @@ then
 else
   generate_rsa
 fi
-enable_compose_env_variable "DEFGUARD_OPENID_KEY"
+uncomment "DEFGUARD_OPENID_KEY"
+uncomment "- ./.volumes/core/rsakey.pem"
+echo "Enabled RSA support in ${COMPOSE}."
 
 echo
 
