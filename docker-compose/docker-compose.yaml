@@ -20,7 +20,7 @@ services:
       DEFGUARD_GRPC_CERT: /ssl/defguard.crt
       DEFGUARD_GRPC_KEY: /ssl/defguard.key
       ## RSA setup guide: https://defguard.gitbook.io/defguard/community-features/setting-up-your-instance/docker-compose#openid-rsa-setup
-      DEFGUARD_OPENID_KEY: /keys/rsakey.pem
+      # DEFGUARD_OPENID_KEY: /keys/rsakey.pem
       ## LDAP setup guide: https://defguard.gitbook.io/defguard/features/ldap-synchronization-setup
       # DEFGUARD_LDAP_URL: ldap://localhost:389`
       # DEFGUARD_LDAP_BIND_USERNAME: cn=admin,dc=example,dc=org
@@ -35,7 +35,7 @@ services:
       - db
     volumes:
       # RSA setup guide: https://defguard.gitbook.io/defguard/community-features/setting-up-your-instance/docker-compose#openid-rsa-setup
-      - ./.volumes/core/rsakey.pem:/keys/rsakey.pem
+      # - ./.volumes/core/rsakey.pem:/keys/rsakey.pem
       # SSL setup guide: https://defguard.gitbook.io/defguard/features/setting-up-your-instance/docker-compose#ssl-setup
       - ./.volumes/ssl:/ssl
 
