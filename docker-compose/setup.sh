@@ -106,9 +106,9 @@ function generate_rsa
   openssl genpkey -out ${RSA_DIR}/rsakey.pem -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -quiet
 }
 
-function uncomment
+function uncomment_feature
 {
-  sed -i~ "s@# ${1}@${1}@" "${COMPOSE}"
+  sed -i~ "s@# \(.*\) # \[${1}\]@\1@" "${2}"
 }
 
 function print_followup
@@ -180,8 +180,7 @@ then
 else
   generate_rsa
 fi
-uncomment "DEFGUARD_OPENID_KEY"
-uncomment "- ./.volumes/core/rsakey.pem"
+uncomment_feature "RSA" ${COMPOSE}
 echo "Enabled RSA support in ${COMPOSE}."
 
 echo
