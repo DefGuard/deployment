@@ -17,6 +17,7 @@ services:
       DEFGUARD_URL: ${DEFGUARD_URL}
       DEFGUARD_LOG_LEVEL: info
       DEFGUARD_WEBAUTHN_RP_ID: ${DEFGUARD_WEBAUTHN_RP_ID}
+      DEFGUARD_ENROLLMENT_URL: ${DEFGUARD_ENROLLMENT_URL}
       DEFGUARD_GRPC_CERT: /ssl/defguard.crt
       DEFGUARD_GRPC_KEY: /ssl/defguard.key
       ## RSA setup guide: https://defguard.gitbook.io/defguard/community-features/setting-up-your-instance/docker-compose#openid-rsa-setup
@@ -49,3 +50,17 @@ services:
       - ./.volumes/db:/var/lib/postgresql/data
     ports:
       - "5432:5432"
+
+  enrollment:
+    image: ghcr.io/defguard/defguard-proxy:latest
+    environment:
+      DEFGUARD_PROXY_UPSTREAM_GRPC_URL: http://core:50055/
+      # DEFGUARD_PROXY_GRPC_CA: /ssl/defguard-ca.pem
+    # volumes:
+      # SSL setup guide: https://defguard.gitbook.io/defguard/features/setting-up-your-instance/docker-compose#ssl-setup
+      # - ./.volumes/ssl:/ssl
+    ports:
+      # web
+      - "8080:8080"
+    depends_on:
+      - core
