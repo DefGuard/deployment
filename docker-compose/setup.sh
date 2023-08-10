@@ -27,6 +27,7 @@ function usage
     echo
     echo -e "\t-h                       this help message"
     echo -e "\t-u <defguard_url>        url under which to configure defguard instance"
+    echo -e "\t-e <enrollment_url>      url under which to configure enrollment service"
     echo -e "\t-s [pass length]         generated secrets length, default: 64"
     echo
 }
@@ -84,6 +85,7 @@ function create_env_file
   set_env_file_value "DEFGUARD_URL" "${CFG_DEFGUARD_URL}" ${ENV_PRODUCTION}
   DEFGUARD_DOMAIN=$(echo "${CFG_DEFGUARD_URL}" | sed -e 's/^http:\/\///g' -e 's/^https:\/\///g')
   set_env_file_value "DEFGUARD_WEBAUTHN_RP_ID" "${DEFGUARD_DOMAIN}" ${ENV_PRODUCTION}
+  set_env_file_value "DEFGUARD_ENROLLMENT_URL" "${CFG_ENROLLMENT_URL}" ${ENV_PRODUCTION}
 }
 
 function generate_certs
@@ -130,6 +132,9 @@ while getopts ":hu:s:" arg; do
     u)
       CFG_DEFGUARD_URL="${OPTARG}"
       ;;
+    e)
+      CFG_ENROLLMENT_URL="${OPTARG}"
+      ;;
     s)
       CFG_LENGTH="${OPTARG}"
       if [ "${CFG_LENGTH}" -lt 8 ] || [ "${CFG_LENGTH}" -gt 128 ]; then
@@ -152,9 +157,16 @@ if [ "X${CFG_DEFGUARD_URL}" == "X" ]; then
   exit 2
 fi
 
+if [ "X${CFG_ENROLLMENT_URL}" == "X" ]; then
+  echo "ERROR: no enrollment service URL set. "
+  usage
+  exit 2
+fi
+
 print_header
 
 echo " + defguard URL: ${CFG_DEFGUARD_URL}"
+echo " + enrollment service URL: ${CFG_ENROLLMENT_URL}"
 echo " + secrets length will be: ${CFG_LENGTH}"
 echo
 
