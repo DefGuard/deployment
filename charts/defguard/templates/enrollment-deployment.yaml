@@ -1,0 +1,64 @@
+{{- if .Values.enrollment.enabled -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "enrollment.name" }}-defguard
+  labels:
+    {{- include "enrollment.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.enrollment.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "enrollment.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.enrollment.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "enrollment.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.enrollment.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "enrollment.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.enrollment.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ include "enrollment.name" }}
+          envFrom:
+            - configMapRef:
+                name: {{ include "enrollment.name" . }}-config
+          securityContext:
+            {{- toYaml .Values.enrollment.securityContext | nindent 12 }}
+          image: "{{ .Values.enrollment.image.repository }}:{{ .Values.enrollment.image.tag | default "latest" }}"
+          imagePullPolicy: {{ .Values.enrollment.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /api/v1/health
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /api/v1/health
+              port: http
+          resources:
+            {{- toYaml .Values.enrollment.resources | nindent 12 }}
+      {{- with .Values.enrollment.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.enrollment.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.enrollment.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{ end }}

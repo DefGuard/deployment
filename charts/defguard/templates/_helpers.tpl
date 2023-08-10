@@ -60,3 +60,28 @@ Create the name of the service account to use
 {{- default "default" .Values.serviceAccount.name }}
 {{- end }}
 {{- end }}
+
+{{- if .Values.enrollment.enabled -}}
+{{- define "enrollment.name" -}}
+{{- default "enrollment" .Values.enrollment.nameOverride | trunc 63 | trimSuffix "-" }}
+{{- end }}
+
+{{- define "enrollment.selectorLabels" -}}
+app.kubernetes.io/name: {{ include "enrollment.name" . }}
+app.kubernetes.io/instance: {{ .Release.Name }}
+{{- end }}
+
+{{- define "enrollment.labels" -}}
+helm.sh/chart: {{ include "defguard.chart" . }}
+{{ include "enrollment.selectorLabels" . }}
+app.kubernetes.io/managed-by: {{ .Release.Service }}
+{{- end }}
+
+{{- define "enrollment.serviceAccountName" -}}
+{{- if .Values.serviceAccount.create }}
+{{- default (include "enrollment.name" .) .Values.enrollment.serviceAccount.name }}
+{{- else }}
+{{- default "default" .Values.enrollment.serviceAccount.name }}
+{{- end }}
+{{- end }}
+{{- end }}

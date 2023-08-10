@@ -43,3 +43,35 @@ serviceAccount:
   create: true
 tolerations: []
 license: ""
+enrollment:
+  enabled: false
+  nameOverride: ""
+  image:
+    pullPolicy: IfNotPresent
+    repository: ghcr.io/defguard/defguard-proxy
+    tag: "latest"
+  imagePullSecrets: [ ]
+  ingress:
+    annotations: { }
+    className: ""
+    enabled: true
+    hosts:
+      web: enrollment.local
+    tls: [ ]
+  nodeSelector: { }
+  podAnnotations: { }
+  podLabels: { }
+  podSecurityContext: { }
+  publicUrl: "http://enrollment.local"
+  replicaCount: 1
+  resources: { }
+  securityContext: { }
+  service:
+    ports:
+      http: 8080
+    type: ClusterIP
+  serviceAccount:
+    annotations: { }
+    create: true
+  tolerations: [ ]
+
