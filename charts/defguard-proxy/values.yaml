@@ -1,0 +1,36 @@
+affinity: {}
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 10
+fullnameOverride: ""
+image:
+  pullPolicy: IfNotPresent
+  repository: ghcr.io/defguard/defguard-proxy
+  tag: ""
+imagePullSecrets: []
+ingress:
+  annotations: {}
+  className: ""
+  enabled: true
+  hosts:
+    web: enrollment.local
+  tls: []
+nameOverride: ""
+nodeSelector: {}
+podAnnotations: {}
+podLabels: {}
+podSecurityContext: {}
+publicUrl: "http://enrollment.local"
+replicaCount: 1
+resources: {}
+securityContext: {}
+service:
+  ports:
+    http: 8080
+  type: ClusterIP
+serviceAccount:
+  annotations: {}
+  create: true
+tolerations: []
+upstreamGrpcUrl: "http://defguard-grpc.local"
