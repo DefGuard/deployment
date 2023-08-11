@@ -6,9 +6,9 @@ metadata:
     {{- include "defguard.labels" . | nindent 4 }}
 data:
   DEFGUARD_DB_HOST:  {{ include "defguard.fullname" . }}-postgresql
-  DEFGUARD_DB_NAME: "{{ .Values.postgresql.auth.database }}"
-  DEFGUARD_DB_USER: "{{ .Values.postgresql.auth.username }}"
-  DEFGUARD_GRPC_PORT: "{{ .Values.service.ports.grpc | quote }}"
-  DEFGUARD_URL: "{{ .Values.publicUrl }}"
-  DEFGUARD_WEBAUTHN_RP_ID: "{{ .Values.ingress.hosts.web }}"
-  DEFGUARD_ENROLLMENT_URL: "{{ .Values.defguardProxy.publicUrl }}"
+  DEFGUARD_DB_NAME: {{ .Values.postgresql.auth.database }}
+  DEFGUARD_DB_USER: {{ .Values.postgresql.auth.username }}
+  DEFGUARD_GRPC_PORT: {{ .Values.service.ports.grpc | quote }}
+  DEFGUARD_URL: {{ .Values.publicUrl }}
+  DEFGUARD_WEBAUTHN_RP_ID: {{ .Values.ingress.hosts.web }}
+  DEFGUARD_ENROLLMENT_URL: {{ .Values.defguardProxy.publicUrl }}
