@@ -47,3 +47,4 @@ license: ""
 defguardProxy:
   enabled: false
   upstreamGrpcUrl: "http://defguard-grpc.local"
+  publicUrl: "http://enrollment.local"
