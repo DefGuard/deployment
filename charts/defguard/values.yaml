@@ -44,7 +44,10 @@ serviceAccount:
 tolerations: []
 license: ""
 # sub-chart defguard-proxy
-defguardProxy:
+defguard-proxy:
   enabled: false
   upstreamGrpcUrl: "http://defguard-grpc.local"
   publicUrl: "http://enrollment.local"
+  ingress:
+    hosts:
+      web: enrollment.local

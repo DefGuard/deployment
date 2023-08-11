@@ -33,4 +33,4 @@ serviceAccount:
   annotations: {}
   create: true
 tolerations: []
-upstreamGrpcUrl: ""
+upstreamGrpcUrl: "http://defguard-grpc.local"

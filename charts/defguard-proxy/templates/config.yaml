@@ -5,4 +5,4 @@ metadata:
   labels:
     {{- include "defguard-proxy.labels" . | nindent 4 }}
 data:
-  DEFGUARD_PROXY_UPSTREAM_GRPC_URL: "{{ .Values.upstreamGrpcUrl }}"
+  DEFGUARD_PROXY_UPSTREAM_GRPC_URL: {{ .Values.upstreamGrpcUrl }}
