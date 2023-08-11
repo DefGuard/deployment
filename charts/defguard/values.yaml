@@ -43,3 +43,6 @@ serviceAccount:
   create: true
 tolerations: []
 license: ""
+# sub-chart defguard-proxy
+defguardProxy:
+  enabled: false

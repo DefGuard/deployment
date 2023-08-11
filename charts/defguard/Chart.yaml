@@ -3,10 +3,14 @@ name: defguard
 description: Defguard is an open-source identity management system
 
 type: application
-version: 0.3.6
-appVersion: 0.5.3
+version: 0.4.0
+appVersion: 0.6.2
 
 dependencies:
   - name: postgresql
     version: 11.9.13
     repository: https://charts.bitnami.com/bitnami
+  - name: defguard-proxy
+    condition: defguardProxy.enabled
+    version: "0.1.0"
+    repository: file://../defguard-proxy
