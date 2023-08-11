@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "defguard.fullname" . }}-defguard
+  name: {{ include "defguard.fullname" . }}
   labels:
     {{- include "defguard.labels" . | nindent 4 }}
 spec:
