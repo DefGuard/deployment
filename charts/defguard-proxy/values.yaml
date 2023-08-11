@@ -6,7 +6,7 @@ autoscaling:
 fullnameOverride: ""
 image:
   pullPolicy: IfNotPresent
-  repository: ghcr.io/defguard/defguard
+  repository: ghcr.io/defguard/defguard-proxy
   tag: ""
 imagePullSecrets: []
 ingress:
@@ -14,36 +14,23 @@ ingress:
   className: ""
   enabled: true
   hosts:
-    grpc: defguard-grpc.local
-    web: defguard.local
+    web: enrollment.local
   tls: []
-jwtSecret: jwt-secrets
 nameOverride: ""
 nodeSelector: {}
 podAnnotations: {}
 podLabels: {}
 podSecurityContext: {}
-# sub-chart bitnami/postgresql
-postgresql:
-  auth:
-    database: defguard
-    existingSecret: postgres-password
-    username: defguard
-publicUrl: "http://defguard.local"
+publicUrl: "http://enrollment.local"
 replicaCount: 1
 resources: {}
 securityContext: {}
 service:
   ports:
-    grpc: 50055
-    http: 80
+    http: 8080
   type: ClusterIP
 serviceAccount:
   annotations: {}
   create: true
 tolerations: []
-license: ""
-# sub-chart defguard-proxy
-defguardProxy:
-  enabled: false
-  upstreamGrpcUrl: "http://defguard-grpc.local"
+upstreamGrpcUrl: ""
