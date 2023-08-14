@@ -10,7 +10,7 @@ dependencies:
   - name: postgresql
     version: 11.9.13
     repository: https://charts.bitnami.com/bitnami
-#  - name: defguard-proxy
-#    condition: defguard-proxy.enabled
-#    version: "0.1.0"
-#    repository: https://defguard.github.io/deployment/defguard-proxy
+  - name: defguard-proxy
+    condition: defguard-proxy.enabled
+    version: "0.1.0"
+    repository: https://defguard.github.io/deployment
