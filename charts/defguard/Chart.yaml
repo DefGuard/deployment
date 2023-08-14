@@ -13,4 +13,4 @@ dependencies:
   - name: defguard-proxy
     condition: defguard-proxy.enabled
     version: "0.1.0"
-    repository: file://../defguard-proxy
+    repository: https://defguard.github.io/deployment

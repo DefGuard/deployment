@@ -3,7 +3,7 @@ dependencies:
   repository: https://charts.bitnami.com/bitnami
   version: 11.9.13
 - name: defguard-proxy
-  repository: file://../defguard-proxy
+  repository: https://defguard.github.io/deployment
   version: 0.1.0
-digest: sha256:c66fac825716e010f3f84624b97195ae8a34dc978fbc602a970992d1b15ac3dc
-generated: "2023-08-11T11:20:09.280514957+02:00"
+digest: sha256:10ddf5e44d486023315c62a755f91d81f73901dac32ea084b104bb9476c22b38
+generated: "2023-08-14T09:44:26.34561364+02:00"
