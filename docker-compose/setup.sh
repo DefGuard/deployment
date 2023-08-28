@@ -9,6 +9,8 @@ CFG_LENGTH=64
 SSL_DIR=".volumes/ssl"
 RSA_DIR=".volumes/core"
 
+
+### HELPER FUNCTIONS ###
 function print_header
 {
   echo
@@ -121,6 +123,7 @@ function print_followup
   echo "Default admin credentials are admin/pass123. Please change the password after signing in."
 }
 
+### MAIN SCRIPT ###
 # GET OPTIONS {{{
 if [ $? != 0 ]; then
     usage
