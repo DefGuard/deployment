@@ -108,11 +108,17 @@ command_exists_check() {
 check_environment() {
 	echo "Checking if all required tools are available"
 	# compose can be provided by newer docker versions or a separate docker-compose
-	DOCKER_COMPOSE=$(docker compose version >/dev/null 2>&1)
-	if [ $? -ne 0 ] && ! command_exists docker-compose; then
-		echo >&2 "ERROR: docker-compose or docker compose command not found"
-		echo >&2 "ERROR: dependency failed, exiting..."
-		exit 1
+	docker compose version >/dev/null 2>&1
+	if [ $? == 0 ]; then
+	  compose_cmd="docker compose"
+	else
+	  if command_exists docker-compose; then
+	    compose_cmd="docker-compose"
+	  else
+      echo >&2 "ERROR: docker-compose or docker compose command not found"
+      echo >&2 "ERROR: dependency failed, exiting..."
+      exit 1
+    fi
 	fi
 
 	command_exists_check openssl
