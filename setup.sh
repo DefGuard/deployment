@@ -209,6 +209,7 @@ services:
       DEFGUARD_ENROLLMENT_URL: \${DEFGUARD_ENROLLMENT_URL}
       DEFGUARD_GRPC_CERT: /ssl/defguard.crt
       DEFGUARD_GRPC_KEY: /ssl/defguard.key
+      DEFGUARD_OPENID_KEY: /keys/rsakey.pem  # RSA
 
     ports:
       # web
@@ -219,6 +220,7 @@ services:
       - db
     volumes:
       - ./.volumes/ssl:/ssl
+      - ./.volumes/core/rsakey.pem:/keys/rsakey.pem  # RSA
 EOF
 
 	print_confirmation
