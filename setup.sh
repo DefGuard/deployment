@@ -12,8 +12,8 @@ set -o pipefail # don't hide errors within pipes
 
 # Global variables
 VERSION="0.1.0"
-BASENAME=$(basename "$0")
 ENV_FILE=".env"
+LOCAL_ENV_FILE=".env"
 COMPOSE_FILE="docker-compose.yaml"
 SECRET_LENGTH=64
 SSL_DIR=".volumes/ssl"
@@ -28,9 +28,9 @@ main() {
 	check_environment
 
 	# load variables from `.env` file if available
-	if [ -f .env ]; then
-		echo "Loading environment variables from .env file"
-		export $(cat .env | sed 's/#.*//g' | xargs)
+	if [ -f $LOCAL_ENV_FILE ]; then
+		echo "Loading environment variables from ${LOCAL_ENV_FILE} file"
+		export $(cat $LOCAL_ENV_FILE | sed 's/#.*//g' | xargs)
 		print_confirmation
 	fi
 
