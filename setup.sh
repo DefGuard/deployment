@@ -3,45 +3,179 @@
 
 # This is a script that sets up an entire defguard instance (including core, gateway, enrollment proxy
 # and reverse proxy). It's goal is to prepare a working instance by running a single command.
+#
+# It should create a `gateway` directory in current directory, which will contain a `docker-compose.yml` file.
+
+set -o errexit  # abort on nonzero exitstatus
+set -o nounset  # abort on unbound variable
+set -o pipefail # don't hide errors within pipes
 
 # Global variables
-VERSION="0.0.1"
+VERSION="0.1.0"
 BASENAME=$(basename "$0")
 ENV_FILE=".env"
 COMPOSE_FILE="docker-compose.yaml"
 SECRET_LENGTH=64
 SSL_DIR=".volumes/ssl"
 RSA_DIR=".volumes/core"
+WORKING_DIR_NAME="defguard"
+BASE_COMPOSE_FILE_URL="https://raw.githubusercontent.com/DefGuard/deployment/main/docker-compose/docker-compose.yaml"
 
 main() {
-  # check if necessary tools are available
-  check_environment
+	print_header
 
-  # load configuration from env variables
+	# check if necessary tools are available
+	check_environment
 
-  # generate docker-compose file
+	# load variables from `.env` file if available
+	if [ -f .env ]; then
+		echo "Loading environment variables from .env file"
+		export $(cat .env | sed 's/#.*//g' | xargs)
+		print_confirmation
+	fi
 
-  # start docker stack
+	# load configuration from env variables
+	load_configuration
 
-  # print out instance info
+	# create working directory
+	current_dir=$(pwd)
+	work_dir_path="${current_dir}/${WORKING_DIR_NAME}"
+	echo "Creating working directory at ${work_dir_path}"
+	mkdir -p ${WORKING_DIR_NAME}
+	print_confirmation
+
+	# generate base docker-compose file
+	compose_file_path="${work_dir_path}/${COMPOSE_FILE}"
+	if [ -f $compose_file_path ]; then
+		echo >&2 "ERROR: docker-compose file exists already at ${compose_file_path}"
+		exit 1
+	fi
+	write_base_compose_file $compose_file_path
+
+	# generate base docker-compose file
+
+	# save `.env` file for docker-compose
+
+	# create VPN location
+
+	# get gateway token
+
+	# add gateway token to .env file
+
+	# add enrollment service to compose file if enabled
+
+	# generate caddyfile
+
+	# start docker-compose stack
+
+	# print out instance info summary for user
 
 }
 
 ### HELPER FUNCTIONS ###
-check_environment() {
-  DOCKER_COMPOSE=$(docker-compose --version 2>&1 &> /dev/null)
-  if [ ! -f ${COMPOSE} ]; then
-    echo "ERROR: docker-compose command not found"
-    echo "ERROR: dependency failed, exiting..."
-    exit 4
-  fi
+print_header() {
+	echo
+	echo "defguard deployment setup script v${VERSION}"
+	echo "Copyright (C) 2023 teonite <https://teonite.com>"
+	echo
+}
 
-  OPENSSL=$(openssl version 2>&1 &> /dev/null)
-  if [ "${OPENSSL}" -ne 0 ]; then
-    echo "ERROR: openssl command not found"
-    echo "ERROR: dependency failed, exiting..."
-    exit 4
-  fi
+print_confirmation() {
+	echo "OK"
+	echo
+}
+
+command_exists() {
+	local command="$1"
+	command -v "$command" >/dev/null 2>&1
+}
+
+command_exists_check() {
+	local command="$1"
+	if ! command_exists "$command"; then
+		echo >&2 "ERROR: $command command not found"
+		echo >&2 "ERROR: dependency failed, exiting..."
+		exit 1
+	fi
+}
+
+check_environment() {
+	echo "Checking if all required tools are available"
+	# compose can be provided by newer docker versions or a separate docker-compose
+	DOCKER_COMPOSE=$(docker compose version >/dev/null 2>&1)
+	if [ $? -ne 0 ] && ! command_exists docker-compose; then
+		echo >&2 "ERROR: docker-compose or docker compose command not found"
+		echo >&2 "ERROR: dependency failed, exiting..."
+		exit 1
+	fi
+
+	command_exists_check openssl
+
+	print_confirmation
+}
+
+load_configuration() {
+	domain=
+
+	vpn_name=
+	vpn_network=
+	vpn_endpoint=
+
+	enable_enrollment=
+	enrollment_domain=
+	use_https=
+}
+
+write_base_compose_file() {
+	local path="$1"
+	echo "Writing base compose file to $path"
+
+	tee -a "$path" >/dev/null <<EOF
+version: "3"
+
+services:
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: defguard
+      POSTGRES_USER: defguard
+      POSTGRES_PASSWORD: \${DEFGUARD_DB_PASSWORD}
+    volumes:
+      - ./.volumes/db:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  core:
+    image: ghcr.io/defguard/defguard:latest
+    environment:
+      DEFGUARD_AUTH_SECRET: \${DEFGUARD_AUTH_SECRET}
+      DEFGUARD_GATEWAY_SECRET: \${DEFGUARD_GATEWAY_SECRET}
+      DEFGUARD_YUBIBRIDGE_SECRET: \${DEFGUARD_YUBIBRIDGE_SECRET}
+      DEFGUARD_SECRET_KEY: \${DEFGUARD_SECRET_KEY}
+      DEFGUARD_DB_HOST: db
+      DEFGUARD_DB_PORT: 5432
+      DEFGUARD_DB_USER: defguard
+      DEFGUARD_DB_PASSWORD: \${DEFGUARD_DB_PASSWORD}
+      DEFGUARD_DB_NAME: defguard
+      DEFGUARD_URL: \${DEFGUARD_URL}
+      DEFGUARD_LOG_LEVEL: info
+      DEFGUARD_WEBAUTHN_RP_ID: \${DEFGUARD_WEBAUTHN_RP_ID}
+      DEFGUARD_ENROLLMENT_URL: \${DEFGUARD_ENROLLMENT_URL}
+      DEFGUARD_GRPC_CERT: /ssl/defguard.crt
+      DEFGUARD_GRPC_KEY: /ssl/defguard.key
+
+    ports:
+      # web
+      - "80:8000"
+      # grpc
+      - "50055:50055"
+    depends_on:
+      - db
+    volumes:
+      - ./.volumes/ssl:/ssl
+EOF
+
+	print_confirmation
 }
 
 # run main function
