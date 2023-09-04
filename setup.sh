@@ -20,6 +20,9 @@ SSL_DIR=".volumes/ssl"
 RSA_DIR=".volumes/core"
 WORKING_DIR_NAME="defguard"
 BASE_COMPOSE_FILE_URL="https://raw.githubusercontent.com/DefGuard/deployment/main/docker-compose/docker-compose.yaml"
+CORE_IMAGE_TAG="latest"
+GATEWAY_IMAGE_TAG="latest"
+PROXY_IMAGE_TAG="latest"
 
 main() {
 	print_header
@@ -146,7 +149,7 @@ services:
       - "5432:5432"
 
   core:
-    image: ghcr.io/defguard/defguard:latest
+    image: ghcr.io/defguard/defguard:${CORE_IMAGE_TAG}
     environment:
       DEFGUARD_AUTH_SECRET: \${DEFGUARD_AUTH_SECRET}
       DEFGUARD_GATEWAY_SECRET: \${DEFGUARD_GATEWAY_SECRET}
