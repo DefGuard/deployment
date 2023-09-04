@@ -83,6 +83,11 @@ main() {
 	# generate caddyfile
 
 	# start docker-compose stack
+	$COMPOSE_CMD -f "${PROD_COMPOSE_FILE}" up -d
+	if [ $? -ne 0 ]; then
+	  echo >&2 "ERROR: failed to start docker-compose stack"
+		exit 1
+	fi
 
 	# print out instance info summary for user
 	print_instance_summary
@@ -120,10 +125,10 @@ check_environment() {
 	# compose can be provided by newer docker versions or a separate docker-compose
 	docker compose version >/dev/null 2>&1
 	if [ $? == 0 ]; then
-		compose_cmd="docker compose"
+		COMPOSE_CMD="docker compose"
 	else
 		if command_exists docker-compose; then
-			compose_cmd="docker-compose"
+			COMPOSE_CMD="docker-compose"
 		else
 			echo >&2 "ERROR: docker-compose or docker compose command not found"
 			echo >&2 "ERROR: dependency failed, exiting..."
