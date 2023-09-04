@@ -16,9 +16,9 @@ ENV_FILE=".env"
 LOCAL_ENV_FILE=".env"
 COMPOSE_FILE="docker-compose.yaml"
 SECRET_LENGTH=64
-SSL_DIR=".volumes/ssl"
-RSA_DIR=".volumes/core"
-WORKING_DIR_NAME="defguard"
+WORK_DIR_NAME="defguard"
+SSL_DIR="${WORK_DIR_NAME}/.volumes/ssl"
+RSA_DIR="${WORK_DIR_NAME}/.volumes/core"
 BASE_COMPOSE_FILE_URL="https://raw.githubusercontent.com/DefGuard/deployment/main/docker-compose/docker-compose.yaml"
 CORE_IMAGE_TAG="latest"
 GATEWAY_IMAGE_TAG="latest"
@@ -42,10 +42,13 @@ main() {
 
 	# create working directory
 	current_dir=$(pwd)
-	work_dir_path="${current_dir}/${WORKING_DIR_NAME}"
+	work_dir_path="${current_dir}/${WORK_DIR_NAME}"
 	echo "Creating working directory at ${work_dir_path}"
-	mkdir -p ${WORKING_DIR_NAME}
+	mkdir -p ${WORK_DIR_NAME}
 	print_confirmation
+
+	# setup RSA & SSL keys
+	setup_keys
 
 	# generate base docker-compose file
 	compose_file_path="${work_dir_path}/${COMPOSE_FILE}"
@@ -127,6 +130,46 @@ load_configuration() {
 	enable_enrollment=
 	enrollment_domain=
 	use_https=
+}
+
+setup_keys() {
+	echo "Setting up SSL certs and RSA keys"
+	if [ -d ${SSL_DIR} ] && [ "$(ls -A ${SSL_DIR})" ]; then
+		echo "Using existing SSL certificates from ${SSL_DIR}."
+	else
+		generate_certs
+	fi
+
+	if [ -d ${RSA_DIR} ] && [ "$(ls -A ${RSA_DIR})" ]; then
+		echo "Using existing RSA keys from ${RSA_DIR}."
+	else
+		generate_rsa
+	fi
+
+	print_confirmation
+}
+
+generate_certs() {
+	echo "Creating new SSL certificates in ${SSL_DIR}..."
+	mkdir -p ${SSL_DIR}
+
+	PASSPHRASE=$(generate_secret)
+
+	echo "PEM pass phrase for set to '${PASSPHRASE}'."
+
+	openssl genrsa -des3 -out ${SSL_DIR}/myCA.key -passout pass:"${PASSPHRASE}" 2048
+	openssl req -x509 -new -nodes -key ${SSL_DIR}/myCA.key -sha256 -days 1825 -out ${SSL_DIR}/myCA.pem -passin pass:"${PASSPHRASE}" -subj "/C=PL/ST=Zachodniopomorskie/L=Szczecin/O=Example/OU=IT Department/CN=example.com"
+}
+
+generate_rsa() {
+	echo "Generating RSA keys in ${RSA_DIR}..."
+	mkdir -p ${RSA_DIR}
+	openssl genpkey -out ${RSA_DIR}/rsakey.pem -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -quiet
+}
+
+function generate_secret
+{
+	openssl rand -base64 ${SECRET_LENGTH} | tr -d "=+/" | tr -d '\n' | cut -c1-${SECRET_LENGTH-1}
 }
 
 write_base_compose_file() {
