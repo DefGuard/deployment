@@ -43,14 +43,15 @@ main() {
 	# load configuration from env variables
 	load_configuration_from_env
 
-  # TODO: load configuration from CLI options
+	# TODO: load configuration from CLI options
 
-  # TODO: load configuration from user inputs
+	# TODO: load configuration from user inputs
 
-  # TODO: check that all required configuration options are set
+	# check that all required configuration options are set
+	validate_required_variables
 
-  # generate external service URLs based on config
-  generate_external_urls
+	# generate external service URLs based on config
+	generate_external_urls
 
 	# set current working directory
 	WORK_DIR_PATH=$(pwd)
@@ -75,21 +76,20 @@ main() {
 		create_compose_file
 	fi
 
-	# TODO: create VPN location
-
-	# TODO: get gateway token
-
-	# TODO: add gateway token to .env file
-
 	# enable enrollment service in compose file
 	if [ "$CFG_ENABLE_ENROLLMENT" ]; then
 		enable_enrollment
 	fi
 
+	# enable and setup VPN gateway
+	if [ "$CFG_ENABLE_VPN" ]; then
+		enable_vpn_gateway
+	fi
+
 	# start docker-compose stack
 	$COMPOSE_CMD -f "${PROD_COMPOSE_FILE}" up -d
 	if [ $? -ne 0 ]; then
-	  echo >&2 "ERROR: failed to start docker-compose stack"
+		echo >&2 "ERROR: failed to start docker-compose stack"
 		exit 1
 	fi
 
@@ -153,18 +153,13 @@ check_environment() {
 load_configuration_from_env() {
 	echo "Loading configuration from environment variables"
 	# required variables
-	check_required_variable "DEFGUARD_DOMAIN"
 	CFG_DOMAIN="$DEFGUARD_DOMAIN"
-	check_required_variable "DEFGUARD_VPN_NAME"
-	CFG_VPN_NAME="$DEFGUARD_VPN_NAME"
-	check_required_variable "DEFGUARD_VPN_IP"
-	CFG_VPN_IP="$DEFGUARD_VPN_IP"
-	check_required_variable "DEFGUARD_VPN_GATEWAY_IP"
-	CFG_VPN_GATEWAY_IP="$DEFGUARD_VPN_GATEWAY_IP"
-	check_required_variable "DEFGUARD_VPN_GATEWAY_PORT"
-	CFG_VPN_GATEWAY_PORT="$DEFGUARD_VPN_GATEWAY_PORT"
 
 	# optional variables
+	CFG_VPN_NAME="$DEFGUARD_VPN_NAME"
+	CFG_VPN_IP="$DEFGUARD_VPN_IP"
+	CFG_VPN_GATEWAY_IP="$DEFGUARD_VPN_GATEWAY_IP"
+	CFG_VPN_GATEWAY_PORT="$DEFGUARD_VPN_GATEWAY_PORT"
 	CFG_ENROLLMENT_DOMAIN="$DEFGUARD_ENROLLMENT_DOMAIN"
 	CFG_USE_HTTPS="$DEFGUARD_USE_HTTPS"
 
@@ -173,14 +168,29 @@ load_configuration_from_env() {
 
 check_required_variable() {
 	local var_name="$1"
-	if [ -z ${!var_name+x} ]; then
-		echo >&2 "ERROR: ${var_name} variable not set"
+	if [ -z "${!var_name}" ]; then
+		echo >&2 "ERROR: ${var_name} configuration option not set"
 		exit 1
 	fi
 }
 
+validate_required_variables() {
+	echo "Validating configuration options"
+	check_required_variable "CFG_DOMAIN"
+
+	# if VPN name is given validate other VPN configurations are present
+	if [ "$CFG_VPN_NAME" ]; then
+		CFG_ENABLE_VPN=1
+		check_required_variable "CFG_VPN_IP"
+		check_required_variable "CFG_VPN_GATEWAY_IP"
+		check_required_variable "CFG_VPN_GATEWAY_PORT"
+	fi
+
+	print_confirmation
+}
+
 generate_external_urls() {
-  # prepare full defguard URL
+	# prepare full defguard URL
 	if [ "$CFG_USE_HTTPS" ]; then
 		CFG_DEFGUARD_URL="https://${CFG_DOMAIN}"
 	else
@@ -189,7 +199,7 @@ generate_external_urls() {
 
 	# prepare full enrollment URL
 	if [ "$CFG_ENROLLMENT_DOMAIN" ]; then
-	  CFG_ENABLE_ENROLLMENT=1
+		CFG_ENABLE_ENROLLMENT=1
 		if [ "$CFG_USE_HTTPS" ]; then
 			CFG_ENROLLMENT_URL="https://${CFG_ENROLLMENT_DOMAIN}"
 		else
@@ -247,18 +257,18 @@ generate_secret_inner() {
 }
 
 create_caddyfile() {
-  caddy_volume_path="${WORK_DIR_PATH}/.volumes/caddy"
-  caddyfile_path="${caddy_volume_path}/Caddyfile"
-  mkdir -p ${caddy_volume_path}
+	caddy_volume_path="${WORK_DIR_PATH}/.volumes/caddy"
+	caddyfile_path="${caddy_volume_path}/Caddyfile"
+	mkdir -p ${caddy_volume_path}
 
-  cat > ${caddyfile_path} <<EOF
+	cat >${caddyfile_path} <<EOF
 ${CFG_DEFGUARD_URL} {
 	reverse_proxy core:8000
 }
 EOF
 
-  if [ "$CFG_ENABLE_ENROLLMENT" ]; then
-		cat >> ${caddyfile_path} <<EOF
+	if [ "$CFG_ENABLE_ENROLLMENT" ]; then
+		cat >>${caddyfile_path} <<EOF
 ${CFG_ENROLLMENT_URL} {
 	reverse_proxy proxy:8080
 }
@@ -363,14 +373,14 @@ EOF
 }
 
 generate_env_file() {
-  PROD_ENV_FILE="${WORK_DIR_PATH}/${ENV_FILE}"
+	PROD_ENV_FILE="${WORK_DIR_PATH}/${ENV_FILE}"
 	if [ -f "$PROD_ENV_FILE" ]; then
 		echo "Using existing ${ENV_FILE} file."
 	else
 		create_env_file
 	fi
-  update_env_file
-  print_confirmation
+	update_env_file
+	print_confirmation
 }
 
 create_env_file() {
@@ -391,7 +401,7 @@ EOF
 }
 
 update_env_file() {
-  echo "Setting environment variables in ${ENV_FILE} file for compose stack"
+	echo "Setting environment variables in ${ENV_FILE} file for compose stack"
 
 	# fill in values
 	set_env_file_secret "DEFGUARD_AUTH_SECRET"
@@ -405,8 +415,8 @@ update_env_file() {
 }
 
 set_env_file_value() {
-  # make sure variable exists in file
-  grep -qF "${1}=" "${PROD_ENV_FILE}" || echo "${1}=" >> "${PROD_ENV_FILE}"
+	# make sure variable exists in file
+	grep -qF "${1}=" "${PROD_ENV_FILE}" || echo "${1}=" >>"${PROD_ENV_FILE}"
 	sed -i~ "s@\(${1}\)=.*@\1=${2}@" "${PROD_ENV_FILE}"
 }
 
@@ -431,6 +441,18 @@ enable_enrollment() {
 
 	# update compose file
 	uncomment_feature "ENROLLMENT" "${PROD_COMPOSE_FILE}"
+
+	print_confirmation
+}
+
+enable_vpn_gateway() {
+	echo "Enabling VPN gateway service"
+
+	# TODO: create VPN location
+
+	# TODO: get gateway token
+
+	# TODO: add gateway token to .env file
 
 	print_confirmation
 }
