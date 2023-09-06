@@ -252,14 +252,19 @@ create_caddyfile() {
   mkdir -p ${caddy_volume_path}
 
   cat > ${caddyfile_path} <<EOF
-${CFG_DOMAIN} {
+${CFG_DEFGUARD_URL} {
 	reverse_proxy core:8000
 }
+EOF
 
-${CFG_ENROLLMENT_DOMAIN} {
+  if [ "$CFG_ENABLE_ENROLLMENT" ]; then
+		cat >> ${caddyfile_path} <<EOF
+${CFG_ENROLLMENT_URL} {
 	reverse_proxy proxy:8080
 }
+
 EOF
+	fi
 }
 
 create_compose_file() {
