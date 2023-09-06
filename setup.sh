@@ -1,28 +1,31 @@
 #!/bin/sh
-# shellcheck shell=dash
+# shellcheck shell=bash
 
 # This is a script that sets up an entire defguard instance (including core, gateway, enrollment proxy
 # and reverse proxy). It's goal is to prepare a working instance by running a single command.
 #
-# It should create a `gateway` directory in current directory, which will contain a `docker-compose.yml` file.
+# It saves all the relevant files in the current directory and creates a `.volumes` subdirectory for storing
+# persistent data.
 
 set -o errexit  # abort on nonzero exitstatus
 set -o pipefail # don't hide errors within pipes
 
 # Global variables
 VERSION="0.1.0"
-LOCAL_ENV_FILE=".env"
 ENV_FILE=".env"
 COMPOSE_FILE="docker-compose.yaml"
 SECRET_LENGTH=64
 PASSWORD_LENGTH=16
-WORK_DIR_NAME="defguard"
-SSL_DIR="${WORK_DIR_NAME}/.volumes/ssl"
-RSA_DIR="${WORK_DIR_NAME}/.volumes/core"
-BASE_COMPOSE_FILE_URL="https://raw.githubusercontent.com/DefGuard/deployment/main/docker-compose/docker-compose.yaml"
+SSL_DIR=".volumes/ssl"
+RSA_DIR=".volumes/core"
+# BASE_COMPOSE_FILE_URL="https://raw.githubusercontent.com/DefGuard/deployment/main/docker-compose/docker-compose.yaml"
 CORE_IMAGE_TAG="latest"
 GATEWAY_IMAGE_TAG="latest"
 PROXY_IMAGE_TAG="latest"
+
+#####################
+### MAIN FUNCTION ###
+#####################
 
 main() {
 	print_header
@@ -31,20 +34,27 @@ main() {
 	check_environment
 
 	# load variables from `.env` file if available
-	if [ -f $LOCAL_ENV_FILE ]; then
-		echo "Loading environment variables from ${LOCAL_ENV_FILE} file"
-		export $(cat $LOCAL_ENV_FILE | sed 's/#.*//g' | xargs)
+	if [ -f $ENV_FILE ]; then
+		echo "Loading configuration environment variables from ${ENV_FILE} file"
+		export $(cat "$ENV_FILE" | sed 's/#.*//g' | xargs)
 		print_confirmation
 	fi
 
 	# load configuration from env variables
-	load_configuration
+	load_configuration_from_env
 
-	# create working directory
-	current_dir=$(pwd)
-	WORK_DIR_PATH="${current_dir}/${WORK_DIR_NAME}"
-	echo "Creating working directory at ${WORK_DIR_PATH}"
-	mkdir -p ${WORK_DIR_NAME}
+  # TODO: load configuration from CLI options
+
+  # TODO: load configuration from user inputs
+
+  # TODO: check that all required configuration options are set
+
+  # generate external service URLs based on config
+  generate_external_urls
+
+	# set current working directory
+	WORK_DIR_PATH=$(pwd)
+	echo "Using working directory ${WORK_DIR_PATH}"
 	print_confirmation
 
 	# setup RSA & SSL keys
@@ -53,33 +63,26 @@ main() {
 	# generate caddyfile
 	create_caddyfile
 
+	# generate `.env` file
+	generate_env_file
+
 	# generate base docker-compose file
 	PROD_COMPOSE_FILE="${WORK_DIR_PATH}/${COMPOSE_FILE}"
-	if [ -f $PROD_COMPOSE_FILE ]; then
+	if [ -f "$PROD_COMPOSE_FILE" ]; then
 		echo "Using existing docker-compose file at ${PROD_COMPOSE_FILE}"
-		USE_EXISTING_COMPOSE=1
 		print_confirmation
 	else
-		write_base_compose_file
+		create_compose_file
 	fi
 
-	# save `.env` file for docker-compose
-	PROD_ENV_FILE="${WORK_DIR_PATH}/${ENV_FILE}"
-	if [ -f $PROD_ENV_FILE ]; then
-		echo "Using existing ${ENV_FILE} file."
-		print_confirmation
-	else
-		create_env_file
-	fi
+	# TODO: create VPN location
 
-	# create VPN location
+	# TODO: get gateway token
 
-	# get gateway token
+	# TODO: add gateway token to .env file
 
-	# add gateway token to .env file
-
-	# add enrollment service to compose file if enabled
-	if [ $CFG_ENROLLMENT_DOMAIN ] && ! [ $USE_EXISTING_COMPOSE ]; then
+	# enable enrollment service in compose file
+	if [ "$CFG_ENABLE_ENROLLMENT" ]; then
 		enable_enrollment
 	fi
 
@@ -94,7 +97,10 @@ main() {
 	print_instance_summary
 }
 
+########################
 ### HELPER FUNCTIONS ###
+########################
+
 print_header() {
 	echo
 	echo "defguard deployment setup script v${VERSION}"
@@ -125,7 +131,7 @@ check_environment() {
 	echo "Checking if all required tools are available"
 	# compose can be provided by newer docker versions or a separate docker-compose
 	docker compose version >/dev/null 2>&1
-	if [ $? == 0 ]; then
+	if [ $? = 0 ]; then
 		COMPOSE_CMD="docker compose"
 	else
 		if command_exists docker-compose; then
@@ -138,11 +144,13 @@ check_environment() {
 	fi
 
 	command_exists_check openssl
+	command_exists_check curl
+	command_exists_check grep
 
 	print_confirmation
 }
 
-load_configuration() {
+load_configuration_from_env() {
 	echo "Loading configuration from environment variables"
 	# required variables
 	check_required_variable "DEFGUARD_DOMAIN"
@@ -160,22 +168,6 @@ load_configuration() {
 	CFG_ENROLLMENT_DOMAIN="$DEFGUARD_ENROLLMENT_DOMAIN"
 	CFG_USE_HTTPS="$DEFGUARD_USE_HTTPS"
 
-	# prepare full defguard URL
-	if [ $CFG_USE_HTTPS ]; then
-		CFG_DEFGUARD_URL="https://${CFG_DOMAIN}"
-	else
-		CFG_DEFGUARD_URL="http://${CFG_DOMAIN}"
-	fi
-
-	# prepare full enrollment URL
-	if [ $CFG_ENROLLMENT_DOMAIN ]; then
-		if [ $CFG_USE_HTTPS ]; then
-			CFG_ENROLLMENT_URL="https://${CFG_ENROLLMENT_DOMAIN}"
-		else
-			CFG_ENROLLMENT_URL="http://${CFG_ENROLLMENT_DOMAIN}"
-		fi
-	fi
-
 	print_confirmation
 }
 
@@ -184,6 +176,25 @@ check_required_variable() {
 	if [ -z ${!var_name+x} ]; then
 		echo >&2 "ERROR: ${var_name} variable not set"
 		exit 1
+	fi
+}
+
+generate_external_urls() {
+  # prepare full defguard URL
+	if [ "$CFG_USE_HTTPS" ]; then
+		CFG_DEFGUARD_URL="https://${CFG_DOMAIN}"
+	else
+		CFG_DEFGUARD_URL="http://${CFG_DOMAIN}"
+	fi
+
+	# prepare full enrollment URL
+	if [ "$CFG_ENROLLMENT_DOMAIN" ]; then
+	  CFG_ENABLE_ENROLLMENT=1
+		if [ "$CFG_USE_HTTPS" ]; then
+			CFG_ENROLLMENT_URL="https://${CFG_ENROLLMENT_DOMAIN}"
+		else
+			CFG_ENROLLMENT_URL="http://${CFG_ENROLLMENT_DOMAIN}"
+		fi
 	fi
 }
 
@@ -251,8 +262,8 @@ ${CFG_ENROLLMENT_DOMAIN} {
 EOF
 }
 
-write_base_compose_file() {
-	echo "Writing base compose file to ${PROD_COMPOSE_FILE}"
+create_compose_file() {
+	echo "Writing compose file to ${PROD_COMPOSE_FILE}"
 
 	tee -a "${PROD_COMPOSE_FILE}" >/dev/null <<EOF
 version: "3"
@@ -303,23 +314,62 @@ services:
       DEFGUARD_GRPC_CERT: /ssl/defguard.crt
       DEFGUARD_GRPC_KEY: /ssl/defguard.key
       DEFGUARD_OPENID_KEY: /keys/rsakey.pem
-    # ports:
+    ports:
       # web
       # - "8000:8000"
       # grpc
-      # - "50055:50055"
+      - "50055:50055"
     depends_on:
       - db
     volumes:
       - ./.volumes/ssl:/ssl
       - ./.volumes/core/rsakey.pem:/keys/rsakey.pem
+
+  # proxy:  # [ENROLLMENT]
+  #   image: ghcr.io/defguard/defguard-proxy:${PROXY_IMAGE_TAG}  # [ENROLLMENT]
+  #   restart: unless-stopped  # [ENROLLMENT]
+  #   environment:  # [ENROLLMENT]
+  #     DEFGUARD_PROXY_UPSTREAM_GRPC_URL: http://core:50055/  # [ENROLLMENT]
+  #     DEFGUARD_PROXY_GRPC_CA: /ssl/defguard-ca.pem  # [ENROLLMENT]
+  #   volumes:  # [ENROLLMENT]
+  #     - ./.volumes/ssl:/ssl  # [ENROLLMENT]
+    # ports:
+      # web
+        # - "8080:8080"
+  #   depends_on:  # [ENROLLMENT]
+  #     - core  # [ENROLLMENT]
+
+  # gateway:  # [VPN]
+  #   image: ghcr.io/defguard/gateway:${GATEWAY_IMAGE_TAG}  # [VPN]
+  #   restart: unless-stopped  # [VPN]
+  #   network_mode: "host"  # [VPN]
+  #   environment:  # [VPN]
+  #     DEFGUARD_GRPC_URL: http://localhost:50055  # [VPN]
+  #     DEFGUARD_STATS_PERIOD: 30  # [VPN]
+  #     DEFGUARD_TOKEN: ${DEFGUARD_TOKEN}  # [VPN]
+  #   ports:  # [VPN]
+      # wireguard endpoint
+  #     - "50051:50051/udp"  # [VPN]
+  #   cap_add:  # [VPN]
+  #     - NET_ADMIN  # [VPN]
 EOF
 
 	print_confirmation
 }
 
+generate_env_file() {
+  PROD_ENV_FILE="${WORK_DIR_PATH}/${ENV_FILE}"
+	if [ -f "$PROD_ENV_FILE" ]; then
+		echo "Using existing ${ENV_FILE} file."
+	else
+		create_env_file
+	fi
+  update_env_file
+  print_confirmation
+}
+
 create_env_file() {
-	echo "Creating ${ENV_FILE} file for compose stack"
+	echo "Creating new ${ENV_FILE} file for compose stack"
 
 	# create base file
 	tee -a "$PROD_ENV_FILE" >/dev/null <<EOF
@@ -331,8 +381,12 @@ DEFGUARD_DB_PASSWORD=
 DEFGUARD_URL=
 DEFGUARD_WEBAUTHN_RP_ID=
 # DEFGUARD_ENROLLMENT_URL=  # [ENROLLMENT]
-DEFGUARD_GATEWAY_TOKEN=
+# DEFGUARD_TOKEN=  # [VPN]
 EOF
+}
+
+update_env_file() {
+  echo "Setting environment variables in ${ENV_FILE} file for compose stack"
 
 	# fill in values
 	set_env_file_secret "DEFGUARD_AUTH_SECRET"
@@ -343,11 +397,11 @@ EOF
 
 	set_env_file_value "DEFGUARD_URL" "${CFG_DEFGUARD_URL}"
 	set_env_file_value "DEFGUARD_WEBAUTHN_RP_ID" "${CFG_DOMAIN}"
-
-	print_confirmation
 }
 
 set_env_file_value() {
+  # make sure variable exists in file
+  grep -qF "${1}=" "${PROD_ENV_FILE}" || echo "${1}=" >> "${PROD_ENV_FILE}"
 	sed -i~ "s@\(${1}\)=.*@\1=${2}@" "${PROD_ENV_FILE}"
 }
 
@@ -364,30 +418,14 @@ uncomment_feature() {
 }
 
 enable_enrollment() {
-	echo "Adding enrollment service to compose file"
+	echo "Enabling enrollment proxy service in compose file"
 
 	# update .env file
-	uncomment_feature "ENROLLMENT" ${PROD_ENV_FILE}
+	uncomment_feature "ENROLLMENT" "${PROD_ENV_FILE}"
 	set_env_file_value "DEFGUARD_ENROLLMENT_URL" "${CFG_ENROLLMENT_URL}"
 
 	# update compose file
-	uncomment_feature "ENROLLMENT" ${PROD_COMPOSE_FILE}
-	tee -a "${PROD_COMPOSE_FILE}" >/dev/null <<EOF
-
-  proxy:
-    image: ghcr.io/defguard/defguard-proxy:${PROXY_IMAGE_TAG}
-    restart: unless-stopped
-    environment:
-      DEFGUARD_PROXY_UPSTREAM_GRPC_URL: http://core:50055/
-      DEFGUARD_PROXY_GRPC_CA: /ssl/defguard-ca.pem
-    volumes:
-      - ./.volumes/ssl:/ssl
-    # ports:
-      # web
-      # - "8080:8080"
-    depends_on:
-      - core
-EOF
+	uncomment_feature "ENROLLMENT" "${PROD_COMPOSE_FILE}"
 
 	print_confirmation
 }
@@ -398,7 +436,7 @@ print_instance_summary() {
 	echo "If your DNS configuration is correct your defguard instance should be available at:"
 	echo
 	echo -e "\tWeb UI: ${CFG_DEFGUARD_URL}"
-	if [ $CFG_ENROLLMENT_DOMAIN ]; then
+	if [ "$CFG_ENABLE_ENROLLMENT" ]; then
 		echo -e "\tEnrollment service: ${CFG_ENROLLMENT_URL}"
 	fi
 	echo
