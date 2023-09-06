@@ -50,6 +50,9 @@ main() {
 	# setup RSA & SSL keys
 	setup_keys
 
+	# generate caddyfile
+	create_caddyfile
+
 	# generate base docker-compose file
 	PROD_COMPOSE_FILE="${WORK_DIR_PATH}/${COMPOSE_FILE}"
 	if [ -f $PROD_COMPOSE_FILE ]; then
@@ -79,8 +82,6 @@ main() {
 	if [ $CFG_ENROLLMENT_DOMAIN ] && ! [ $USE_EXISTING_COMPOSE ]; then
 		enable_enrollment
 	fi
-
-	# generate caddyfile
 
 	# start docker-compose stack
 	$COMPOSE_CMD -f "${PROD_COMPOSE_FILE}" up -d
@@ -209,7 +210,7 @@ generate_certs() {
 
 	PASSPHRASE=$(generate_secret)
 
-	echo "PEM pass phrase for set to '${PASSPHRASE}'."
+	echo "PEM pass phrase for SSL certificates set to '${PASSPHRASE}'."
 
 	openssl genrsa -des3 -out ${SSL_DIR}/myCA.key -passout pass:"${PASSPHRASE}" 2048
 	openssl req -x509 -new -nodes -key ${SSL_DIR}/myCA.key -sha256 -days 1825 -out ${SSL_DIR}/myCA.pem -passin pass:"${PASSPHRASE}" -subj "/C=PL/ST=Zachodniopomorskie/L=Szczecin/O=Example/OU=IT Department/CN=example.com"
@@ -234,6 +235,22 @@ generate_secret_inner() {
 	openssl rand -base64 ${length} | tr -d "=+/" | tr -d '\n' | cut -c1-${length-1}
 }
 
+create_caddyfile() {
+  caddy_volume_path="${WORK_DIR_PATH}/.volumes/caddy"
+  caddyfile_path="${caddy_volume_path}/Caddyfile"
+  mkdir -p ${caddy_volume_path}
+
+  cat > ${caddyfile_path} <<EOF
+${CFG_DOMAIN} {
+	reverse_proxy core:8000
+}
+
+${CFG_ENROLLMENT_DOMAIN} {
+	reverse_proxy proxy:8080
+}
+EOF
+}
+
 write_base_compose_file() {
 	echo "Writing base compose file to ${PROD_COMPOSE_FILE}"
 
@@ -243,17 +260,32 @@ version: "3"
 services:
   db:
     image: postgres:15-alpine
+    restart: unless-stopped
     environment:
       POSTGRES_DB: defguard
       POSTGRES_USER: defguard
       POSTGRES_PASSWORD: \${DEFGUARD_DB_PASSWORD}
     volumes:
       - ./.volumes/db:/var/lib/postgresql/data
+    # ports:
+    #   - "5432:5432"
+
+  caddy:
+    image: caddy:2.7-alpine
+    restart: unless-stopped
+    volumes:
+      - ./.volumes/caddy/data:/data
+      - ./.volumes/caddy/config:/config
+      - ./.volumes/caddy/Caddyfile:/etc/caddy/Caddyfile
     ports:
-      - "5432:5432"
+      # http
+      - "80:80"
+      # https
+      - "443:443"
 
   core:
     image: ghcr.io/defguard/defguard:${CORE_IMAGE_TAG}
+    restart: unless-stopped
     environment:
       DEFGUARD_AUTH_SECRET: \${DEFGUARD_AUTH_SECRET}
       DEFGUARD_GATEWAY_SECRET: \${DEFGUARD_GATEWAY_SECRET}
@@ -271,12 +303,11 @@ services:
       DEFGUARD_GRPC_CERT: /ssl/defguard.crt
       DEFGUARD_GRPC_KEY: /ssl/defguard.key
       DEFGUARD_OPENID_KEY: /keys/rsakey.pem
-
-    ports:
+    # ports:
       # web
-      - "8000:8000"
+      # - "8000:8000"
       # grpc
-      - "50055:50055"
+      # - "50055:50055"
     depends_on:
       - db
     volumes:
@@ -343,16 +374,17 @@ enable_enrollment() {
 	uncomment_feature "ENROLLMENT" ${PROD_COMPOSE_FILE}
 	tee -a "${PROD_COMPOSE_FILE}" >/dev/null <<EOF
 
-  enrollment:
+  proxy:
     image: ghcr.io/defguard/defguard-proxy:${PROXY_IMAGE_TAG}
+    restart: unless-stopped
     environment:
       DEFGUARD_PROXY_UPSTREAM_GRPC_URL: http://core:50055/
       DEFGUARD_PROXY_GRPC_CA: /ssl/defguard-ca.pem
     volumes:
       - ./.volumes/ssl:/ssl
-    ports:
+    # ports:
       # web
-      - "8080:8080"
+      # - "8080:8080"
     depends_on:
       - core
 EOF
@@ -376,6 +408,7 @@ print_instance_summary() {
 	echo -e "\tpassword: pass123"
 	echo
 	echo "Files used to deploy your instance are stored in ${WORK_DIR_PATH}"
+	echo "Persistent data is stored in ${WORK_DIR_PATH}/.volumes"
 
 }
 
