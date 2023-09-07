@@ -20,7 +20,7 @@ SSL_DIR=".volumes/ssl"
 RSA_DIR=".volumes/core"
 BASE_COMPOSE_FILE_URL="https://raw.githubusercontent.com/DefGuard/deployment/main/docker-compose/docker-compose.yaml"
 BASE_ENV_FILE_URL="https://raw.githubusercontent.com/DefGuard/deployment/main/docker-compose/.env.template"
-CORE_IMAGE_TAG="one-line"
+CORE_IMAGE_TAG="latest"
 GATEWAY_IMAGE_TAG="latest"
 PROXY_IMAGE_TAG="latest"
 
