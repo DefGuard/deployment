@@ -18,8 +18,9 @@ SECRET_LENGTH=64
 PASSWORD_LENGTH=16
 SSL_DIR=".volumes/ssl"
 RSA_DIR=".volumes/core"
-# BASE_COMPOSE_FILE_URL="https://raw.githubusercontent.com/DefGuard/deployment/main/docker-compose/docker-compose.yaml"
-CORE_IMAGE_TAG="latest"
+BASE_COMPOSE_FILE_URL="https://raw.githubusercontent.com/DefGuard/deployment/main/docker-compose/docker-compose.yaml"
+BASE_ENV_FILE_URL="https://raw.githubusercontent.com/DefGuard/deployment/main/docker-compose/.env.template"
+CORE_IMAGE_TAG="one-line"
 GATEWAY_IMAGE_TAG="latest"
 PROXY_IMAGE_TAG="latest"
 
@@ -73,7 +74,7 @@ main() {
 		echo "Using existing docker-compose file at ${PROD_COMPOSE_FILE}"
 		print_confirmation
 	else
-		create_compose_file
+		fetch_base_compose_file
 	fi
 
 	# enable enrollment service in compose file
@@ -277,98 +278,10 @@ EOF
 	fi
 }
 
-create_compose_file() {
-	echo "Writing compose file to ${PROD_COMPOSE_FILE}"
+fetch_base_compose_file() {
+	echo "Fetching base compose file to ${PROD_COMPOSE_FILE}"
 
-	tee -a "${PROD_COMPOSE_FILE}" >/dev/null <<EOF
-version: "3"
-
-services:
-  db:
-    image: postgres:15-alpine
-    restart: unless-stopped
-    environment:
-      POSTGRES_DB: defguard
-      POSTGRES_USER: defguard
-      POSTGRES_PASSWORD: \${DEFGUARD_DB_PASSWORD}
-    volumes:
-      - ./.volumes/db:/var/lib/postgresql/data
-    # ports:
-    #   - "5432:5432"
-
-  caddy:
-    image: caddy:2.7-alpine
-    restart: unless-stopped
-    volumes:
-      - ./.volumes/caddy/data:/data
-      - ./.volumes/caddy/config:/config
-      - ./.volumes/caddy/Caddyfile:/etc/caddy/Caddyfile
-    ports:
-      # http
-      - "80:80"
-      # https
-      - "443:443"
-
-  core:
-    image: ghcr.io/defguard/defguard:${CORE_IMAGE_TAG}
-    restart: unless-stopped
-    environment:
-      DEFGUARD_AUTH_SECRET: \${DEFGUARD_AUTH_SECRET}
-      DEFGUARD_GATEWAY_SECRET: \${DEFGUARD_GATEWAY_SECRET}
-      DEFGUARD_YUBIBRIDGE_SECRET: \${DEFGUARD_YUBIBRIDGE_SECRET}
-      DEFGUARD_SECRET_KEY: \${DEFGUARD_SECRET_KEY}
-      DEFGUARD_DEFAULT_ADMIN_PASSWORD: \${DEFGUARD_DEFAULT_ADMIN_PASSWORD}
-      DEFGUARD_DB_HOST: db
-      DEFGUARD_DB_PORT: 5432
-      DEFGUARD_DB_USER: defguard
-      DEFGUARD_DB_PASSWORD: \${DEFGUARD_DB_PASSWORD}
-      DEFGUARD_DB_NAME: defguard
-      DEFGUARD_URL: \${DEFGUARD_URL}
-      DEFGUARD_LOG_LEVEL: info
-      DEFGUARD_WEBAUTHN_RP_ID: \${DEFGUARD_WEBAUTHN_RP_ID}
-      # DEFGUARD_ENROLLMENT_URL: \${DEFGUARD_ENROLLMENT_URL}  # [ENROLLMENT]
-      DEFGUARD_GRPC_CERT: /ssl/defguard.crt
-      DEFGUARD_GRPC_KEY: /ssl/defguard.key
-      DEFGUARD_OPENID_KEY: /keys/rsakey.pem
-    ports:
-      # web
-      # - "8000:8000"
-      # grpc
-      - "50055:50055"
-    depends_on:
-      - db
-    volumes:
-      - ./.volumes/ssl:/ssl
-      - ./.volumes/core/rsakey.pem:/keys/rsakey.pem
-
-  # proxy:  # [ENROLLMENT]
-  #   image: ghcr.io/defguard/defguard-proxy:${PROXY_IMAGE_TAG}  # [ENROLLMENT]
-  #   restart: unless-stopped  # [ENROLLMENT]
-  #   environment:  # [ENROLLMENT]
-  #     DEFGUARD_PROXY_UPSTREAM_GRPC_URL: http://core:50055/  # [ENROLLMENT]
-  #     DEFGUARD_PROXY_GRPC_CA: /ssl/defguard-ca.pem  # [ENROLLMENT]
-  #   volumes:  # [ENROLLMENT]
-  #     - ./.volumes/ssl:/ssl  # [ENROLLMENT]
-    # ports:
-      # web
-        # - "8080:8080"
-  #   depends_on:  # [ENROLLMENT]
-  #     - core  # [ENROLLMENT]
-
-  # gateway:  # [VPN]
-  #   image: ghcr.io/defguard/gateway:${GATEWAY_IMAGE_TAG}  # [VPN]
-  #   restart: unless-stopped  # [VPN]
-  #   network_mode: "host"  # [VPN]
-  #   environment:  # [VPN]
-  #     DEFGUARD_GRPC_URL: http://localhost:50055  # [VPN]
-  #     DEFGUARD_STATS_PERIOD: 30  # [VPN]
-  #     DEFGUARD_TOKEN: \${DEFGUARD_TOKEN}  # [VPN]
-  #   ports:  # [VPN]
-      # wireguard endpoint
-  #     - "50051:50051/udp"  # [VPN]
-  #   cap_add:  # [VPN]
-  #     - NET_ADMIN  # [VPN]
-EOF
+	curl --proto '=https' --tlsv1.2 -sSf "${BASE_COMPOSE_FILE_URL}" -o "${PROD_COMPOSE_FILE}"
 
 	print_confirmation
 }
@@ -378,31 +291,25 @@ generate_env_file() {
 	if [ -f "$PROD_ENV_FILE" ]; then
 		echo "Using existing ${ENV_FILE} file."
 	else
-		create_env_file
+		fetch_base_env_file
 	fi
 	update_env_file
 	print_confirmation
 }
 
-create_env_file() {
-	echo "Creating new ${ENV_FILE} file for compose stack"
+fetch_base_env_file() {
+	echo "Fetching base ${ENV_FILE} file for compose stack"
 
-	# create base file
-	tee -a "$PROD_ENV_FILE" >/dev/null <<EOF
-DEFGUARD_AUTH_SECRET=
-DEFGUARD_YUBIBRIDGE_SECRET=
-DEFGUARD_GATEWAY_SECRET=
-DEFGUARD_SECRET_KEY=
-DEFGUARD_DB_PASSWORD=
-DEFGUARD_URL=
-DEFGUARD_WEBAUTHN_RP_ID=
-# DEFGUARD_ENROLLMENT_URL=  # [ENROLLMENT]
-# DEFGUARD_TOKEN=  # [VPN]
-EOF
+	curl --proto '=https' --tlsv1.2 -sSf "${BASE_ENV_FILE_URL}" -o "${PROD_ENV_FILE}"
 }
 
 update_env_file() {
 	echo "Setting environment variables in ${ENV_FILE} file for compose stack"
+
+	# set image versions
+	set_env_file_value "CORE_IMAGE_TAG" "${CORE_IMAGE_TAG}"
+	set_env_file_value "PROXY_IMAGE_TAG" "${PROXY_IMAGE_TAG}"
+	set_env_file_value "GATEWAY_IMAGE_TAG" "${GATEWAY_IMAGE_TAG}"
 
 	# fill in values
 	set_env_file_secret "DEFGUARD_AUTH_SECRET"
