@@ -88,11 +88,13 @@ main() {
 	fi
 
 	# start docker-compose stack
+	echo "Starting docker-compose stack"
 	$COMPOSE_CMD -f "${PROD_COMPOSE_FILE}" --env-file "${PROD_ENV_FILE}" up -d
 	if [ $? -ne 0 ]; then
 		echo >&2 "ERROR: failed to start docker-compose stack"
 		exit 1
 	fi
+	print_confirmation
 
 	# print out instance info summary for user
 	print_instance_summary
@@ -328,7 +330,7 @@ update_env_file() {
 
 set_env_file_value() {
 	# make sure variable exists in file
-	grep -qF "${1}=" "${PROD_ENV_FILE}" || echo "${1}=" >>"${PROD_ENV_FILE}"
+	grep -qF "${1}=" "${PROD_ENV_FILE}" || echo "${1}=" >> "${PROD_ENV_FILE}"
 	sed -i~ "s@\(${1}\)=.*@\1=${2}@" "${PROD_ENV_FILE}"
 }
 
