@@ -87,7 +87,7 @@ main() {
 	fi
 
 	# start docker-compose stack
-	$COMPOSE_CMD -f "${PROD_COMPOSE_FILE}" up -d
+	$COMPOSE_CMD -f "${PROD_COMPOSE_FILE}" --env-file "${PROD_ENV_FILE}" up -d
 	if [ $? -ne 0 ]; then
 		echo >&2 "ERROR: failed to start docker-compose stack"
 		exit 1
@@ -317,6 +317,7 @@ services:
       DEFGUARD_GATEWAY_SECRET: \${DEFGUARD_GATEWAY_SECRET}
       DEFGUARD_YUBIBRIDGE_SECRET: \${DEFGUARD_YUBIBRIDGE_SECRET}
       DEFGUARD_SECRET_KEY: \${DEFGUARD_SECRET_KEY}
+      DEFGUARD_DEFAULT_ADMIN_PASSWORD: \${DEFGUARD_DEFAULT_ADMIN_PASSWORD}
       DEFGUARD_DB_HOST: db
       DEFGUARD_DB_PORT: 5432
       DEFGUARD_DB_USER: defguard
@@ -361,7 +362,7 @@ services:
   #   environment:  # [VPN]
   #     DEFGUARD_GRPC_URL: http://localhost:50055  # [VPN]
   #     DEFGUARD_STATS_PERIOD: 30  # [VPN]
-  #     DEFGUARD_TOKEN: ${DEFGUARD_TOKEN}  # [VPN]
+  #     DEFGUARD_TOKEN: \${DEFGUARD_TOKEN}  # [VPN]
   #   ports:  # [VPN]
       # wireguard endpoint
   #     - "50051:50051/udp"  # [VPN]
@@ -410,6 +411,10 @@ update_env_file() {
 	set_env_file_secret "DEFGUARD_SECRET_KEY"
 	set_env_file_password "DEFGUARD_DB_PASSWORD"
 
+  # generate an admin password to display later
+	ADMIN_PASSWORD="$(generate_password)"
+	set_env_file_value "DEFGUARD_DEFAULT_ADMIN_PASSWORD" "${ADMIN_PASSWORD}"
+
 	set_env_file_value "DEFGUARD_URL" "${CFG_DEFGUARD_URL}"
 	set_env_file_value "DEFGUARD_WEBAUTHN_RP_ID" "${CFG_DOMAIN}"
 }
@@ -448,11 +453,18 @@ enable_enrollment() {
 enable_vpn_gateway() {
 	echo "Enabling VPN gateway service"
 
-	# TODO: create VPN location
+	uncomment_feature "VPN" "${PROD_COMPOSE_FILE}"
+	uncomment_feature "VPN" "${PROD_ENV_FILE}"
 
-	# TODO: get gateway token
+	# create VPN location
+	token=$($COMPOSE_CMD -f "${PROD_COMPOSE_FILE}" --env-file "${PROD_ENV_FILE}" run core init-vpn-location --name "${CFG_VPN_NAME}" --address "${CFG_VPN_IP}" --endpoint "${CFG_VPN_GATEWAY_IP}" --port "${CFG_VPN_GATEWAY_PORT}" --dns "8.8.8.8" --allowed-ips "0.0.0.0/0")
+	if [ $? -ne 0 ]; then
+		echo >&2 "ERROR: failed to create VPN network"
+		exit 1
+	fi
 
-	# TODO: add gateway token to .env file
+	# add gateway token to .env file
+	set_env_file_value "DEFGUARD_TOKEN" "${token}"
 
 	print_confirmation
 }
@@ -470,7 +482,7 @@ print_instance_summary() {
 	echo "You can log into the UI using the default admin user:"
 	echo
 	echo -e "\tusername: admin"
-	echo -e "\tpassword: pass123"
+	echo -e "\tpassword: ${ADMIN_PASSWORD}"
 	echo
 	echo "Files used to deploy your instance are stored in ${WORK_DIR_PATH}"
 	echo "Persistent data is stored in ${WORK_DIR_PATH}/.volumes"
