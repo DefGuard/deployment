@@ -318,7 +318,7 @@ update_env_file() {
 	set_env_file_secret "DEFGUARD_SECRET_KEY"
 	set_env_file_password "DEFGUARD_DB_PASSWORD"
 
-  # generate an admin password to display later
+	# generate an admin password to display later
 	ADMIN_PASSWORD="$(generate_password)"
 	set_env_file_value "DEFGUARD_DEFAULT_ADMIN_PASSWORD" "${ADMIN_PASSWORD}"
 
