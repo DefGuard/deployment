@@ -37,10 +37,10 @@ main() {
 		exit 0
 	fi
 	for i in $*; do
-		test "$i" == "--help" && print_usage
+		test "$i" == "--help" && print_usage && exit 0
 		# run script in non-interactive mode
 		test "$i" == "--non-interactive" && CFG_NON_INTERACTIVE=1
-		exit 0
+		test "$i" == "--use-https" && CFG_USE_HTTPS=1
 	done
 
 	# check if necessary tools are available
@@ -139,10 +139,15 @@ print_usage() {
 	echo
 	echo 'Available options:'
 	echo
-	echo -e "\t-h                       this help message"
-	echo -e "\t-u <defguard_url>        url under which to configure defguard instance"
-	echo -e "\t-e <enrollment_url>      url under which to configure enrollment service"
-	echo -e "\t-s [pass length]         generated secrets length, default: 64"
+	echo -e "\t--help                         this help message"
+	echo -e "\t--non-interactive              run in non-interactive mode (no user input)"
+	echo -e "\t--domain <domain>              domain where defguard web UI will be available"
+	echo -e "\t--enrollment-domain <domain>   domain where enrollment service will be available"
+	echo -e "\t--use-https                    configure reverse proxy to use HTTPS"
+	echo -e "\t--vpn-name <name>              VPN location name"
+	echo -e "\t--vpn-ip <address>             VPN server address & netmask (e.g. 10.0.50.1/24)"
+	echo -e "\t--vpn-gateway-ip <ip>          VPN gateway external IP"
+	echo -e "\t--vpn-gateway-port <port>      VPN gateway external port"
 	echo
 }
 
@@ -209,7 +214,6 @@ load_configuration_from_cli() {
 		"vpn-ip"
 		"vpn-gateway-ip"
 		"vpn-gateway-port"
-		"use-https"
 	)
 
 	# read arguments
