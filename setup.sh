@@ -44,7 +44,8 @@ main() {
 	# load configuration from env variables
 	load_configuration_from_env
 
-	# TODO: load configuration from CLI options
+	# load configuration from CLI options
+	load_configuration_from_cli "$@"
 
 	# TODO: load configuration from user inputs
 
@@ -53,6 +54,9 @@ main() {
 
 	# generate external service URLs based on config
 	generate_external_urls
+
+	# print out config
+	print_config
 
 	# set current working directory
 	WORK_DIR_PATH=$(pwd)
@@ -169,6 +173,78 @@ load_configuration_from_env() {
 	print_confirmation
 }
 
+load_configuration_from_cli() {
+	echo "Loading configuration from CLI arguments"
+
+	ARGUMENT_LIST=(
+		"domain"
+		"enrollment-domain"
+		"vpn-name"
+		"vpn-ip"
+		"vpn-gateway-ip"
+		"vpn-gateway-port"
+		"use-https"
+	)
+
+	# read arguments
+	opts=$(
+		getopt \
+			--longoptions "$(printf "%s:," "${ARGUMENT_LIST[@]}")" \
+			--name "$(basename "$0")" \
+			--options "" \
+			-- "$@"
+	)
+
+	eval set --$opts
+
+	while [[ $# -gt 0 ]]; do
+		echo "test: $#"
+		echo "Argument: $1"
+		case "$1" in
+		--domain)
+			CFG_DOMAIN=$2
+			shift 2
+			;;
+
+		--enrollment-domain)
+			CFG_ENROLLMENT_DOMAIN=$2
+			shift 2
+			;;
+
+		--vpn-name)
+			CFG_VPN_NAME=$2
+			shift 2
+			;;
+
+		--vpn-ip)
+			CFG_VPN_IP=$2
+			shift 2
+			;;
+
+		--vpn-gateway-ip)
+			CFG_VPN_GATEWAY_IP=$2
+			shift 2
+			;;
+
+		--vpn-gateway-port)
+			CFG_VPN_GATEWAY_PORT=$2
+			shift 2
+			;;
+
+		--use-https)
+			CFG_USE_HTTPS=$2
+			shift 2
+			;;
+
+		*)
+			break
+			;;
+		esac
+	done
+
+	print_confirmation
+}
+
 check_required_variable() {
 	local var_name="$1"
 	if [ -z "${!var_name}" ]; then
@@ -209,6 +285,26 @@ generate_external_urls() {
 			CFG_ENROLLMENT_URL="http://${CFG_ENROLLMENT_DOMAIN}"
 		fi
 	fi
+}
+
+print_config() {
+	echo "Setting up your defguard instance with following config:"
+	echo "Domain: ${CFG_DOMAIN}"
+	echo "Web UI URL: ${CFG_DEFGUARD_URL}"
+
+	if [ "$CFG_VPN_NAME" ]; then
+		echo "VPN location name: ${CFG_VPN_NAME}"
+		echo "VPN address: ${CFG_VPN_IP}"
+		echo "VPN gateway IP: ${CFG_VPN_GATEWAY_IP}"
+		echo "VPN gateway port: ${CFG_VPN_GATEWAY_PORT}"
+	fi
+
+	if [ "$CFG_ENROLLMENT_DOMAIN" ]; then
+		echo "Enrollment service domain: ${CFG_ENROLLMENT_DOMAIN}"
+		echo "Enrollment service URL: ${CFG_ENROLLMENT_URL}"
+	fi
+
+	echo
 }
 
 setup_keys() {
@@ -330,7 +426,7 @@ update_env_file() {
 
 set_env_file_value() {
 	# make sure variable exists in file
-	grep -qF "${1}=" "${PROD_ENV_FILE}" || echo "${1}=" >> "${PROD_ENV_FILE}"
+	grep -qF "${1}=" "${PROD_ENV_FILE}" || echo "${1}=" >>"${PROD_ENV_FILE}"
 	sed -i~ "s@\(${1}\)=.*@\1=${2}@" "${PROD_ENV_FILE}"
 }
 
