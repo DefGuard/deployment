@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 # shellcheck shell=bash
 
 # This is a script that sets up an entire defguard instance (including core, gateway, enrollment proxy
