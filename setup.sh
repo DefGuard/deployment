@@ -38,6 +38,8 @@ main() {
 	fi
 	for i in $*; do
 		test "$i" == "--help" && print_usage
+		# run script in non-interactive mode
+		test "$i" == "--non-interactive" && CFG_NON_INTERACTIVE=1
 		exit 0
 	done
 
