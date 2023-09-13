@@ -31,6 +31,16 @@ PROXY_IMAGE_TAG="latest"
 main() {
 	print_header
 
+	# display help if no CLI arguments are provided or `--help` argument is found
+	if [ $# == 0 ]; then
+		print_usage
+		exit 0
+	fi
+	for i in $*; do
+		test "$i" == "--help" && print_usage
+		exit 0
+	done
+
 	# check if necessary tools are available
 	check_environment
 
@@ -47,7 +57,8 @@ main() {
 	# load configuration from CLI options
 	load_configuration_from_cli "$@"
 
-	# TODO: load configuration from user inputs
+	# load configuration from user inputs
+	load_configuration_from_input
 
 	# check that all required configuration options are set
 	validate_required_variables
@@ -117,6 +128,19 @@ print_header() {
 
 print_confirmation() {
 	echo "OK"
+	echo
+}
+
+print_usage() {
+
+	echo "Usage: ${BASENAME} [options]"
+	echo
+	echo 'Available options:'
+	echo
+	echo -e "\t-h                       this help message"
+	echo -e "\t-u <defguard_url>        url under which to configure defguard instance"
+	echo -e "\t-e <enrollment_url>      url under which to configure enrollment service"
+	echo -e "\t-s [pass length]         generated secrets length, default: 64"
 	echo
 }
 
@@ -198,8 +222,6 @@ load_configuration_from_cli() {
 	eval set --$opts
 
 	while [[ $# -gt 0 ]]; do
-		echo "test: $#"
-		echo "Argument: $1"
 		case "$1" in
 		--domain)
 			CFG_DOMAIN=$2
