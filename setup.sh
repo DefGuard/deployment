@@ -31,11 +31,7 @@ PROXY_IMAGE_TAG="latest"
 main() {
 	print_header
 
-	# display help if no CLI arguments are provided or `--help` argument is found
-	if [ $# == 0 ]; then
-		print_usage
-		exit 0
-	fi
+	# display help `--help` argument is found
 	for i in $*; do
 		test "$i" == "--help" && print_usage && exit 0
 		# run script in non-interactive mode
@@ -60,7 +56,9 @@ main() {
 	load_configuration_from_cli "$@"
 
 	# load configuration from user inputs
-	load_configuration_from_input
+	if ! [ $CFG_NON_INTERACTIVE ]; then
+		load_configuration_from_input
+	fi
 
 	# check that all required configuration options are set
 	validate_required_variables
@@ -259,16 +257,56 @@ load_configuration_from_cli() {
 			shift 2
 			;;
 
-		--use-https)
-			CFG_USE_HTTPS=$2
-			shift 2
-			;;
-
 		*)
 			break
 			;;
 		esac
 	done
+
+	print_confirmation
+}
+
+load_configuration_from_input() {
+	echo "Please provide configuration for your defguard instance"
+
+	read -p "Enter domain [default: ${CFG_DOMAIN}]: " value
+	if [ "$value" ]; then
+		CFG_DOMAIN="$value"
+	fi
+
+	read -p "Enter enrollment domain [default: ${CFG_ENROLLMENT_DOMAIN}]: " value
+	if [ "$value" ]; then
+		CFG_ENROLLMENT_DOMAIN="$value"
+	fi
+
+  use_https_bool_value="false"
+  if [ $CFG_USE_HTTPS ]; then use_https_bool_value="true"; fi
+	read -p "Use HTTPS [default: ${use_https_bool_value}]: " value
+	if [ "$value" ]; then
+		CFG_USE_HTTPS=1
+	fi
+
+	read -p "Enter VPN location name [default: ${CFG_VPN_NAME}]: " value
+	if [ "$value" ]; then
+		CFG_VPN_NAME="$value"
+	fi
+
+	if [ "$CFG_VPN_NAME" ]; then
+		read -p "Enter VPN server address [default: ${CFG_VPN_IP}]: " value
+		if [ "$value" ]; then
+			CFG_VPN_IP="$value"
+		fi
+
+		read -p "Enter VPN gateway public IP [default: ${CFG_VPN_GATEWAY_IP}]: " value
+		if [ "$value" ]; then
+			CFG_VPN_GATEWAY_IP="$value"
+		fi
+
+		read -p "Enter VPN gateway public port [default: ${CFG_VPN_GATEWAY_PORT}]: " value
+		if [ "$value" ]; then
+			CFG_VPN_GATEWAY_PORT="$value"
+		fi
+	fi
 
 	print_confirmation
 }
