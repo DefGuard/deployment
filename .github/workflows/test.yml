@@ -12,7 +12,6 @@ jobs:
   test:
     runs-on: self-hosted
     steps:
-      - uses: actions/checkout@v3
       - name: Login to GitHub container registry
         uses: docker/login-action@v2
         with:
@@ -30,13 +29,15 @@ jobs:
           CORE_IMAGE_TAG: dev
           PROXY_IMAGE_TAG: latest
           GATEWAY_IMAGE_TAG: latest
-        working-directory: ./docker-compose
-        run: ./setup.sh --non-interactive
+        working-directory: ./temp
+        run: curl --proto '=https' --tlsv1.2 -sSf -L https://raw.githubusercontent.com/DefGuard/deployment/one_line_install/docker-compose/setup.sh | bash -s - --non-interactive
       - name: Sleep for 10 seconds
+        working-directory: ./temp
         run: sleep 10s
       - name: Test defguard is available
+        working-directory: ./temp
         run: curl -f http://id.localhost/api/v1/health
       - name: Stop compose stack
         if: always()
-        working-directory: ./docker-compose
+        working-directory: ./temp
         run: docker-compose down
