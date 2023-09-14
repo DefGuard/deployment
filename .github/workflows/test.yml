@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - one_line_install
     paths:
       - 'docker-compose/**'
       - '.github/workflows/test.yml'
@@ -33,7 +32,7 @@ jobs:
           PROXY_IMAGE_TAG: latest
           GATEWAY_IMAGE_TAG: latest
         working-directory: temp
-        run: curl --proto '=https' --tlsv1.2 -sSf -L https://raw.githubusercontent.com/DefGuard/deployment/one_line_install/docker-compose/setup.sh | bash -s - --non-interactive
+        run: curl --proto '=https' --tlsv1.2 -sSf -L https://raw.githubusercontent.com/DefGuard/deployment/main/docker-compose/setup.sh | bash -s - --non-interactive
       - name: Sleep for 10 seconds
         working-directory: temp
         run: sleep 10s
@@ -44,11 +43,3 @@ jobs:
         if: always()
         working-directory: temp
         run: docker-compose down
-      - name: debug
-        if: always()
-        working-directory: temp
-        run: ls -la ./.volumes/core/rsakey.pem
-      - name: debug more
-        if: always()
-        working-directory: temp
-        run: cat .env
