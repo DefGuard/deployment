@@ -430,6 +430,7 @@ create_caddyfile() {
 ${CFG_DEFGUARD_URL} {
 	reverse_proxy core:8000
 }
+
 EOF
 
 	if [ "$CFG_ENABLE_ENROLLMENT" ]; then
@@ -440,6 +441,16 @@ ${CFG_ENROLLMENT_URL} {
 
 EOF
 	fi
+
+	cat >>${caddyfile_path} <<EOF
+:80 {
+    respond 404
+}
+:443 {
+    respond 404
+}
+
+EOF
 }
 
 fetch_base_compose_file() {
