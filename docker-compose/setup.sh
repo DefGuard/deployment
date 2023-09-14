@@ -279,8 +279,8 @@ load_configuration_from_input() {
 		CFG_ENROLLMENT_DOMAIN="$value"
 	fi
 
-  use_https_bool_value="false"
-  if [ $CFG_USE_HTTPS ]; then use_https_bool_value="true"; fi
+	use_https_bool_value="false"
+	if [ $CFG_USE_HTTPS ]; then use_https_bool_value="true"; fi
 	read -p "Use HTTPS [default: ${use_https_bool_value}]: " value
 	if [ "$value" ]; then
 		CFG_USE_HTTPS=1
