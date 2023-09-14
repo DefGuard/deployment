@@ -405,7 +405,7 @@ generate_certs() {
 generate_rsa() {
 	echo "Generating RSA keys in ${RSA_DIR}..."
 	mkdir -p ${RSA_DIR}
-	openssl genpkey -out ${RSA_DIR}/rsakey.pem -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -quiet
+	openssl genpkey -out ${RSA_DIR}/rsakey.pem -algorithm RSA -pkeyopt rsa_keygen_bits:2048
 }
 
 generate_secret() {
