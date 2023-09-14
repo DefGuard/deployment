@@ -48,3 +48,7 @@ jobs:
         if: always()
         working-directory: temp
         run: ls -la
+      - name: debug more
+        if: always()
+        working-directory: temp
+        run: cat .env
