@@ -47,7 +47,7 @@ jobs:
       - name: debug
         if: always()
         working-directory: temp
-        run: ls -la
+        run: ls -la ./.volumes/core
       - name: debug more
         if: always()
         working-directory: temp
