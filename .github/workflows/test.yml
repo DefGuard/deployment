@@ -44,3 +44,7 @@ jobs:
         if: always()
         working-directory: temp
         run: docker-compose down
+      - name: debug
+        if: always()
+        working-directory: temp
+        run: ls -la
