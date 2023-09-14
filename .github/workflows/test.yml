@@ -7,6 +7,7 @@ on:
       - one_line_install
     paths:
       - 'docker-compose/**'
+      - '.github/workflows/test.yml'
 
 jobs:
   test:
