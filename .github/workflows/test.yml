@@ -10,6 +10,7 @@ on:
 
 jobs:
   test:
+    name: Test setup script
     runs-on: self-hosted
     steps:
       - name: Login to GitHub container registry
@@ -28,7 +29,7 @@ jobs:
           DEFGUARD_VPN_IP: "10.0.60.1/24"
           DEFGUARD_VPN_GATEWAY_IP: "10.20.20.40"
           DEFGUARD_VPN_GATEWAY_PORT: "50050"
-          CORE_IMAGE_TAG: dev
+          CORE_IMAGE_TAG: latest
           PROXY_IMAGE_TAG: latest
           GATEWAY_IMAGE_TAG: latest
         working-directory: temp
