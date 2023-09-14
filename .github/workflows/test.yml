@@ -19,6 +19,8 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Create working directory
+        run: mkdir temp
       - name: Run setup script
         env:
           DEFGUARD_DOMAIN: "id.localhost"
@@ -30,15 +32,15 @@ jobs:
           CORE_IMAGE_TAG: dev
           PROXY_IMAGE_TAG: latest
           GATEWAY_IMAGE_TAG: latest
-        working-directory: ./temp
+        working-directory: temp
         run: curl --proto '=https' --tlsv1.2 -sSf -L https://raw.githubusercontent.com/DefGuard/deployment/one_line_install/docker-compose/setup.sh | bash -s - --non-interactive
       - name: Sleep for 10 seconds
-        working-directory: ./temp
+        working-directory: temp
         run: sleep 10s
       - name: Test defguard is available
-        working-directory: ./temp
+        working-directory: temp
         run: curl -f http://id.localhost/api/v1/health
       - name: Stop compose stack
         if: always()
-        working-directory: ./temp
+        working-directory: temp
         run: docker-compose down
