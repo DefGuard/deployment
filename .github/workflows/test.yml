@@ -30,7 +30,7 @@ jobs:
           DEFGUARD_VPN_GATEWAY_IP: "10.20.20.40"
           DEFGUARD_VPN_GATEWAY_PORT: "50050"
           # FIXME: update to latest after 0.7.1 is released
-          CORE_IMAGE_TAG: current
+          CORE_IMAGE_TAG: dev
           PROXY_IMAGE_TAG: latest
           GATEWAY_IMAGE_TAG: latest
         working-directory: temp
