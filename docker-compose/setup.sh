@@ -399,6 +399,7 @@ generate_certs() {
 	echo "PEM pass phrase for SSL certificates set to '${PASSPHRASE}'."
 
 	openssl genrsa -des3 -out ${SSL_DIR}/defguard-ca.key -passout pass:"${PASSPHRASE}" 2048
+	#	TODO: allow configuring CA parameters
 	openssl req -x509 -new -nodes -key ${SSL_DIR}/defguard-ca.key -sha256 -days 1825 -out ${SSL_DIR}/defguard-ca.pem -passin pass:"${PASSPHRASE}" -subj "/C=PL/ST=Zachodniopomorskie/L=Szczecin/O=Example/OU=IT Department/CN=example.com"
 }
 
@@ -539,7 +540,7 @@ enable_vpn_gateway() {
 	uncomment_feature "VPN" "${PROD_ENV_FILE}"
 
 	# create VPN location
-	token=$($COMPOSE_CMD -f "${PROD_COMPOSE_FILE}" --env-file "${PROD_ENV_FILE}" run core init-vpn-location --name "${CFG_VPN_NAME}" --address "${CFG_VPN_IP}" --endpoint "${CFG_VPN_GATEWAY_IP}" --port "${CFG_VPN_GATEWAY_PORT}" --dns "8.8.8.8" --allowed-ips "0.0.0.0/0")
+	token=$($COMPOSE_CMD -f "${PROD_COMPOSE_FILE}" --env-file "${PROD_ENV_FILE}" run core init-vpn-location --name "${CFG_VPN_NAME}" --address "${CFG_VPN_IP}" --endpoint "${CFG_VPN_GATEWAY_IP}" --port "${CFG_VPN_GATEWAY_PORT}" --allowed-ips "0.0.0.0/0")
 	if [ $? -ne 0 ]; then
 		echo >&2 "ERROR: failed to create VPN network"
 		exit 1
