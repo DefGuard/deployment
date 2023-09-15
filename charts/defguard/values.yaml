@@ -20,6 +20,7 @@ ingress:
 jwtSecret: jwt-secrets
 nameOverride: ""
 nodeSelector: {}
+openIdKey: openid-key
 podAnnotations: {}
 podLabels: {}
 podSecurityContext: {}
