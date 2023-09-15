@@ -1,200 +1,576 @@
-#!/bin/bash
+#!/usr/bin/env bash
+# shellcheck shell=bash
 
-VERSION="0.0.1"
-BASENAME=$(basename "$0")
-ENV_TEMPLATE=".env.template"
-ENV_PRODUCTION=".env"
-COMPOSE="docker-compose.yaml"
-CFG_LENGTH=64
+# This is a script that sets up an entire defguard instance (including core, gateway, enrollment proxy
+# and reverse proxy). It's goal is to prepare a working instance by running a single command.
+#
+# It saves all the relevant files in the current directory and creates a `.volumes` subdirectory for storing
+# persistent data.
+
+set -o errexit  # abort on nonzero exitstatus
+set -o pipefail # don't hide errors within pipes
+
+# Global variables
+VERSION="0.1.0"
+ENV_FILE=".env"
+COMPOSE_FILE="docker-compose.yaml"
+SECRET_LENGTH=64
+PASSWORD_LENGTH=16
 SSL_DIR=".volumes/ssl"
 RSA_DIR=".volumes/core"
+BASE_COMPOSE_FILE_URL="https://raw.githubusercontent.com/DefGuard/deployment/main/docker-compose/docker-compose.yaml"
+BASE_ENV_FILE_URL="https://raw.githubusercontent.com/DefGuard/deployment/main/docker-compose/.env.template"
+CORE_IMAGE_TAG="${CORE_IMAGE_TAG:-latest}"
+GATEWAY_IMAGE_TAG="${GATEWAY_IMAGE_TAG:-latest}"
+PROXY_IMAGE_TAG="${PROXY_IMAGE_TAG:-latest}"
 
-function print_header
-{
-  echo
-  echo "defguard deployment setup v${VERSION}"
-  echo "Copyright (C) 2023 teonite <https://teonite.com>"
-  echo
+#####################
+### MAIN FUNCTION ###
+#####################
+
+main() {
+	print_header
+
+	# display help `--help` argument is found
+	for i in $*; do
+		test "$i" == "--help" && print_usage && exit 0
+		# run script in non-interactive mode
+		test "$i" == "--non-interactive" && CFG_NON_INTERACTIVE=1
+		test "$i" == "--use-https" && CFG_USE_HTTPS=1
+	done
+
+	# check if necessary tools are available
+	check_environment
+
+	# load variables from `.env` file if available
+	if [ -f $ENV_FILE ]; then
+		echo "Loading configuration environment variables from ${ENV_FILE} file"
+		export $(cat "$ENV_FILE" | sed 's/#.*//g' | xargs)
+		print_confirmation
+	fi
+
+	# load configuration from env variables
+	load_configuration_from_env
+
+	# load configuration from CLI options
+	load_configuration_from_cli "$@"
+
+	# load configuration from user inputs
+	if ! [ $CFG_NON_INTERACTIVE ]; then
+		load_configuration_from_input
+	fi
+
+	# check that all required configuration options are set
+	validate_required_variables
+
+	# generate external service URLs based on config
+	generate_external_urls
+
+	# print out config
+	print_config
+
+	# set current working directory
+	WORK_DIR_PATH=$(pwd)
+	echo "Using working directory ${WORK_DIR_PATH}"
+	print_confirmation
+
+	# setup RSA & SSL keys
+	setup_keys
+
+	# generate caddyfile
+	create_caddyfile
+
+	# generate `.env` file
+	generate_env_file
+
+	# generate base docker-compose file
+	PROD_COMPOSE_FILE="${WORK_DIR_PATH}/${COMPOSE_FILE}"
+	if [ -f "$PROD_COMPOSE_FILE" ]; then
+		echo "Using existing docker-compose file at ${PROD_COMPOSE_FILE}"
+		print_confirmation
+	else
+		fetch_base_compose_file
+	fi
+
+	# enable enrollment service in compose file
+	if [ "$CFG_ENABLE_ENROLLMENT" ]; then
+		enable_enrollment
+	fi
+
+	# enable and setup VPN gateway
+	if [ "$CFG_ENABLE_VPN" ]; then
+		enable_vpn_gateway
+	fi
+
+	# start docker-compose stack
+	echo "Starting docker-compose stack"
+	$COMPOSE_CMD -f "${PROD_COMPOSE_FILE}" --env-file "${PROD_ENV_FILE}" up -d
+	if [ $? -ne 0 ]; then
+		echo >&2 "ERROR: failed to start docker-compose stack"
+		exit 1
+	fi
+	print_confirmation
+
+	# print out instance info summary for user
+	print_instance_summary
 }
 
-function usage
-{
-    print_header
-    echo
-    echo "Usage: ${BASENAME} [options]"
-    echo
-    echo 'Available options:'
-    echo
-    echo -e "\t-h                       this help message"
-    echo -e "\t-u <defguard_url>        url under which to configure defguard instance"
-    echo -e "\t-e <enrollment_url>      url under which to configure enrollment service"
-    echo -e "\t-s [pass length]         generated secrets length, default: 64"
-    echo
+########################
+### HELPER FUNCTIONS ###
+########################
+
+print_header() {
+	echo
+	echo "defguard deployment setup script v${VERSION}"
+	echo "Copyright (C) 2023 teonite <https://teonite.com>"
+	echo
 }
 
-function check_environment
-{
-  if [ ! -f ${COMPOSE} ]; then
-    echo "ERROR: no docker compose configuration found at: ${COMPOSE}"
-    echo "ERROR: are you in the right directory?"
-    exit 3
-  fi
-
-  OPENSSL=$(openssl version 2>&1 &> /dev/null)
-
-  if [ "${OPENSSL}" -ne 0 ]; then
-    echo "ERROR: openssl command not found"
-    echo "ERROR: dependency failed, exiting..."
-    exit 4
-  fi
+print_confirmation() {
+	echo "OK"
+	echo
 }
 
-function set_env_file_value
-{
-  sed -i~ "s@\(${1}\)=.*@\1=${2}@" "${3}"
-  echo "Set value for ${1} in ${3} file."
+print_usage() {
+
+	echo "Usage: ${BASENAME} [options]"
+	echo
+	echo 'Available options:'
+	echo
+	echo -e "\t--help                         this help message"
+	echo -e "\t--non-interactive              run in non-interactive mode (no user input)"
+	echo -e "\t--domain <domain>              domain where defguard web UI will be available"
+	echo -e "\t--enrollment-domain <domain>   domain where enrollment service will be available"
+	echo -e "\t--use-https                    configure reverse proxy to use HTTPS"
+	echo -e "\t--vpn-name <name>              VPN location name"
+	echo -e "\t--vpn-ip <address>             VPN server address & netmask (e.g. 10.0.50.1/24)"
+	echo -e "\t--vpn-gateway-ip <ip>          VPN gateway external IP"
+	echo -e "\t--vpn-gateway-port <port>      VPN gateway external port"
+	echo
 }
 
-function set_env_file_secret
-{
-  set_env_file_value "${1}" "$(generate_secret)" "${2}"
+command_exists() {
+	local command="$1"
+	command -v "$command" >/dev/null 2>&1
 }
 
-function generate_secret
-{
-  openssl rand -base64 ${CFG_LENGTH} | tr -d "=+/"  | tr -d '\n' | cut -c1-${CFG_LENGTH-1}
+command_exists_check() {
+	local command="$1"
+	if ! command_exists "$command"; then
+		echo >&2 "ERROR: $command command not found"
+		echo >&2 "ERROR: dependency failed, exiting..."
+		exit 1
+	fi
 }
 
-function create_env_file
-{
-  echo "Creating ${ENV_PRODUCTION} file based on ${ENV_TEMPLATE}..."
+check_environment() {
+	echo "Checking if all required tools are available"
+	# compose can be provided by newer docker versions or a separate docker-compose
+	docker compose version >/dev/null 2>&1
+	if [ $? = 0 ]; then
+		COMPOSE_CMD="docker compose"
+	else
+		if command_exists docker-compose; then
+			COMPOSE_CMD="docker-compose"
+		else
+			echo >&2 "ERROR: docker-compose or docker compose command not found"
+			echo >&2 "ERROR: dependency failed, exiting..."
+			exit 1
+		fi
+	fi
 
-  if [ ! -f ${ENV_TEMPLATE} ]; then
-    echo "ERROR: no environment template configuration found at: ${ENV_TEMPLATE}"
-    echo "ERROR: are you in the right directory?"
-    exit 5
-  fi
+	command_exists_check openssl
+	command_exists_check curl
+	command_exists_check grep
 
-  cp ${ENV_TEMPLATE} ${ENV_PRODUCTION}
-
-  set_env_file_secret "DEFGUARD_AUTH_SECRET" ${ENV_PRODUCTION}
-  set_env_file_secret "DEFGUARD_YUBIBRIDGE_SECRET" ${ENV_PRODUCTION}
-  set_env_file_secret "DEFGUARD_GATEWAY_SECRET" ${ENV_PRODUCTION}
-  set_env_file_secret "DEFGUARD_SECRET_KEY" ${ENV_PRODUCTION}
-  set_env_file_secret "DEFGUARD_DB_PASSWORD" ${ENV_PRODUCTION}
-  set_env_file_value "DEFGUARD_URL" "${CFG_DEFGUARD_URL}" ${ENV_PRODUCTION}
-  DEFGUARD_DOMAIN=$(echo "${CFG_DEFGUARD_URL}" | sed -e 's/^http:\/\///g' -e 's/^https:\/\///g')
-  set_env_file_value "DEFGUARD_WEBAUTHN_RP_ID" "${DEFGUARD_DOMAIN}" ${ENV_PRODUCTION}
-  set_env_file_value "DEFGUARD_ENROLLMENT_URL" "${CFG_ENROLLMENT_URL}" ${ENV_PRODUCTION}
+	print_confirmation
 }
 
-function generate_certs
-{
-  echo "Creating new SSL certificates in ${SSL_DIR}..."
-  mkdir -p ${SSL_DIR}
+load_configuration_from_env() {
+	echo "Loading configuration from environment variables"
+	# required variables
+	CFG_DOMAIN="$DEFGUARD_DOMAIN"
 
-  PASSPHRASE=$(generate_secret)
+	# optional variables
+	CFG_VPN_NAME="$DEFGUARD_VPN_NAME"
+	CFG_VPN_IP="$DEFGUARD_VPN_IP"
+	CFG_VPN_GATEWAY_IP="$DEFGUARD_VPN_GATEWAY_IP"
+	CFG_VPN_GATEWAY_PORT="$DEFGUARD_VPN_GATEWAY_PORT"
+	CFG_ENROLLMENT_DOMAIN="$DEFGUARD_ENROLLMENT_DOMAIN"
+	CFG_USE_HTTPS="$DEFGUARD_USE_HTTPS"
 
-  echo "PEM pass phrase for set to '${PASSPHRASE}'."
-
-  openssl genrsa -des3 -out ${SSL_DIR}/myCA.key -passout pass:"${PASSPHRASE}" 2048
-  openssl req -x509 -new -nodes -key ${SSL_DIR}/myCA.key -sha256 -days 1825 -out ${SSL_DIR}/myCA.pem -passin pass:"${PASSPHRASE}" -subj "/C=PL/ST=Zachodniopomorskie/L=Szczecin/O=Example/OU=IT Department/CN=example.com"
+	print_confirmation
 }
 
-function generate_rsa
-{
-  echo "Generating RSA keys in ${RSA_DIR}..."
-  mkdir -p ${RSA_DIR}
-  openssl genpkey -out ${RSA_DIR}/rsakey.pem -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -quiet
+load_configuration_from_cli() {
+	echo "Loading configuration from CLI arguments"
+
+	ARGUMENT_LIST=(
+		"domain"
+		"enrollment-domain"
+		"vpn-name"
+		"vpn-ip"
+		"vpn-gateway-ip"
+		"vpn-gateway-port"
+	)
+
+	# read arguments
+	opts=$(
+		getopt \
+			--longoptions "$(printf "%s:," "${ARGUMENT_LIST[@]}")" \
+			--name "$(basename "$0")" \
+			--options "" \
+			-- "$@"
+	)
+
+	eval set --$opts
+
+	while [[ $# -gt 0 ]]; do
+		case "$1" in
+		--domain)
+			CFG_DOMAIN=$2
+			shift 2
+			;;
+
+		--enrollment-domain)
+			CFG_ENROLLMENT_DOMAIN=$2
+			shift 2
+			;;
+
+		--vpn-name)
+			CFG_VPN_NAME=$2
+			shift 2
+			;;
+
+		--vpn-ip)
+			CFG_VPN_IP=$2
+			shift 2
+			;;
+
+		--vpn-gateway-ip)
+			CFG_VPN_GATEWAY_IP=$2
+			shift 2
+			;;
+
+		--vpn-gateway-port)
+			CFG_VPN_GATEWAY_PORT=$2
+			shift 2
+			;;
+
+		*)
+			break
+			;;
+		esac
+	done
+
+	print_confirmation
 }
 
-function uncomment_feature
-{
-  sed -i~ "s@# \(.*\) # \[${1}\]@\1@" "${2}"
+load_configuration_from_input() {
+	echo "Please provide configuration for your defguard instance"
+
+	read -p "Enter domain [default: ${CFG_DOMAIN}]: " value
+	if [ "$value" ]; then
+		CFG_DOMAIN="$value"
+	fi
+
+	read -p "Enter enrollment domain [default: ${CFG_ENROLLMENT_DOMAIN}]: " value
+	if [ "$value" ]; then
+		CFG_ENROLLMENT_DOMAIN="$value"
+	fi
+
+	use_https_bool_value="false"
+	if [ $CFG_USE_HTTPS ]; then use_https_bool_value="true"; fi
+	read -p "Use HTTPS [default: ${use_https_bool_value}]: " value
+	if [ "$value" ]; then
+		CFG_USE_HTTPS=1
+	fi
+
+	read -p "Enter VPN location name [default: ${CFG_VPN_NAME}]: " value
+	if [ "$value" ]; then
+		CFG_VPN_NAME="$value"
+	fi
+
+	if [ "$CFG_VPN_NAME" ]; then
+		read -p "Enter VPN server address [default: ${CFG_VPN_IP}]: " value
+		if [ "$value" ]; then
+			CFG_VPN_IP="$value"
+		fi
+
+		read -p "Enter VPN gateway public IP [default: ${CFG_VPN_GATEWAY_IP}]: " value
+		if [ "$value" ]; then
+			CFG_VPN_GATEWAY_IP="$value"
+		fi
+
+		read -p "Enter VPN gateway public port [default: ${CFG_VPN_GATEWAY_PORT}]: " value
+		if [ "$value" ]; then
+			CFG_VPN_GATEWAY_PORT="$value"
+		fi
+	fi
+
+	print_confirmation
 }
 
-function print_followup
-{
-  echo "Your environment is set up correctly!"
-  echo "To start the stack run 'docker compose up -d'."
-  echo "defguard should be then running on port 80 of your server."
-  echo "Default admin credentials are admin/pass123. Please change the password after signing in."
+check_required_variable() {
+	local var_name="$1"
+	if [ -z "${!var_name}" ]; then
+		echo >&2 "ERROR: ${var_name} configuration option not set"
+		exit 1
+	fi
 }
 
-# GET OPTIONS {{{
-if [ $? != 0 ]; then
-    usage
-    exit 1
-fi
+validate_required_variables() {
+	echo "Validating configuration options"
+	check_required_variable "CFG_DOMAIN"
 
-while getopts ":hu:s:" arg; do
-  case $arg in
-    u)
-      CFG_DEFGUARD_URL="${OPTARG}"
-      ;;
-    e)
-      CFG_ENROLLMENT_URL="${OPTARG}"
-      ;;
-    s)
-      CFG_LENGTH="${OPTARG}"
-      if [ "${CFG_LENGTH}" -lt 8 ] || [ "${CFG_LENGTH}" -gt 128 ]; then
-        echo "Recommended secrets length is more then 8 and less then 128"
-        echo "Length: ${CFG_LENGTH} is bogus..."
-        exit 1
-      fi
-      ;;
-    h | *)
-      usage
-      exit 0
-      ;;
-  esac
-done
-# end: get options }}}
+	# if VPN name is given validate other VPN configurations are present
+	if [ "$CFG_VPN_NAME" ]; then
+		CFG_ENABLE_VPN=1
+		check_required_variable "CFG_VPN_IP"
+		check_required_variable "CFG_VPN_GATEWAY_IP"
+		check_required_variable "CFG_VPN_GATEWAY_PORT"
+	fi
 
-if [ "X${CFG_DEFGUARD_URL}" == "X" ]; then
-  echo "ERROR: no defguard URL set. "
-  usage
-  exit 2
-fi
+	print_confirmation
+}
 
-if [ "X${CFG_ENROLLMENT_URL}" == "X" ]; then
-  echo "ERROR: no enrollment service URL set. "
-  usage
-  exit 2
-fi
+generate_external_urls() {
+	# prepare full defguard URL
+	if [ "$CFG_USE_HTTPS" ]; then
+		CFG_DEFGUARD_URL="https://${CFG_DOMAIN}"
+	else
+		CFG_DEFGUARD_URL="http://${CFG_DOMAIN}"
+	fi
 
-print_header
+	# prepare full enrollment URL
+	if [ "$CFG_ENROLLMENT_DOMAIN" ]; then
+		CFG_ENABLE_ENROLLMENT=1
+		if [ "$CFG_USE_HTTPS" ]; then
+			CFG_ENROLLMENT_URL="https://${CFG_ENROLLMENT_DOMAIN}"
+		else
+			CFG_ENROLLMENT_URL="http://${CFG_ENROLLMENT_DOMAIN}"
+		fi
+	fi
+}
 
-echo " + defguard URL: ${CFG_DEFGUARD_URL}"
-echo " + enrollment service URL: ${CFG_ENROLLMENT_URL}"
-echo " + secrets length will be: ${CFG_LENGTH}"
-echo
+print_config() {
+	echo "Setting up your defguard instance with following config:"
+	echo "Domain: ${CFG_DOMAIN}"
+	echo "Web UI URL: ${CFG_DEFGUARD_URL}"
 
-if [ -f ${ENV_PRODUCTION} ]
-then
-  echo "Using existing ${ENV_PRODUCTION} file."
-else
-  create_env_file
-fi
-echo
+	if [ "$CFG_VPN_NAME" ]; then
+		echo "VPN location name: ${CFG_VPN_NAME}"
+		echo "VPN address: ${CFG_VPN_IP}"
+		echo "VPN gateway IP: ${CFG_VPN_GATEWAY_IP}"
+		echo "VPN gateway port: ${CFG_VPN_GATEWAY_PORT}"
+	fi
 
-if [ -d ${SSL_DIR} ] && [ "$(ls -A ${SSL_DIR})" ]
-then
-  echo "Using existing SSL certificates from ${SSL_DIR}."
-else
-  generate_certs
-fi
-echo
+	if [ "$CFG_ENROLLMENT_DOMAIN" ]; then
+		echo "Enrollment service domain: ${CFG_ENROLLMENT_DOMAIN}"
+		echo "Enrollment service URL: ${CFG_ENROLLMENT_URL}"
+	fi
 
-if [ -d ${RSA_DIR} ] && [ "$(ls -A ${RSA_DIR})" ]
-then
-  echo "Using existing RSA keys from ${RSA_DIR}."
-else
-  generate_rsa
-fi
-uncomment_feature "RSA" ${COMPOSE}
-echo "Enabled RSA support in ${COMPOSE}."
+	echo
+}
 
-echo
+setup_keys() {
+	echo "Setting up SSL certs and RSA keys"
+	if [ -d ${SSL_DIR} ] && [ "$(ls -A ${SSL_DIR})" ]; then
+		echo "Using existing SSL certificates from ${SSL_DIR}."
+	else
+		generate_certs
+	fi
 
-print_followup
+	if [ -d ${RSA_DIR} ] && [ "$(ls -A ${RSA_DIR})" ]; then
+		echo "Using existing RSA keys from ${RSA_DIR}."
+	else
+		generate_rsa
+	fi
+
+	print_confirmation
+}
+
+generate_certs() {
+	echo "Creating new SSL certificates in ${SSL_DIR}..."
+	mkdir -p ${SSL_DIR}
+
+	PASSPHRASE=$(generate_secret)
+
+	echo "PEM pass phrase for SSL certificates set to '${PASSPHRASE}'."
+
+	openssl genrsa -des3 -out ${SSL_DIR}/defguard-ca.key -passout pass:"${PASSPHRASE}" 2048
+	#	TODO: allow configuring CA parameters
+	openssl req -x509 -new -nodes -key ${SSL_DIR}/defguard-ca.key -sha256 -days 1825 -out ${SSL_DIR}/defguard-ca.pem -passin pass:"${PASSPHRASE}" -subj "/C=PL/ST=Zachodniopomorskie/L=Szczecin/O=Example/OU=IT Department/CN=example.com"
+}
+
+generate_rsa() {
+	echo "Generating RSA keys in ${RSA_DIR}..."
+	mkdir -p ${RSA_DIR}
+	openssl genpkey -out ${RSA_DIR}/rsakey.pem -algorithm RSA -pkeyopt rsa_keygen_bits:2048
+}
+
+generate_secret() {
+	generate_secret_inner "${SECRET_LENGTH}"
+}
+
+generate_password() {
+	generate_secret_inner "${PASSWORD_LENGTH}"
+}
+
+generate_secret_inner() {
+	local length="$1"
+	openssl rand -base64 ${length} | tr -d "=+/" | tr -d '\n' | cut -c1-${length-1}
+}
+
+create_caddyfile() {
+	caddy_volume_path="${WORK_DIR_PATH}/.volumes/caddy"
+	caddyfile_path="${caddy_volume_path}/Caddyfile"
+	mkdir -p ${caddy_volume_path}
+
+	cat >${caddyfile_path} <<EOF
+${CFG_DEFGUARD_URL} {
+	reverse_proxy core:8000
+}
+
+EOF
+
+	if [ "$CFG_ENABLE_ENROLLMENT" ]; then
+		cat >>${caddyfile_path} <<EOF
+${CFG_ENROLLMENT_URL} {
+	reverse_proxy proxy:8080
+}
+
+EOF
+	fi
+
+	cat >>${caddyfile_path} <<EOF
+:80 {
+    respond 404
+}
+:443 {
+    respond 404
+}
+
+EOF
+}
+
+fetch_base_compose_file() {
+	echo "Fetching base compose file to ${PROD_COMPOSE_FILE}"
+
+	curl --proto '=https' --tlsv1.2 -sSf "${BASE_COMPOSE_FILE_URL}" -o "${PROD_COMPOSE_FILE}"
+
+	print_confirmation
+}
+
+generate_env_file() {
+	PROD_ENV_FILE="${WORK_DIR_PATH}/${ENV_FILE}"
+	if [ -f "$PROD_ENV_FILE" ]; then
+		echo "Using existing ${ENV_FILE} file."
+	else
+		fetch_base_env_file
+	fi
+	update_env_file
+	print_confirmation
+}
+
+fetch_base_env_file() {
+	echo "Fetching base ${ENV_FILE} file for compose stack"
+
+	curl --proto '=https' --tlsv1.2 -sSf "${BASE_ENV_FILE_URL}" -o "${PROD_ENV_FILE}"
+}
+
+update_env_file() {
+	echo "Setting environment variables in ${ENV_FILE} file for compose stack"
+
+	# set image versions
+	set_env_file_value "CORE_IMAGE_TAG" "${CORE_IMAGE_TAG}"
+	set_env_file_value "PROXY_IMAGE_TAG" "${PROXY_IMAGE_TAG}"
+	set_env_file_value "GATEWAY_IMAGE_TAG" "${GATEWAY_IMAGE_TAG}"
+
+	# fill in values
+	set_env_file_secret "DEFGUARD_AUTH_SECRET"
+	set_env_file_secret "DEFGUARD_YUBIBRIDGE_SECRET"
+	set_env_file_secret "DEFGUARD_GATEWAY_SECRET"
+	set_env_file_secret "DEFGUARD_SECRET_KEY"
+	set_env_file_password "DEFGUARD_DB_PASSWORD"
+
+	# generate an admin password to display later
+	ADMIN_PASSWORD="$(generate_password)"
+	set_env_file_value "DEFGUARD_DEFAULT_ADMIN_PASSWORD" "${ADMIN_PASSWORD}"
+
+	set_env_file_value "DEFGUARD_URL" "${CFG_DEFGUARD_URL}"
+	set_env_file_value "DEFGUARD_WEBAUTHN_RP_ID" "${CFG_DOMAIN}"
+}
+
+set_env_file_value() {
+	# make sure variable exists in file
+	grep -qF "${1}=" "${PROD_ENV_FILE}" || echo "${1}=" >>"${PROD_ENV_FILE}"
+	sed -i~ "s@\(${1}\)=.*@\1=${2}@" "${PROD_ENV_FILE}"
+}
+
+set_env_file_secret() {
+	set_env_file_value "${1}" "$(generate_secret)" "${PROD_ENV_FILE}"
+}
+
+set_env_file_password() {
+	set_env_file_value "${1}" "$(generate_password)" "${PROD_ENV_FILE}"
+}
+
+uncomment_feature() {
+	sed -i~ "s@# \(.*\) # \[${1}\]@\1@" "${2}"
+}
+
+enable_enrollment() {
+	echo "Enabling enrollment proxy service in compose file"
+
+	# update .env file
+	uncomment_feature "ENROLLMENT" "${PROD_ENV_FILE}"
+	set_env_file_value "DEFGUARD_ENROLLMENT_URL" "${CFG_ENROLLMENT_URL}"
+
+	# update compose file
+	uncomment_feature "ENROLLMENT" "${PROD_COMPOSE_FILE}"
+
+	print_confirmation
+}
+
+enable_vpn_gateway() {
+	echo "Enabling VPN gateway service"
+
+	uncomment_feature "VPN" "${PROD_COMPOSE_FILE}"
+	uncomment_feature "VPN" "${PROD_ENV_FILE}"
+
+	# create VPN location
+	token=$($COMPOSE_CMD -f "${PROD_COMPOSE_FILE}" --env-file "${PROD_ENV_FILE}" run core init-vpn-location --name "${CFG_VPN_NAME}" --address "${CFG_VPN_IP}" --endpoint "${CFG_VPN_GATEWAY_IP}" --port "${CFG_VPN_GATEWAY_PORT}" --allowed-ips "0.0.0.0/0")
+	if [ $? -ne 0 ]; then
+		echo >&2 "ERROR: failed to create VPN network"
+		exit 1
+	fi
+
+	# add gateway token to .env file
+	set_env_file_value "DEFGUARD_TOKEN" "${token}"
+
+	print_confirmation
+}
+
+print_instance_summary() {
+	echo
+	echo "defguard setup finished successfully"
+	echo "If your DNS configuration is correct your defguard instance should be available at:"
+	echo
+	echo -e "\tWeb UI: ${CFG_DEFGUARD_URL}"
+	if [ "$CFG_ENABLE_ENROLLMENT" ]; then
+		echo -e "\tEnrollment service: ${CFG_ENROLLMENT_URL}"
+	fi
+	echo
+	echo "You can log into the UI using the default admin user:"
+	echo
+	echo -e "\tusername: admin"
+	echo -e "\tpassword: ${ADMIN_PASSWORD}"
+	echo
+	echo "Files used to deploy your instance are stored in ${WORK_DIR_PATH}"
+	echo "Persistent data is stored in ${WORK_DIR_PATH}/.volumes"
+
+}
+
+# run main function
+main "$@" || exit 1

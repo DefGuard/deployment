@@ -1,14 +1,40 @@
 version: "3"
 
 services:
+  db:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: defguard
+      POSTGRES_USER: defguard
+      POSTGRES_PASSWORD: ${DEFGUARD_DB_PASSWORD}
+    volumes:
+      - ./.volumes/db:/var/lib/postgresql/data
+    # ports:
+    #   - "5432:5432"
+
+  caddy:
+    image: caddy:2.7-alpine
+    restart: unless-stopped
+    volumes:
+      - ./.volumes/caddy/data:/data
+      - ./.volumes/caddy/config:/config
+      - ./.volumes/caddy/Caddyfile:/etc/caddy/Caddyfile
+    ports:
+      # http
+      - "80:80"
+      # https
+      - "443:443"
 
   core:
-    image: ghcr.io/defguard/defguard:latest
+    image: ghcr.io/defguard/defguard:${CORE_IMAGE_TAG:-latest}
+    restart: unless-stopped
     environment:
       DEFGUARD_AUTH_SECRET: ${DEFGUARD_AUTH_SECRET}
       DEFGUARD_GATEWAY_SECRET: ${DEFGUARD_GATEWAY_SECRET}
       DEFGUARD_YUBIBRIDGE_SECRET: ${DEFGUARD_YUBIBRIDGE_SECRET}
       DEFGUARD_SECRET_KEY: ${DEFGUARD_SECRET_KEY}
+      DEFGUARD_DEFAULT_ADMIN_PASSWORD: ${DEFGUARD_DEFAULT_ADMIN_PASSWORD}
       DEFGUARD_DB_HOST: db
       DEFGUARD_DB_PORT: 5432
       DEFGUARD_DB_USER: defguard
@@ -17,50 +43,53 @@ services:
       DEFGUARD_URL: ${DEFGUARD_URL}
       DEFGUARD_LOG_LEVEL: info
       DEFGUARD_WEBAUTHN_RP_ID: ${DEFGUARD_WEBAUTHN_RP_ID}
-      DEFGUARD_ENROLLMENT_URL: ${DEFGUARD_ENROLLMENT_URL}
+      # DEFGUARD_ENROLLMENT_URL: ${DEFGUARD_ENROLLMENT_URL}  # [ENROLLMENT]
       DEFGUARD_GRPC_CERT: /ssl/defguard.crt
       DEFGUARD_GRPC_KEY: /ssl/defguard.key
       ## RSA setup guide: https://defguard.gitbook.io/defguard/community-features/setting-up-your-instance/docker-compose#openid-rsa-setup
-      # DEFGUARD_OPENID_KEY: /keys/rsakey.pem # [RSA]
+      DEFGUARD_OPENID_KEY: /keys/rsakey.pem
       ## LDAP setup guide: https://defguard.gitbook.io/defguard/features/ldap-synchronization-setup
       # DEFGUARD_LDAP_URL: ldap://localhost:389 # [LDAP]
       # DEFGUARD_LDAP_BIND_USERNAME: cn=admin,dc=example,dc=org # [LDAP]
       # DEFGUARD_LDAP_BIND_PASSWORD: password # [LDAP]
-
     ports:
       # web
-      - "80:8000"
+      # - "8000:8000"
       # grpc
       - "50055:50055"
     depends_on:
       - db
     volumes:
-      ## RSA setup guide: https://defguard.gitbook.io/defguard/community-features/setting-up-your-instance/docker-compose#openid-rsa-setup
-      # - ./.volumes/core/rsakey.pem:/keys/rsakey.pem # [RSA]
       # SSL setup guide: https://defguard.gitbook.io/defguard/features/setting-up-your-instance/docker-compose#ssl-setup
       - ./.volumes/ssl:/ssl
+      ## RSA setup guide: https://defguard.gitbook.io/defguard/community-features/setting-up-your-instance/docker-compose#openid-rsa-setup
+      - ./.volumes/core/rsakey.pem:/keys/rsakey.pem
 
-  db:
-    image: postgres:14-alpine
-    environment:
-      POSTGRES_DB: defguard
-      POSTGRES_USER: defguard
-      POSTGRES_PASSWORD: ${DEFGUARD_DB_PASSWORD}
-    volumes:
-      - ./.volumes/db:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
-
-  enrollment:
-    image: ghcr.io/defguard/defguard-proxy:latest
-    environment:
-      DEFGUARD_PROXY_UPSTREAM_GRPC_URL: http://core:50055/
-      # DEFGUARD_PROXY_GRPC_CA: /ssl/defguard-ca.pem
-    # volumes:
-      # SSL setup guide: https://defguard.gitbook.io/defguard/features/setting-up-your-instance/docker-compose#ssl-setup
-      # - ./.volumes/ssl:/ssl
-    ports:
+  # proxy:  # [ENROLLMENT]
+  #   image: ghcr.io/defguard/defguard-proxy:${PROXY_IMAGE_TAG:-latest}  # [ENROLLMENT]
+  #   restart: unless-stopped  # [ENROLLMENT]
+  #   environment:  # [ENROLLMENT]
+  #     DEFGUARD_PROXY_UPSTREAM_GRPC_URL: http://core:50055/  # [ENROLLMENT]
+  #     DEFGUARD_PROXY_GRPC_CA: /ssl/defguard-ca.pem  # [ENROLLMENT]
+  #   volumes:  # [ENROLLMENT]
+        # SSL setup guide: https://defguard.gitbook.io/defguard/features/setting-up-your-instance/docker-compose#ssl-setup
+  #     - ./.volumes/ssl:/ssl  # [ENROLLMENT]
+    # ports:
       # web
-      - "8080:8080"
-    depends_on:
-      - core
+        # - "8080:8080"
+  #   depends_on:  # [ENROLLMENT]
+  #     - core  # [ENROLLMENT]
+
+  # gateway:  # [VPN]
+  #   image: ghcr.io/defguard/gateway:${GATEWAY_IMAGE_TAG:-latest}  # [VPN]
+  #   restart: unless-stopped  # [VPN]
+  #   network_mode: "host"  # [VPN]
+  #   environment:  # [VPN]
+  #     DEFGUARD_GRPC_URL: http://localhost:50055  # [VPN]
+  #     DEFGUARD_STATS_PERIOD: 30  # [VPN]
+  #     DEFGUARD_TOKEN: ${DEFGUARD_TOKEN}  # [VPN]
+  #   ports:  # [VPN]
+      # wireguard endpoint
+  #     - "50051:50051/udp"  # [VPN]
+  #   cap_add:  # [VPN]
+  #     - NET_ADMIN  # [VPN]
