@@ -20,8 +20,7 @@ SSL_DIR=".volumes/ssl"
 RSA_DIR=".volumes/core"
 BASE_COMPOSE_FILE_URL="https://raw.githubusercontent.com/DefGuard/deployment/main/docker-compose/docker-compose.yaml"
 BASE_ENV_FILE_URL="https://raw.githubusercontent.com/DefGuard/deployment/main/docker-compose/.env.template"
-# FIXME: update to latest after 0.7.1 is released
-CORE_IMAGE_TAG="${CORE_IMAGE_TAG:-dev}"
+CORE_IMAGE_TAG="${CORE_IMAGE_TAG:-latest}"
 GATEWAY_IMAGE_TAG="${GATEWAY_IMAGE_TAG:-latest}"
 PROXY_IMAGE_TAG="${PROXY_IMAGE_TAG:-latest}"
 
