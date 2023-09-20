@@ -97,6 +97,11 @@ main() {
 		enable_enrollment
 	fi
 
+	# fetch latest images
+	echo "Fetching latest Docker images"
+	$COMPOSE_CMD -f "${PROD_COMPOSE_FILE}" --env-file "${PROD_ENV_FILE}" pull
+	print_confirmation
+
 	# enable and setup VPN gateway
 	if [ "$CFG_ENABLE_VPN" ]; then
 		enable_vpn_gateway
@@ -267,9 +272,29 @@ load_configuration_from_cli() {
 }
 
 load_configuration_from_input() {
-	echo "Please provide configuration for your defguard instance"
+  echo "#################################################################################"
+  echo
+  echo "We'll now ask you to provide a couple values to configure your defguard instance."
+  echo
+  echo "If you've already configured some options by setting environment variables or through CLI options,"
+  echo "those values will be used as defaults."
+  echo
+  echo "If you prefer to disable this user input section, please restart the script with --non-interactive CLI flag."
+  echo
 
-	read -p "Enter domain [default: ${CFG_DOMAIN}]: " value
+	echo "### DOMAINS ###"
+	echo
+	echo "Please choose the domains that will be used to expose your instance through Caddy reverse proxy."
+	echo "We use a separate domain for the main Web UI and for the optional enrollment service."
+	echo "If you don't provide any domain for the enrollment service, the service itself will not be deployed."
+	echo
+	echo "You can also enable HTTPS here (highly recommended), which will configure Caddy to automatically"
+	echo "provision SSL certificates."
+	echo "Please note that this requires you server to have a public IP address and public DNS records"
+	echo "for your chosen domains to be configured correctly (pointing to your server's IP)."
+	echo
+
+	read -p "Enter defguard domain [default: ${CFG_DOMAIN}]: " value
 	if [ "$value" ]; then
 		CFG_DOMAIN="$value"
 	fi
@@ -286,16 +311,34 @@ load_configuration_from_input() {
 		CFG_USE_HTTPS=1
 	fi
 
+	echo
+	echo "### VPN ###"
+	echo
+	echo "We'll now try to configure your own Wireguard VPN gateway."
+	echo "If you don't choose a VPN location name this step will be skipped"
+	echo "and a gateway will not be deployed."
+	echo
+
 	read -p "Enter VPN location name [default: ${CFG_VPN_NAME}]: " value
 	if [ "$value" ]; then
 		CFG_VPN_NAME="$value"
 	fi
 
 	if [ "$CFG_VPN_NAME" ]; then
-		read -p "Enter VPN server address [default: ${CFG_VPN_IP}]: " value
+		read -p "Enter VPN server address and subnet (e.g. 10.0.60.1/24) [default: ${CFG_VPN_IP}]: " value
 		if [ "$value" ]; then
 			CFG_VPN_IP="$value"
 		fi
+
+    echo
+    echo "Now we'll configure a public endpoint (IP + port) that your Wireguard"
+    echo "client devices will use to safely connect to your gateway from the public internet."
+    echo
+    echo "Since we'll be starting the gateway on this server the IP should"
+    echo "be the same as your server's public IP."
+    echo "Please also remember that your firewall should be configured"
+    echo "to allow incoming UDP traffic on the chosen Wireguard port."
+    echo
 
 		read -p "Enter VPN gateway public IP [default: ${CFG_VPN_GATEWAY_IP}]: " value
 		if [ "$value" ]; then
@@ -307,6 +350,9 @@ load_configuration_from_input() {
 			CFG_VPN_GATEWAY_PORT="$value"
 		fi
 	fi
+
+  echo
+  echo "Thank you. We'll now proceed with the deployment using provided values."
 
 	print_confirmation
 }
@@ -538,6 +584,10 @@ enable_vpn_gateway() {
 
 	uncomment_feature "VPN" "${PROD_COMPOSE_FILE}"
 	uncomment_feature "VPN" "${PROD_ENV_FILE}"
+
+	# fetch latest image
+	echo "Fetching latest gateway image"
+	$COMPOSE_CMD -f "${PROD_COMPOSE_FILE}" --env-file "${PROD_ENV_FILE}" pull gateway
 
 	# create VPN location
 	token=$($COMPOSE_CMD -f "${PROD_COMPOSE_FILE}" --env-file "${PROD_ENV_FILE}" run core init-vpn-location --name "${CFG_VPN_NAME}" --address "${CFG_VPN_IP}" --endpoint "${CFG_VPN_GATEWAY_IP}" --port "${CFG_VPN_GATEWAY_PORT}" --allowed-ips "0.0.0.0/0")
