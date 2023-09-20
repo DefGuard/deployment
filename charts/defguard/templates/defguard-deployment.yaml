@@ -57,11 +57,6 @@ spec:
                   key: secret-key
             - name: DEFGUARD_OPENID_KEY
               value: "/etc/defguard-openid-key.pem"
-            - name: DEFGUARD_LICENSE
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "defguard.fullname" . }}-license
-                  key: license
           envFrom:
             - configMapRef:
                 name: {{ include "defguard.fullname" . }}-config

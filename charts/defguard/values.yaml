@@ -18,6 +18,14 @@ ingress:
     web: defguard.local
   tls: []
 jwtSecret: jwt-secrets
+ldap:
+  admin_group: ""
+  bind_password: ""
+  bind_username: ""
+  enabled: false
+  group_search_base: ""
+  url: ""
+  user_search_base: ""
 nameOverride: ""
 nodeSelector: {}
 openIdKey: openid-key
@@ -43,7 +51,6 @@ serviceAccount:
   annotations: {}
   create: true
 tolerations: []
-license: ""
 # sub-chart defguard-proxy
 defguard-proxy:
   enabled: false
