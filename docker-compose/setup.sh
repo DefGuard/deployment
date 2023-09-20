@@ -97,6 +97,11 @@ main() {
 		enable_enrollment
 	fi
 
+	# fetch latest images
+	echo "Fetching latest Docker images"
+	$COMPOSE_CMD -f "${PROD_COMPOSE_FILE}" --env-file "${PROD_ENV_FILE}" pull
+	print_confirmation
+
 	# enable and setup VPN gateway
 	if [ "$CFG_ENABLE_VPN" ]; then
 		enable_vpn_gateway
@@ -538,6 +543,10 @@ enable_vpn_gateway() {
 
 	uncomment_feature "VPN" "${PROD_COMPOSE_FILE}"
 	uncomment_feature "VPN" "${PROD_ENV_FILE}"
+
+	# fetch latest image
+	echo "Fetching latest gateway image"
+	$COMPOSE_CMD -f "${PROD_COMPOSE_FILE}" --env-file "${PROD_ENV_FILE}" pull gateway
 
 	# create VPN location
 	token=$($COMPOSE_CMD -f "${PROD_COMPOSE_FILE}" --env-file "${PROD_ENV_FILE}" run core init-vpn-location --name "${CFG_VPN_NAME}" --address "${CFG_VPN_IP}" --endpoint "${CFG_VPN_GATEWAY_IP}" --port "${CFG_VPN_GATEWAY_PORT}" --allowed-ips "0.0.0.0/0")
