@@ -92,6 +92,9 @@ main() {
 		fetch_base_compose_file
 	fi
 
+	# enable reverse proxy in compose file
+	uncomment_feature "PROXY" "${PROD_COMPOSE_FILE}"
+
 	# enable enrollment service in compose file
 	if [ "$CFG_ENABLE_ENROLLMENT" ]; then
 		enable_enrollment

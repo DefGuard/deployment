@@ -13,18 +13,18 @@ services:
     # ports:
     #   - "5432:5432"
 
-  caddy:
-    image: caddy:2.7-alpine
-    restart: unless-stopped
-    volumes:
-      - ./.volumes/caddy/data:/data
-      - ./.volumes/caddy/config:/config
-      - ./.volumes/caddy/Caddyfile:/etc/caddy/Caddyfile
-    ports:
-      # http
-      - "80:80"
-      # https
-      - "443:443"
+#  caddy:  # [PROXY]
+#    image: caddy:2.7-alpine  # [PROXY]
+#    restart: unless-stopped  # [PROXY]
+#    volumes:  # [PROXY]
+#      - ./.volumes/caddy/data:/data  # [PROXY]
+#      - ./.volumes/caddy/config:/config  # [PROXY]
+#      - ./.volumes/caddy/Caddyfile:/etc/caddy/Caddyfile  # [PROXY]
+#    ports:  # [PROXY]
+#      # http  # [PROXY]
+#      - "80:80"  # [PROXY]
+#      # https  # [PROXY]
+#      - "443:443"  # [PROXY]
 
   core:
     image: ghcr.io/defguard/defguard:${CORE_IMAGE_TAG:-latest}
