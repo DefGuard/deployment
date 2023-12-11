@@ -11,7 +11,7 @@ set -o errexit  # abort on nonzero exitstatus
 set -o pipefail # don't hide errors within pipes
 
 # Global variables
-VERSION="0.1.0"
+VERSION="0.1.1"
 ENV_FILE=".env"
 COMPOSE_FILE="docker-compose.yaml"
 SECRET_LENGTH=64
