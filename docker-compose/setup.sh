@@ -275,15 +275,15 @@ load_configuration_from_cli() {
 }
 
 load_configuration_from_input() {
-  echo "#################################################################################"
-  echo
-  echo "We'll now ask you to provide a couple values to configure your defguard instance."
-  echo
-  echo "If you've already configured some options by setting environment variables or through CLI options,"
-  echo "those values will be used as defaults."
-  echo
-  echo "If you prefer to disable this user input section, please restart the script with --non-interactive CLI flag."
-  echo
+	echo "#################################################################################"
+	echo
+	echo "We'll now ask you to provide a couple values to configure your defguard instance."
+	echo
+	echo "If you've already configured some options by setting environment variables or through CLI options,"
+	echo "those values will be used as defaults."
+	echo
+	echo "If you prefer to disable this user input section, please restart the script with --non-interactive CLI flag."
+	echo
 
 	echo "### DOMAINS ###"
 	echo
@@ -333,15 +333,15 @@ load_configuration_from_input() {
 			CFG_VPN_IP="$value"
 		fi
 
-    echo
-    echo "Now we'll configure a public endpoint (IP + port) that your Wireguard"
-    echo "client devices will use to safely connect to your gateway from the public internet."
-    echo
-    echo "Since we'll be starting the gateway on this server the IP should"
-    echo "be the same as your server's public IP."
-    echo "Please also remember that your firewall should be configured"
-    echo "to allow incoming UDP traffic on the chosen Wireguard port."
-    echo
+		echo
+		echo "Now we'll configure a public endpoint (IP + port) that your Wireguard"
+		echo "client devices will use to safely connect to your gateway from the public internet."
+		echo
+		echo "Since we'll be starting the gateway on this server the IP should"
+		echo "be the same as your server's public IP."
+		echo "Please also remember that your firewall should be configured"
+		echo "to allow incoming UDP traffic on the chosen Wireguard port."
+		echo
 
 		read -p "Enter VPN gateway public IP [default: ${CFG_VPN_GATEWAY_IP}]: " value
 		if [ "$value" ]; then
@@ -354,8 +354,8 @@ load_configuration_from_input() {
 		fi
 	fi
 
-  echo
-  echo "Thank you. We'll now proceed with the deployment using provided values."
+	echo
+	echo "Thank you. We'll now proceed with the deployment using provided values."
 
 	print_confirmation
 }
@@ -554,7 +554,7 @@ update_env_file() {
 set_env_file_value() {
 	# make sure variable exists in file
 	grep -qF "${1}=" "${PROD_ENV_FILE}" || echo "${1}=" >>"${PROD_ENV_FILE}"
-	sed -i~ "s@\(${1}\)=.*@\1=${2}@" "${PROD_ENV_FILE}"
+	sed -i "s@\(${1}\)=.*@\1=${2}@" "${PROD_ENV_FILE}"
 }
 
 set_env_file_secret() {
@@ -566,7 +566,7 @@ set_env_file_password() {
 }
 
 uncomment_feature() {
-	sed -i~ "s@# \(.*\) # \[${1}\]@\1@" "${2}"
+	sed -i "s@# \(.*\) # \[${1}\]@\1@" "${2}"
 }
 
 enable_enrollment() {
