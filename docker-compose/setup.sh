@@ -83,6 +83,11 @@ main() {
 	# generate `.env` file
 	generate_env_file
 
+	# enable insecure cookies if not using HTTPS
+	if ! [ "$CFG_USE_HTTPS" ]; then
+		uncomment_feature "HTTP" "${PROD_ENV_FILE}"
+	fi
+
 	# generate base docker-compose file
 	PROD_COMPOSE_FILE="${WORK_DIR_PATH}/${COMPOSE_FILE}"
 	if [ -f "$PROD_COMPOSE_FILE" ]; then
