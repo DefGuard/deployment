@@ -44,7 +44,7 @@ main() {
 
 	# load variables from `.env` file if available
 	if [ -f $ENV_FILE ]; then
-		echo "Loading configuration environment variables from ${ENV_FILE} file"
+		echo "Loading initial configuration environment variables from existing ${ENV_FILE} file"
 		export $(cat "$ENV_FILE" | sed 's/#.*//g' | xargs)
 		print_confirmation
 	fi
@@ -546,10 +546,20 @@ update_env_file() {
 	set_env_file_secret "DEFGUARD_YUBIBRIDGE_SECRET"
 	set_env_file_secret "DEFGUARD_GATEWAY_SECRET"
 	set_env_file_secret "DEFGUARD_SECRET_KEY"
-	set_env_file_password "DEFGUARD_DB_PASSWORD"
+	# use existing password if set in env variable
+  if [ "$DEFGUARD_DB_PASSWORD" ]; then
+    set_env_file_value "DEFGUARD_DB_PASSWORD" "${DEFGUARD_DB_PASSWORD}"
+  else
+    set_env_file_password "DEFGUARD_DB_PASSWORD"
+  fi
 
 	# generate an admin password to display later
-	ADMIN_PASSWORD="$(generate_password)"
+	# use existing password if set in env variables
+	if [ "$DEFGUARD_DEFAULT_ADMIN_PASSWORD" ]; then
+		ADMIN_PASSWORD="$DEFGUARD_DEFAULT_ADMIN_PASSWORD"
+	else
+		ADMIN_PASSWORD="$(generate_password)"
+	fi
 	set_env_file_value "DEFGUARD_DEFAULT_ADMIN_PASSWORD" "${ADMIN_PASSWORD}"
 
 	set_env_file_value "DEFGUARD_URL" "${CFG_DEFGUARD_URL}"
