@@ -44,8 +44,8 @@ services:
       DEFGUARD_LOG_LEVEL: info
       DEFGUARD_WEBAUTHN_RP_ID: ${DEFGUARD_WEBAUTHN_RP_ID}
       # DEFGUARD_ENROLLMENT_URL: ${DEFGUARD_ENROLLMENT_URL}  # [ENROLLMENT]
-      DEFGUARD_GRPC_CERT: /ssl/defguard.crt
-      DEFGUARD_GRPC_KEY: /ssl/defguard.key
+      DEFGUARD_GRPC_CERT: /ssl/defguard-grpc.crt
+      DEFGUARD_GRPC_KEY: /ssl/defguard-grpc.key
       ## RSA setup guide: https://defguard.gitbook.io/defguard/community-features/setting-up-your-instance/docker-compose#openid-rsa-setup
       DEFGUARD_OPENID_KEY: /keys/rsakey.pem
       ## LDAP setup guide: https://defguard.gitbook.io/defguard/features/ldap-synchronization-setup
@@ -72,11 +72,11 @@ services:
   #     DEFGUARD_PROXY_UPSTREAM_GRPC_URL: http://core:50055/  # [ENROLLMENT]
   #     DEFGUARD_PROXY_GRPC_CA: /ssl/defguard-ca.pem  # [ENROLLMENT]
   #   volumes:  # [ENROLLMENT]
-        # SSL setup guide: https://defguard.gitbook.io/defguard/features/setting-up-your-instance/docker-compose#ssl-setup
+  # SSL setup guide: https://defguard.gitbook.io/defguard/features/setting-up-your-instance/docker-compose#ssl-setup
   #     - ./.volumes/ssl:/ssl  # [ENROLLMENT]
-    # ports:
-      # web
-        # - "8080:8080"
+  #   ports:
+  #     # web
+  #     - "8080:8080"
   #   depends_on:  # [ENROLLMENT]
   #     - core  # [ENROLLMENT]
 
@@ -89,7 +89,7 @@ services:
   #     DEFGUARD_STATS_PERIOD: 30  # [VPN]
   #     DEFGUARD_TOKEN: ${DEFGUARD_TOKEN}  # [VPN]
   #   ports:  # [VPN]
-      # wireguard endpoint
+  #     # wireguard endpoint
   #     - "50051:50051/udp"  # [VPN]
   #   cap_add:  # [VPN]
   #     - NET_ADMIN  # [VPN]
