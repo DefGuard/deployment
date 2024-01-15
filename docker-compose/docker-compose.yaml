@@ -94,7 +94,7 @@ services:
   #     - ./.volumes/ssl:/ssl  # [VPN]
 
   #   ports:  # [VPN]
-  #     # wireguard endpoint
+  #     # WireGuard endpoint
   #     - "50051:50051/udp"  # [VPN]
   #   cap_add:  # [VPN]
   #     - NET_ADMIN  # [VPN]

@@ -322,7 +322,7 @@ load_configuration_from_input() {
 	echo
 	echo "### VPN ###"
 	echo
-	echo "We'll now try to configure your own Wireguard VPN gateway."
+	echo "We'll now try to configure your own WireGuard VPN gateway."
 	echo "If you don't choose a VPN location name this step will be skipped"
 	echo "and a gateway will not be deployed."
 	echo
@@ -339,13 +339,13 @@ load_configuration_from_input() {
 		fi
 
 		echo
-		echo "Now we'll configure a public endpoint (IP + port) that your Wireguard"
+		echo "Now we'll configure a public endpoint (IP + port) that your WireGuard"
 		echo "client devices will use to safely connect to your gateway from the public internet."
 		echo
 		echo "Since we'll be starting the gateway on this server the IP should"
 		echo "be the same as your server's public IP."
 		echo "Please also remember that your firewall should be configured"
-		echo "to allow incoming UDP traffic on the chosen Wireguard port."
+		echo "to allow incoming UDP traffic on the chosen WireGuard port."
 		echo
 
 		read -p "Enter VPN gateway public IP [default: ${CFG_VPN_GATEWAY_IP}]: " value
