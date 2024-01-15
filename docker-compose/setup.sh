@@ -472,7 +472,7 @@ DNS.2 = core
 DNS.3 = localhost
 EOF
 	openssl x509 -req -in ${SSL_DIR}/defguard-grpc.csr -CA ${SSL_DIR}/defguard-ca.pem -CAkey ${SSL_DIR}/defguard-ca.key -passin pass:"${PASSPHRASE}" -CAcreateserial \
-		-out ${SSL_DIR}/defguard-grpc.crt -days 825 -sha256 -extfile ${SSL_DIR}/defguard-grpc.ext
+		-out ${SSL_DIR}/defguard-grpc.crt -days 1000 -sha256 -extfile ${SSL_DIR}/defguard-grpc.ext
 }
 
 generate_rsa() {
