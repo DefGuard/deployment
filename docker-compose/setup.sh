@@ -468,6 +468,8 @@ keyUsage = digitalSignature, nonRepudiation, keyEncipherment, dataEncipherment
 subjectAltName = @alt_names
 [alt_names]
 DNS.1 = ${CFG_DOMAIN}
+DNS.2 = core
+DNS.3 = localhost
 EOF
 	openssl x509 -req -in ${SSL_DIR}/defguard-grpc.csr -CA ${SSL_DIR}/defguard-ca.pem -CAkey ${SSL_DIR}/defguard-ca.key -passin pass:"${PASSPHRASE}" -CAcreateserial \
 		-out ${SSL_DIR}/defguard-grpc.crt -days 825 -sha256 -extfile ${SSL_DIR}/defguard-grpc.ext
