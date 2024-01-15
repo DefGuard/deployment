@@ -322,7 +322,7 @@ load_configuration_from_input() {
 	echo
 	echo "### VPN ###"
 	echo
-	echo "We'll now try to configure your own Wireguard VPN gateway."
+	echo "We'll now try to configure your own WireGuard VPN gateway."
 	echo "If you don't choose a VPN location name this step will be skipped"
 	echo "and a gateway will not be deployed."
 	echo
@@ -339,13 +339,13 @@ load_configuration_from_input() {
 		fi
 
 		echo
-		echo "Now we'll configure a public endpoint (IP + port) that your Wireguard"
+		echo "Now we'll configure a public endpoint (IP + port) that your WireGuard"
 		echo "client devices will use to safely connect to your gateway from the public internet."
 		echo
 		echo "Since we'll be starting the gateway on this server the IP should"
 		echo "be the same as your server's public IP."
 		echo "Please also remember that your firewall should be configured"
-		echo "to allow incoming UDP traffic on the chosen Wireguard port."
+		echo "to allow incoming UDP traffic on the chosen WireGuard port."
 		echo
 
 		read -p "Enter VPN gateway public IP [default: ${CFG_VPN_GATEWAY_IP}]: " value
@@ -452,9 +452,27 @@ generate_certs() {
 
 	echo "PEM pass phrase for SSL certificates set to '${PASSPHRASE}'."
 
+	# generate private key for CA
 	openssl genrsa -des3 -out ${SSL_DIR}/defguard-ca.key -passout pass:"${PASSPHRASE}" 2048
+	# generate Root Certificate
 	#	TODO: allow configuring CA parameters
-	openssl req -x509 -new -nodes -key ${SSL_DIR}/defguard-ca.key -sha256 -days 1825 -out ${SSL_DIR}/defguard-ca.pem -passin pass:"${PASSPHRASE}" -subj "/C=PL/ST=Zachodniopomorskie/L=Szczecin/O=Example/OU=IT Department/CN=example.com"
+	openssl req -x509 -new -nodes -key ${SSL_DIR}/defguard-ca.key -sha256 -days 1825 -out ${SSL_DIR}/defguard-ca.pem -passin pass:"${PASSPHRASE}" -subj "/C=PL/ST=Zachodniopomorskie/L=Szczecin/O=Example/OU=IT Department/CN=${CFG_DOMAIN}"
+
+	# generate CA-signed certificate for defguard gRPC
+	openssl genrsa -out ${SSL_DIR}/defguard-grpc.key 2048
+	openssl req -new -key ${SSL_DIR}/defguard-grpc.key -out ${SSL_DIR}/defguard-grpc.csr -subj "/C=PL/ST=Zachodniopomorskie/L=Szczecin/O=Example/OU=IT Department/CN=${CFG_DOMAIN}"
+	cat >${SSL_DIR}/defguard-grpc.ext <<EOF
+authorityKeyIdentifier=keyid,issuer
+basicConstraints=CA:FALSE
+keyUsage = digitalSignature, nonRepudiation, keyEncipherment, dataEncipherment
+subjectAltName = @alt_names
+[alt_names]
+DNS.1 = ${CFG_DOMAIN}
+DNS.2 = core
+DNS.3 = localhost
+EOF
+	openssl x509 -req -in ${SSL_DIR}/defguard-grpc.csr -CA ${SSL_DIR}/defguard-ca.pem -CAkey ${SSL_DIR}/defguard-ca.key -passin pass:"${PASSPHRASE}" -CAcreateserial \
+		-out ${SSL_DIR}/defguard-grpc.crt -days 1000 -sha256 -extfile ${SSL_DIR}/defguard-grpc.ext
 }
 
 generate_rsa() {
@@ -547,11 +565,11 @@ update_env_file() {
 	set_env_file_secret "DEFGUARD_GATEWAY_SECRET"
 	set_env_file_secret "DEFGUARD_SECRET_KEY"
 	# use existing password if set in env variable
-  if [ "$DEFGUARD_DB_PASSWORD" ]; then
-    set_env_file_value "DEFGUARD_DB_PASSWORD" "${DEFGUARD_DB_PASSWORD}"
-  else
-    set_env_file_password "DEFGUARD_DB_PASSWORD"
-  fi
+	if [ "$DEFGUARD_DB_PASSWORD" ]; then
+		set_env_file_value "DEFGUARD_DB_PASSWORD" "${DEFGUARD_DB_PASSWORD}"
+	else
+		set_env_file_password "DEFGUARD_DB_PASSWORD"
+	fi
 
 	# generate an admin password to display later
 	# use existing password if set in env variables
