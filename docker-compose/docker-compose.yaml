@@ -69,7 +69,7 @@ services:
   #   image: ghcr.io/defguard/defguard-proxy:${PROXY_IMAGE_TAG:-latest}  # [ENROLLMENT]
   #   restart: unless-stopped  # [ENROLLMENT]
   #   environment:  # [ENROLLMENT]
-  #     DEFGUARD_PROXY_UPSTREAM_GRPC_URL: http://core:50055/  # [ENROLLMENT]
+  #     DEFGUARD_PROXY_UPSTREAM_GRPC_URL: https://core:50055/  # [ENROLLMENT]
   #     DEFGUARD_PROXY_GRPC_CA: /ssl/defguard-ca.pem  # [ENROLLMENT]
   #   volumes:  # [ENROLLMENT]
   # SSL setup guide: https://defguard.gitbook.io/defguard/features/setting-up-your-instance/docker-compose#ssl-setup
@@ -85,9 +85,14 @@ services:
   #   restart: unless-stopped  # [VPN]
   #   network_mode: "host"  # [VPN]
   #   environment:  # [VPN]
-  #     DEFGUARD_GRPC_URL: http://localhost:50055  # [VPN]
+  #     DEFGUARD_GRPC_URL: https://localhost:50055  # [VPN]
+  #     DEFGUARD_GRPC_CA: /ssl/defguard-ca.pem  # [VPN]
   #     DEFGUARD_STATS_PERIOD: 30  # [VPN]
   #     DEFGUARD_TOKEN: ${DEFGUARD_TOKEN}  # [VPN]
+  #   volumes:  # [VPN]
+  # SSL setup guide: https://defguard.gitbook.io/defguard/features/setting-up-your-instance/docker-compose#ssl-setup
+  #     - ./.volumes/ssl:/ssl  # [VPN]
+
   #   ports:  # [VPN]
   #     # wireguard endpoint
   #     - "50051:50051/udp"  # [VPN]
