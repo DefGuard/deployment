@@ -92,9 +92,5 @@ services:
   #   volumes:  # [VPN]
   # SSL setup guide: https://defguard.gitbook.io/defguard/features/setting-up-your-instance/docker-compose#ssl-setup
   #     - ./.volumes/ssl:/ssl  # [VPN]
-
-  #   ports:  # [VPN]
-  #     # WireGuard endpoint
-  #     - "50051:50051/udp"  # [VPN]
   #   cap_add:  # [VPN]
   #     - NET_ADMIN  # [VPN]
