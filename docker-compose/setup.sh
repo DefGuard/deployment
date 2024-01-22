@@ -461,7 +461,7 @@ client devices will use to safely connect to your gateway from the
 public internet.
 		
 Since we'll be starting the gateway on this server the IP address should
-be the same as your server's public IP. 
+be the same as your server's public IP address. 
 _EOF_
     echo -ne "${C_BOLD}"
     cat << _EOF_
