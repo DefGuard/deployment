@@ -789,7 +789,7 @@ print_instance_summary() {
 	echo -e "Files used to deploy your instance are stored in ${C_BOLD}${WORK_DIR_PATH}${C_END}"
 	echo -e "Persistent data is stored in ${C_BOLD}${WORK_DIR_PATH}/.volumes${C_END}"
   echo
-  echo -e " ${C_YELLOW}${TXT_STAR} To support our work, please star us on github! ${TXT_STAR}${C_END}"
+  echo -e " ${C_YELLOW}${TXT_STAR} To support our work, please star us on GitHub! ${TXT_STAR}${C_END}"
   echo -e " ${C_YELLOW}${TXT_STAR} https://github.com/defguard/defguard ${TXT_STAR}${C_END}"
 }
 
