@@ -567,7 +567,7 @@ setup_keys() {
 		generate_certs
 	fi
 
-	if [ -d ${RSA_DIR} ] && [ "$(ls -A ${RSA_DIR})" ]; then
+	if [ -d ${RSA_DIR} -a "$(ls -A ${RSA_DIR})" ]; then
 		echo "   ${TXT_SUB} Using existing RSA keys from ${RSA_DIR}."
 	else
 		generate_rsa
