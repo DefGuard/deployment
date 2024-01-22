@@ -471,7 +471,7 @@ _EOF_
 		
     echo -ne "${C_END}"
 
-    while [ X${public_ip} == "X" ]; do
+    while [ X${public_ip} = "X" ]; do
       echo -ne "${C_YELLOW}${TXT_INPUT}${C_END} "
 		  read -p "Enter VPN gateway public IP [default: ${CFG_VPN_GATEWAY_IP}]: " public_ip
 		  if [ "$public_ip" ]; then
