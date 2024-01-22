@@ -431,7 +431,7 @@ _EOF_
   echo -ne "${C_ITALICS}${C_GREY}"
   cat << _EOF_
 
-If you wish to configure and deploy a Wireguard VPN gateway, please
+If you wish to configure and deploy WireGuard VPN gateway, please
 provide your VPN location name. To skip, just press enter and VPN will
 not be configured.
 _EOF_
