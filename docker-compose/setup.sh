@@ -580,7 +580,7 @@ generate_certs() {
 
 	PASSPHRASE=$(generate_secret)
 
-	echo "PEM pass phrase for SSL certificates set to '${PASSPHRASE}'."
+	echo "PEM passphrase for SSL certificates set to '${PASSPHRASE}'."
 
 	# generate private key for CA
 	openssl genrsa -des3 -out ${SSL_DIR}/defguard-ca.key -passout pass:"${PASSPHRASE}" 2048 2>&1 >> ${LOG_FILE}
