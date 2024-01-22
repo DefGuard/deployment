@@ -366,7 +366,7 @@ load_configuration_from_input() {
   echo -ne "${C_ITALICS}${C_LBLUE}"
   cat << _EOF_
 
-Please provide a couple values to configure your defguard instance. If you've
+Please provide the values to configure your defguard instance. If you've
 already configured some options by setting environment variables or through
 CLI options, those will be used as defaults.
 
