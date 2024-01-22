@@ -395,7 +395,7 @@ cat << _EOF_
 
 Please note that this requires your server to have a public IP address
 and public DNS records for your chosen domains to be configured
-correctly (pointing to your server's IP).
+correctly (pointing to your server's IP address).
 
 _EOF_
 
