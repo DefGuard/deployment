@@ -479,7 +479,7 @@ _EOF_
 		  fi
     done
 
-    while [ X${public_port} == "X" ]; do
+    while [ X${public_port} = "X" ]; do
       echo -ne "${C_YELLOW}${TXT_INPUT}${C_END} "
 		  read -p "Enter VPN gateway public port [default: ${CFG_VPN_GATEWAY_PORT}]: " public_port
 		  if [ "$public_port" ]; then
