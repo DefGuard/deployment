@@ -460,7 +460,7 @@ Now we'll configure a public endpoint (IP + port) that your WireGuard
 client devices will use to safely connect to your gateway from the
 public internet.
 		
-Since we'll be starting the gateway on this server the IP should
+Since we'll be starting the gateway on this server the IP address should
 be the same as your server's public IP. 
 _EOF_
     echo -ne "${C_BOLD}"
