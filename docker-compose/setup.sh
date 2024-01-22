@@ -403,7 +403,7 @@ _EOF_
 
   echo -e "  ${C_BOLD}${C_GREEN}${TXT_STAR} General config ${TXT_STAR}${C_END}\n"
 
-  while [ X${domain} == "X" ]; do
+  while [ X${domain} = "X" ]; do
     echo -ne "${C_YELLOW}${TXT_INPUT}${C_END} "
 	  read -p "Enter defguard domain [default: ${CFG_DOMAIN}]: " domain
 	  if [ "$domain" ]; then
