@@ -445,7 +445,7 @@ _EOF_
 	fi
 
 	if [ "$CFG_VPN_NAME" ]; then
-    while [ X${vpn_ip} == "X" ]; do
+    while [ X${vpn_ip} = "X" ]; do
       echo -ne "${C_YELLOW}${TXT_INPUT}${C_END} "
 		  read -p "Enter VPN server address and subnet (e.g. 10.0.60.1/24) [default: ${CFG_VPN_IP}]: " vpn_ip
 		  if [ "$vpn_ip" ]; then
