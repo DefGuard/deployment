@@ -560,7 +560,7 @@ print_config() {
 }
 
 setup_keys() {
-	echo " ${TXT_BEGIN} Setting up SSL certs and RSA keys..."
+	echo " ${TXT_BEGIN} Setting up SSL certificates and RSA keys..."
 	if [ -d ${SSL_DIR} ] && [ "$(ls -A ${SSL_DIR})" ]; then
 		echo "   ${TXT_SUB} Using existing SSL certificates from ${SSL_DIR}"
 	else
