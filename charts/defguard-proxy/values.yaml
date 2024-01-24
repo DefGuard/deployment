@@ -28,9 +28,9 @@ securityContext: {}
 service:
   ports:
     http: 8080
+    grpc: 50051
   type: ClusterIP
 serviceAccount:
   annotations: {}
   create: true
 tolerations: []
-upstreamGrpcUrl: "http://defguard-grpc.local"
