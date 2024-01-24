@@ -5,13 +5,20 @@ metadata:
   labels:
     {{- include "defguard.labels" . | nindent 4 }}
 data:
-  DEFGUARD_DB_HOST:  {{ include "defguard.fullname" . }}-postgresql
+  {{- if .Values.cookie.domain }}
+  DEFGUARD_COOKIE_DOMAIN: {{ .Values.cookie.domain }}
+  {{- end }}
+  DEFGUARD_COOKIE_INSECURE: {{ .Values.cookie.insecure | quote }}
+  DEFGUARD_DB_HOST: {{ include "defguard.fullname" . }}-postgresql
   DEFGUARD_DB_NAME: {{ .Values.postgresql.auth.database }}
   DEFGUARD_DB_USER: {{ .Values.postgresql.auth.username }}
   DEFGUARD_GRPC_PORT: {{ .Values.service.ports.grpc | quote }}
+  DEFGUARD_ENROLLMENT_URL: {{ index .Values "defguard-proxy" "publicUrl" }}
+  {{- if .Values.proxyUrl }}
+  DEGUARD_PROXY_URL: {{ .Values.proxyUrl }}
+  {{- end }}
   DEFGUARD_URL: {{ .Values.publicUrl }}
   DEFGUARD_WEBAUTHN_RP_ID: {{ .Values.ingress.hosts.web }}
-  DEFGUARD_ENROLLMENT_URL: {{ index .Values "defguard-proxy" "publicUrl" }}
   {{- if .Values.ldap.enabled }}
   DEFGUARD_LDAP_ADMIN_GROUP: {{ .Values.ldap.admin_group | quote }}
   DEFGUARD_LDAP_BIND_PASSWORD: {{ .Values.ldap.bind_password | quote }}
