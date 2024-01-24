@@ -41,7 +41,7 @@ postgresql:
     database: defguard
     existingSecret: postgres-password
     username: defguard
-proxyUrl: "http://defguard-proxy-grpc.local"
+proxyUrl: ""
 publicUrl: "http://defguard.local"
 replicaCount: 1
 resources: {}
