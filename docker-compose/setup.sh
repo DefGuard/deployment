@@ -681,8 +681,8 @@ generate_env_file() {
 		echo "Using existing ${ENV_FILE} file."
 	else
 		fetch_base_env_file
+	  update_env_file
 	fi
-	update_env_file
 	print_confirmation
 }
 
@@ -706,6 +706,7 @@ update_env_file() {
 	set_env_file_secret "DEFGUARD_YUBIBRIDGE_SECRET"
 	set_env_file_secret "DEFGUARD_GATEWAY_SECRET"
 	set_env_file_secret "DEFGUARD_SECRET_KEY"
+
 	# use existing password if set in env variable
 	if [ "$DEFGUARD_DB_PASSWORD" ]; then
 		set_env_file_value "DEFGUARD_DB_PASSWORD" "${DEFGUARD_DB_PASSWORD}"
