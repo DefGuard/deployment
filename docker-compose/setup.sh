@@ -604,6 +604,22 @@ DNS.3 = localhost
 EOF
 	openssl x509 -req -in ${SSL_DIR}/defguard-grpc.csr -CA ${SSL_DIR}/defguard-ca.pem -CAkey ${SSL_DIR}/defguard-ca.key -passin pass:"${PASSPHRASE}" -CAcreateserial \
 		-out ${SSL_DIR}/defguard-grpc.crt -days 1000 -sha256 -extfile ${SSL_DIR}/defguard-grpc.ext 2>&1 >> ${LOG_FILE}
+
+	# generate CA-signed certificate for defguard proxy gRPC
+  openssl genrsa -out ${SSL_DIR}/defguard-proxy-grpc.key 2048 2>&1 >> ${LOG_FILE}
+
+  openssl req -new -key ${SSL_DIR}/defguard-proxy-grpc.key -out ${SSL_DIR}/defguard-proxy-grpc.csr -subj "/C=PL/ST=Zachodniopomorskie/L=Szczecin/O=Example/OU=IT Department/CN=${CFG_DOMAIN}" 2>&1 >> ${LOG_FILE}
+  cat >${SSL_DIR}/defguard-proxy-grpc.ext <<EOF
+authorityKeyIdentifier=keyid,issuer
+basicConstraints=CA:FALSE
+keyUsage = digitalSignature, nonRepudiation, keyEncipherment, dataEncipherment
+subjectAltName = @alt_names
+[alt_names]
+DNS.1 = proxy
+DNS.2 = localhost
+EOF
+  openssl x509 -req -in ${SSL_DIR}/defguard-proxy-grpc.csr -CA ${SSL_DIR}/defguard-ca.pem -CAkey ${SSL_DIR}/defguard-ca.key -passin pass:"${PASSPHRASE}" -CAcreateserial \
+    -out ${SSL_DIR}/defguard-proxy-grpc.crt -days 1000 -sha256 -extfile ${SSL_DIR}/defguard-proxy-grpc.ext 2>&1 >> ${LOG_FILE}
 }
 
 generate_rsa() {
