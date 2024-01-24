@@ -51,13 +51,6 @@ main() {
 	# check if necessary tools are available
 	check_environment
 
-	# load variables from `.env` file if available
-	if [ -f $ENV_FILE ]; then
-		echo -n " ${TXT_BEGIN} Loading initial configuration environment variables from existing ${ENV_FILE} file"
-		export $(cat "$ENV_FILE" | sed 's/#.*//g' | xargs)
-		print_confirmation
-	fi
-
 	# load configuration from env variables
 	load_configuration_from_env
 
