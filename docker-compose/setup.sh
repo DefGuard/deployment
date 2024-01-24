@@ -372,7 +372,7 @@ echo -ne "${C_GREY}"
 cat << _EOF_
 
 Choose domains that will be used to expose your instance through Caddy
-reverse proxy. Defguard uses a separate domain for the Web UI, and for 
+reverse proxy. defguard uses a separate domain for the Web UI, and for
 the optional enrollment/desktop client configuration/password reset
 service.
 
@@ -419,7 +419,7 @@ _EOF_
 	fi
 
   echo
-  echo -e "  ${C_BOLD}${C_GREEN}${TXT_STAR} Wireguard VPN${TXT_STAR}${C_END}\n"
+  echo -e "  ${C_BOLD}${C_GREEN}${TXT_STAR} WireGuard VPN${TXT_STAR}${C_END}\n"
 
   echo -ne "${C_ITALICS}${C_GREY}"
   cat << _EOF_
@@ -481,7 +481,7 @@ _EOF_
     done
 
   else
-    echo -e "  ${C_BOLD}${C_RED}${TXT_X} ${C_GREY} Wireguard VPN skipped${C_END}\n"
+    echo -e "  ${C_BOLD}${C_RED}${TXT_X} ${C_GREY} WireGuard VPN skipped${C_END}\n"
 	fi
 
 	echo
