@@ -3,6 +3,9 @@ autoscaling:
   enabled: false
   minReplicas: 1
   maxReplicas: 10
+cookie:
+  domain: ""
+  insecure: false
 fullnameOverride: ""
 image:
   pullPolicy: IfNotPresent
@@ -38,6 +41,7 @@ postgresql:
     database: defguard
     existingSecret: postgres-password
     username: defguard
+proxyUrl: "http://defguard-proxy-grpc.local"
 publicUrl: "http://defguard.local"
 replicaCount: 1
 resources: {}
@@ -54,8 +58,8 @@ tolerations: []
 # sub-chart defguard-proxy
 defguard-proxy:
   enabled: false
-  upstreamGrpcUrl: "http://defguard-grpc.local"
   publicUrl: "http://enrollment.local"
   ingress:
     hosts:
+      grpc: defguard-proxy-grpc.local
       web: enrollment.local

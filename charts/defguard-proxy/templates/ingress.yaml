@@ -53,4 +53,21 @@ spec:
               serviceName: {{ $fullName }}
               servicePort: {{ .Values.service.ports.http }}
               {{- end }}
+    - host: {{ .Values.ingress.hosts.grpc | quote }}
+      http:
+        paths:
+          - path: /
+            {{- if semverCompare ">=1.18-0" $.Capabilities.KubeVersion.GitVersion }}
+            pathType: ImplementationSpecific
+            {{- end }}
+            backend:
+              {{- if semverCompare ">=1.19-0" $.Capabilities.KubeVersion.GitVersion }}
+              service:
+                name: {{ $fullName }}-grpc
+                port:
+                  number: {{ .Values.service.ports.grpc }}
+              {{- else }}
+              serviceName: {{ $fullName }}-grpc
+              servicePort: {{ .Values.service.ports.grpc }}
+              {{- end }}
 {{- end }}
