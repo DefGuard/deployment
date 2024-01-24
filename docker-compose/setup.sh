@@ -770,6 +770,7 @@ enable_vpn_gateway() {
 	$COMPOSE_CMD -f "${PROD_COMPOSE_FILE}" --env-file "${PROD_ENV_FILE}" pull gateway
 
 	# create VPN location
+	echo " ${TXT_BEGIN} Generating VPN gateway token..."
 	token=$($COMPOSE_CMD -f "${PROD_COMPOSE_FILE}" --env-file "${PROD_ENV_FILE}" run core init-vpn-location --name "${CFG_VPN_NAME}" --address "${CFG_VPN_IP}" --endpoint "${CFG_VPN_GATEWAY_IP}" --port "${CFG_VPN_GATEWAY_PORT}" --allowed-ips "0.0.0.0/0")
 	if [ $? -ne 0 ]; then
 		echo >&2 "ERROR: failed to create VPN network"
@@ -795,6 +796,11 @@ print_instance_summary() {
 	echo
 	echo -e "\t${TXT_SUB} username: ${C_BOLD}admin${C_END}"
 	echo -e "\t${TXT_SUB} password: ${C_BOLD}${ADMIN_PASSWORD}${C_END}"
+	echo
+	if [ "$CFG_ENABLE_VPN" ]; then
+  		echo -e "Your WireGuard VPN server public endpoint is ${C_BOLD}${CFG_VPN_GATEWAY_IP}:${CFG_VPN_GATEWAY_PORT}${C_END}"
+  		echo -e "Please make sure your firewall is configured to allow external UDP traffic on port ${C_BOLD}${CFG_VPN_GATEWAY_PORT}${C_END}"
+  fi
 	echo
 	echo -e "Files used to deploy your instance are stored in ${C_BOLD}${WORK_DIR_PATH}${C_END}"
 	echo -e "Persistent data is stored in ${C_BOLD}${WORK_DIR_PATH}/.volumes${C_END}"
