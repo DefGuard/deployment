@@ -11,5 +11,9 @@ spec:
       targetPort: http
       protocol: TCP
       name: http
+    - port: { { .Values.service.ports.grpc } }
+      targetPort: grpc
+      protocol: TCP
+      name: grpc
   selector:
     {{- include "defguard-proxy.selectorLabels" . | nindent 4 }}
