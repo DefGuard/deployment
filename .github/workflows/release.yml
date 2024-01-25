@@ -28,7 +28,7 @@ jobs:
       # https://github.com/helm/chart-releaser-action/issues/74
       - name: Add repositories
         run: |
-          for dir in $(ls -d charts/defguard-proxy/); do
+          for dir in $(ls -d charts/*/); do
             helm dependency list $dir 2> /dev/null | tail +2 | head -n -1 | awk '{ print "helm repo add " $1 " " $3 }' | while read cmd; do $cmd; done
           done
 
