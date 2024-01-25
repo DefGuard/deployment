@@ -1,9 +1,0 @@
-dependencies:
-- name: postgresql
-  repository: https://charts.bitnami.com/bitnami
-  version: 12.11.1
-- name: defguard-proxy
-  repository: https://defguard.github.io/deployment
-  version: 0.2.0
-digest: sha256:defbdd5647d8d17a7ab386e43d646a6d8517ccf1749db91530cc495d17dac4a4
-generated: "2023-12-06T12:46:07.298364124+01:00"
