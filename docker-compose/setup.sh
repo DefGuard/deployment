@@ -4,22 +4,20 @@
 # This is a script that sets up an entire defguard instance (including core,
 # gateway, enrollment proxy and reverse proxy). It's goal is to prepare
 # a working instance by running a single command.
-#
-# It saves all the relevant files in the current directory and creates
-# a `.volumes` subdirectory for storing persistent data.
 
 set -o errexit  # abort on nonzero exitstatus
 set -o pipefail # don't hide errors within pipes
 
 # Global variables
-VERSION="0.2.0"
+VERSION="1.0.0"
 SECRET_LENGTH=64
 PASSWORD_LENGTH=16
 
+VOLUME_DIR=".volumes"
+SSL_DIR="${VOLUME_DIR}/ssl"
+RSA_DIR="${VOLUME_DIR}/core"
 
-SSL_DIR=".volumes/ssl"
 COMPOSE_FILE="docker-compose.yaml"
-RSA_DIR=".volumes/core"
 ENV_FILE=".env"
 LOG_FILE=$(mktemp setup.log.XXXXXX)
 
@@ -38,24 +36,50 @@ PROXY_IMAGE_TAG="${PROXY_IMAGE_TAG:-latest}"
 main() {
   is_utf_term
   is_term_color
+  tput reset
 	print_header
 
 	# display help `--help` argument is found
 	for i in $*; do
 		test "$i" == "--help" && print_usage && exit 0
-		# run script in non-interactive mode
-		test "$i" == "--non-interactive" && CFG_NON_INTERACTIVE=1
-		test "$i" == "--use-https" && CFG_USE_HTTPS=1
+
+    # run non interactive
+    if [[ "$i" == "--non-interactive" ]]; then
+		    CFG_NON_INTERACTIVE=1
+        # we need to remove this element from $* or getopt will return an error
+        set -- $(remove_element "$i" $*)
+    fi
+
+    # configure https
+    if [[ "$i" == "--use-https" ]]; then
+		    CFG_USE_HTTPS=1
+        # we need to remove this element from $* or getopt will return an error
+        set -- $(remove_element "$i" $*)
+    fi
 	done
 
-	# check if necessary tools are available
-	check_environment
+  #
+  # First let's gather the ENV/command line variables
+  #
 
 	# load configuration from env variables
 	load_configuration_from_env
 
 	# load configuration from CLI options
 	load_configuration_from_cli "$@"
+
+	# load configuration from user inputs
+	if [ X$CFG_VOLUME_DIR != X ]; then
+    VOLUME_DIR=${CFG_VOLUME_DIR}
+    SSL_DIR="${VOLUME_DIR}/ssl"
+    RSA_DIR="${VOLUME_DIR}/core"
+	fi
+
+  export VOLUME_DIR
+
+  # We have enough to check the enviromnent
+	# so check if necessary tools are available
+	check_environment
 
 	# load configuration from user inputs
 	if ! [ $CFG_NON_INTERACTIVE ]; then
@@ -191,6 +215,26 @@ is_term_color() {
   fi
 }
 
+# remove array element
+remove_element() {
+    local remove=$1
+    local result=()
+    for element in "$@"; do
+        if [[ "$element" != "$remove" ]]; then
+            result+=("$element")
+        fi
+    done
+    echo "${result[@]}"
+}
+
+# Function to convert relative path to absolute path
+to_absolute_path() {
+    local path="$1"
+    if [[ "${path:0:1}" != "/" ]]; then
+        path="$(cd "$(dirname "$path")" && pwd)/$(basename "$path")"
+    fi
+    echo ${path}
+}
 
 print_header() {
   echo -e "${C_LBLUE}"
@@ -227,14 +271,15 @@ print_usage() {
 	echo 'Available options:'
 	echo
 	echo -e "\t--help                         this help message"
-	echo -e "\t--non-interactive              run in non-interactive mode (no user input)"
+	echo -e "\t--non-interactive              run in non-interactive mode - !REQUIRES SETTING all options/env vars"
 	echo -e "\t--domain <domain>              domain where defguard web UI will be available"
 	echo -e "\t--enrollment-domain <domain>   domain where enrollment service will be available"
 	echo -e "\t--use-https                    configure reverse proxy to use HTTPS"
+	echo -e "\t--volume <directory>           Docker volumes directory - default: ${VOLUME_DIR}"
 	echo -e "\t--vpn-name <name>              VPN location name"
 	echo -e "\t--vpn-ip <address>             VPN server address & netmask (e.g. 10.0.50.1/24)"
-	echo -e "\t--vpn-gateway-ip <ip>          VPN gateway external IP"
-	echo -e "\t--vpn-gateway-port <port>      VPN gateway external port"
+  echo -e "\t--vpn-gateway-ip <ip>          VPN gateway external IP (! NOT DOMAIN - IP)"
+  echo -e "\t--vpn-gateway-port <port>      VPN gateway external port (your clients connect here)"
 	echo
 }
 
@@ -262,6 +307,7 @@ check_environment() {
 		if command_exists docker-compose; then
 			COMPOSE_CMD="docker-compose"
 		else
+      echo
 			echo >&2 "ERROR: docker-compose or docker compose command not found"
 			echo >&2 "ERROR: dependency failed, exiting..."
 			exit 3
@@ -272,6 +318,26 @@ check_environment() {
 	command_exists_check curl
 	command_exists_check grep
 
+  # Check if the volume dir is an absolute path since docker requires it
+  VOLUME_DIR=$(to_absolute_path "${VOLUME_DIR}")
+
+  if [ -d ${VOLUME_DIR} ]; then
+      echo
+			echo >&2 "ERROR: volume directory: ${VOLUME_DIR} exists."
+			echo >&2 "ERROR: this means, I would overwrite the configuration, database and certificates."
+			echo >&2 "ERROR: please backup or remove the volume directory."
+      exit 3
+  fi
+
+  # create all necessary directories
+  for dir in ${VOLUME_DIR} ${SSL_DIR} ${RSA_DIR}; do
+    mkdir ${dir}
+    if [ $? -ne 0 ]; then
+      echo >&2 "ERROR: cloud not create volume directory: ${dir}"
+      exit 3
+    fi
+  done
+
 	print_confirmation
 }
 
@@ -281,12 +347,15 @@ load_configuration_from_env() {
 	CFG_DOMAIN="$DEFGUARD_DOMAIN"
 
 	# optional variables
+	CFG_VOLUME_DIR="$DEFGUARD_VOLUME_DIR"
 	CFG_VPN_NAME="$DEFGUARD_VPN_NAME"
 	CFG_VPN_IP="$DEFGUARD_VPN_IP"
 	CFG_VPN_GATEWAY_IP="$DEFGUARD_VPN_GATEWAY_IP"
 	CFG_VPN_GATEWAY_PORT="$DEFGUARD_VPN_GATEWAY_PORT"
 	CFG_ENROLLMENT_DOMAIN="$DEFGUARD_ENROLLMENT_DOMAIN"
-	CFG_USE_HTTPS="$DEFGUARD_USE_HTTPS"
+  if ! [ $CFG_USE_HTTPS ]; then
+	  CFG_USE_HTTPS="$DEFGUARD_USE_HTTPS"
+  fi
 
 	print_confirmation
 }
@@ -297,6 +366,7 @@ load_configuration_from_cli() {
 	ARGUMENT_LIST=(
 		"domain"
 		"enrollment-domain"
+		"volume"
 		"vpn-name"
 		"vpn-ip"
 		"vpn-gateway-ip"
@@ -323,6 +393,11 @@ load_configuration_from_cli() {
 
 		--enrollment-domain)
 			CFG_ENROLLMENT_DOMAIN=$2
+			shift 2
+			;;
+
+		--volume)
+			CFG_VOLUME_DIR=$2
 			shift 2
 			;;
 
@@ -466,7 +541,7 @@ _EOF_
 
     while [ X${public_ip} = "X" ]; do
       echo -ne "${C_YELLOW}${TXT_INPUT}${C_END} "
-		  read -p "Enter VPN gateway public IP [default: ${CFG_VPN_GATEWAY_IP}]: " public_ip
+      read -p "Enter VPN gateway public IP (no domains!) [default: ${CFG_VPN_GATEWAY_IP}]: " public_ip
 		  if [ "$public_ip" ]; then
 			  CFG_VPN_GATEWAY_IP="$public_ip"
 		  fi
@@ -513,7 +588,7 @@ validate_required_variables() {
 
 generate_external_urls() {
 	# prepare full defguard URL
-	if [ "$CFG_USE_HTTPS" ]; then
+	if [ $CFG_USE_HTTPS ]; then
 		CFG_DEFGUARD_URL="https://${CFG_DOMAIN}"
 	else
 		CFG_DEFGUARD_URL="http://${CFG_DOMAIN}"
@@ -533,6 +608,9 @@ generate_external_urls() {
 print_config() {
   echo
 	echo " ${TXT_BEGIN} Setting up your defguard instance with following config:"
+  echo
+	echo -e "   ${TXT_SUB} data volume: ${C_BOLD}${VOLUME_DIR}${C_END}"
+  echo
 	echo -e "   ${TXT_SUB} domain: ${C_BOLD}${CFG_DOMAIN}${C_END}"
 	echo -e "   ${TXT_SUB} web UI URL: ${C_BOLD}${CFG_DEFGUARD_URL}${C_END}"
 
@@ -636,7 +714,7 @@ generate_secret_inner() {
 }
 
 create_caddyfile() {
-	caddy_volume_path="${WORK_DIR_PATH}/.volumes/caddy"
+	caddy_volume_path="${VOLUME_DIR}/caddy"
 	caddyfile_path="${caddy_volume_path}/Caddyfile"
 	mkdir -p ${caddy_volume_path}
 
@@ -677,12 +755,9 @@ fetch_base_compose_file() {
 
 generate_env_file() {
 	PROD_ENV_FILE="${WORK_DIR_PATH}/${ENV_FILE}"
-	if [ -f "$PROD_ENV_FILE" ]; then
-		echo "Using existing ${ENV_FILE} file."
-	else
-		fetch_base_env_file
-	  update_env_file
-	fi
+	fetch_base_env_file
+  update_env_file
+
 	print_confirmation
 }
 
@@ -714,14 +789,8 @@ update_env_file() {
 		set_env_file_password "DEFGUARD_DB_PASSWORD"
 	fi
 
-	# generate an admin password to display later
-	# use existing password if set in env variables
-	if [ "$DEFGUARD_DEFAULT_ADMIN_PASSWORD" ]; then
-		ADMIN_PASSWORD="$DEFGUARD_DEFAULT_ADMIN_PASSWORD"
-	else
-		ADMIN_PASSWORD="$(generate_password)"
-	fi
-	set_env_file_value "DEFGUARD_DEFAULT_ADMIN_PASSWORD" "${ADMIN_PASSWORD}"
+	DEFGUARD_DEFAULT_ADMIN_PASSWORD="$(generate_password)"
+	set_env_file_value "DEFGUARD_DEFAULT_ADMIN_PASSWORD" "${DEFGUARD_DEFAULT_ADMIN_PASSWORD}"
 
 	set_env_file_value "DEFGUARD_URL" "${CFG_DEFGUARD_URL}"
 	set_env_file_value "DEFGUARD_WEBAUTHN_RP_ID" "${CFG_DOMAIN}"
@@ -795,18 +864,22 @@ print_instance_summary() {
 	echo -e " ${TXT_BEGIN} You can log into the UI using the default admin user:"
 	echo
 	echo -e "\t${TXT_SUB} username: ${C_BOLD}admin${C_END}"
-	echo -e "\t${TXT_SUB} password: ${C_BOLD}${ADMIN_PASSWORD}${C_END}"
+	echo -e "\t${TXT_SUB} password: ${C_BOLD}${DEFGUARD_DEFAULT_ADMIN_PASSWORD}${C_END}"
 	echo
 	if [ "$CFG_ENABLE_VPN" ]; then
   		echo -e "Your WireGuard VPN server public endpoint is ${C_BOLD}${CFG_VPN_GATEWAY_IP}:${CFG_VPN_GATEWAY_PORT}${C_END}"
   		echo -e "Please make sure your firewall is configured to allow external UDP traffic on port ${C_BOLD}${CFG_VPN_GATEWAY_PORT}${C_END}"
   fi
 	echo
-	echo -e "Files used to deploy your instance are stored in ${C_BOLD}${WORK_DIR_PATH}${C_END}"
-	echo -e "Persistent data is stored in ${C_BOLD}${WORK_DIR_PATH}/.volumes${C_END}"
+	echo -e "Files used to deploy your instance are stored in:"
+	echo -e "\t docker compose file: ${C_BOLD}${PROD_COMPOSE_FILE}${C_END}"
+	echo -e "\t docker compose environment: ${C_BOLD}${PROD_ENV_FILE}${C_END}"
+  echo
+  echo -e "Persistent data (docker volumes) is stored in ${C_BOLD}${VOLUME_DIR}${C_END}"
   echo
   echo -e " ${C_YELLOW}${TXT_STAR} To support our work, please star us on GitHub! ${TXT_STAR}${C_END}"
   echo -e " ${C_YELLOW}${TXT_STAR} https://github.com/defguard/defguard ${TXT_STAR}${C_END}"
+  echo
 }
 
 # run main function
