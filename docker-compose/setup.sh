@@ -9,7 +9,7 @@ set -o errexit  # abort on nonzero exitstatus
 set -o pipefail # don't hide errors within pipes
 
 # Global variables
-VERSION="1.0.0"
+VERSION="1.0.1"
 SECRET_LENGTH=64
 PASSWORD_LENGTH=16
 
@@ -839,8 +839,9 @@ enable_vpn_gateway() {
 	$COMPOSE_CMD -f "${PROD_COMPOSE_FILE}" --env-file "${PROD_ENV_FILE}" pull gateway
 
 	# create VPN location
-	echo " ${TXT_BEGIN} Generating VPN gateway token..."
-	token=$($COMPOSE_CMD -f "${PROD_COMPOSE_FILE}" --env-file "${PROD_ENV_FILE}" run core init-vpn-location --name "${CFG_VPN_NAME}" --address "${CFG_VPN_IP}" --endpoint "${CFG_VPN_GATEWAY_IP}" --port "${CFG_VPN_GATEWAY_PORT}" --allowed-ips "0.0.0.0/0" | tail -n 1)
+	echo " ${TXT_BEGIN} Adding VPN to core & generating gateway token..."
+  VPN_NETWORK=`echo ${CFG_VPN_IP} | awk -F'[./]' '{print $1"."$2"."$3".0/"$5}'`
+	token=$($COMPOSE_CMD -f "${PROD_COMPOSE_FILE}" --env-file "${PROD_ENV_FILE}" run core init-vpn-location --name "${CFG_VPN_NAME}" --address "${CFG_VPN_IP}" --endpoint "${CFG_VPN_GATEWAY_IP}" --port "${CFG_VPN_GATEWAY_PORT}" --allowed-ips "${VPN_NETWORK}" | tail -n 1)
 	if [ $? -ne 0 ]; then
 		echo >&2 "ERROR: failed to create VPN network"
 		exit 1
@@ -867,8 +868,11 @@ print_instance_summary() {
 	echo -e "\t${TXT_SUB} password: ${C_BOLD}${DEFGUARD_DEFAULT_ADMIN_PASSWORD}${C_END}"
 	echo
 	if [ "$CFG_ENABLE_VPN" ]; then
-  		echo -e "Your WireGuard VPN server public endpoint is ${C_BOLD}${CFG_VPN_GATEWAY_IP}:${CFG_VPN_GATEWAY_PORT}${C_END}"
-  		echo -e "Please make sure your firewall is configured to allow external UDP traffic on port ${C_BOLD}${CFG_VPN_GATEWAY_PORT}${C_END}"
+  		echo -e "\t\tVPN server public endpoint is ${C_BOLD}${CFG_VPN_GATEWAY_IP}:${CFG_VPN_GATEWAY_PORT}${C_END}"
+  		echo -e "\t\tVPN network is ${C_BOLD}${VPN_NETWORK}${C_END}"
+  		echo -e "\t\t! Make sure your firewall allows external UDP traffic to port ${C_BOLD}${CFG_VPN_GATEWAY_PORT}${C_END} !"
+      echo
+      echo -e "\t\tTo test if the VPN is working: ping ${CFG_VPN_IP} (after connecting to VPN)"
   fi
 	echo
 	echo -e "Files used to deploy your instance are stored in:"
