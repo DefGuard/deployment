@@ -60,3 +60,11 @@ Create the name of the service account to use
 {{- default "default" .Values.serviceAccount.name }}
 {{- end }}
 {{- end }}
+
+{{/*
+Define JWT secret name
+*/}}
+{{- define "defguard.jwtSecretName" -}}
+{{- $name := "jwt-secrets" }}
+{{- $name }}
+{{- end }}
