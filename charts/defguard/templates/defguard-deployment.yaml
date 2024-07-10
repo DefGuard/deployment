@@ -101,5 +101,5 @@ spec:
       volumes:
         - name: openid-key
           secret:
-            secretName: {{ .Values.openIdKey }}
+            secretName: {{ .Values.existingOpenIdSecret | default (include "defguard.openidSecretName" .) }}
             optional: false

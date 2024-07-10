@@ -60,3 +60,11 @@ Create the name of the service account to use
 {{- default "default" .Values.serviceAccount.name }}
 {{- end }}
 {{- end }}
+
+{{/*
+Define opeind secret name
+*/}}
+{{- define "defguard.openidSecretName" -}}
+{{- $name := "openid-key" }}
+{{- $name }}
+{{- end }}
