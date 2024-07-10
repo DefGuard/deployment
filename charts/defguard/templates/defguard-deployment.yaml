@@ -34,7 +34,7 @@ spec:
               valueFrom:
                 secretKeyRef:
                   name: {{ .Values.postgresql.auth.existingSecret }}
-                  key: password
+                  key: {{ .Values.postgresql.auth.existingSecretPasswordKey | default "password" }}
             - name: DEFGUARD_AUTH_SECRET
               valueFrom:
                 secretKeyRef:

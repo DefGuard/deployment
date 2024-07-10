@@ -37,9 +37,12 @@ podLabels: {}
 podSecurityContext: {}
 # sub-chart bitnami/postgresql
 postgresql:
+  create: true
+  host: "" # set if using external postgresql ~ create: false
   auth:
     database: defguard
     existingSecret: postgres-password
+    existingSecretPasswordKey: "" # set if using external postgresql ~ create: false
     username: defguard
 proxyUrl: ""
 publicUrl: "http://defguard.local"
