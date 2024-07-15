@@ -8,7 +8,7 @@ appVersion: 0.9.0
 
 dependencies:
   - name: postgresql
-    condition: postgresql.create
+    condition: postgresql.enabled
     version: 12.12.10
     repository: https://charts.bitnami.com/bitnami
   - name: defguard-proxy

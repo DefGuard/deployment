@@ -37,7 +37,7 @@ podLabels: {}
 podSecurityContext: {}
 # sub-chart bitnami/postgresql
 postgresql:
-  create: true
+  enabled: true
   host: "" # set if using external postgresql ~ create: false
   auth:
     database: defguard
