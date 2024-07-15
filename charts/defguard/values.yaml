@@ -39,6 +39,7 @@ podSecurityContext: {}
 postgresql:
   enabled: true
   host: "" # set if using external postgresql ~ create: false
+  port: 5432
   auth:
     database: defguard
     existingSecret: postgres-password
