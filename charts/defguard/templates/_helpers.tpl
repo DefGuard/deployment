@@ -62,9 +62,17 @@ Create the name of the service account to use
 {{- end }}
 
 {{/*
-Define opeind secret name
+Define OpenID secret name
 */}}
 {{- define "defguard.openidSecretName" -}}
 {{- $name := "openid-key" }}
+{{- $name }}
+{{- end }}
+
+{{/*
+Define JWT secret name
+*/}}
+{{- define "defguard.jwtSecretName" -}}
+{{- $name := "jwt-secrets" }}
 {{- $name }}
 {{- end }}
