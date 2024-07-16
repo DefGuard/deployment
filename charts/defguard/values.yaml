@@ -43,7 +43,7 @@ postgresql:
   auth:
     database: defguard
     existingSecret: postgres-password
-    existingSecretPasswordKey: "" # set if using external postgresql ~ create: false
+    existingSecretPasswordKey: "" # set if using external postgresql ~ enabled: false
     username: defguard
 proxyUrl: ""
 publicUrl: "http://defguard.local"
