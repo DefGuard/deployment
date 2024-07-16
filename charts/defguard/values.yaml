@@ -38,7 +38,7 @@ podSecurityContext: {}
 # sub-chart bitnami/postgresql
 postgresql:
   enabled: true
-  host: "" # set if using external postgresql ~ create: false
+  host: "" # set if using external postgresql ~ enabled: false
   port: 5432
   auth:
     database: defguard
