@@ -10,7 +10,7 @@ data:
   {{- end }}
   DEFGUARD_COOKIE_INSECURE: {{ .Values.cookie.insecure | quote }}
   DEFGUARD_DB_HOST: {{ .Values.postgresql.host | default (printf "%s-postgresql" (include "defguard.fullname" .)) }}
-  DEFGUARD_DB_HOST: {{ .Values.postgresql.port | quote}}
+  DEFGUARD_DB_PORT: {{ .Values.postgresql.port | quote}}
   DEFGUARD_DB_NAME: {{ .Values.postgresql.auth.database }}
   DEFGUARD_DB_USER: {{ .Values.postgresql.auth.username }}
   DEFGUARD_GRPC_PORT: {{ .Values.service.ports.grpc | quote }}
