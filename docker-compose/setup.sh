@@ -9,7 +9,7 @@ set -o errexit  # abort on nonzero exitstatus
 set -o pipefail # don't hide errors within pipes
 
 # Global variables
-VERSION="1.0.1"
+VERSION="1.0.2"
 SECRET_LENGTH=64
 PASSWORD_LENGTH=16
 
@@ -211,7 +211,7 @@ is_term_color() {
     C_BOLD=""
     C_ITALICS=""
     C_BG_GREY=""
-    C_E#ND=""
+    C_END=""
   fi
 }
 
