@@ -34,26 +34,26 @@ spec:
               valueFrom:
                 secretKeyRef:
                   name: {{ .Values.postgresql.auth.existingSecret }}
-                  key: password
+                  key: {{ .Values.postgresql.auth.existingSecretPasswordKey | default "password" }}
             - name: DEFGUARD_AUTH_SECRET
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.jwtSecret }}
+                  name: {{ .Values.existingJwtSecret | default (include "defguard.jwtSecretName" .) }}
                   key: auth
             - name: DEFGUARD_GATEWAY_SECRET
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.jwtSecret }}
+                  name: {{ .Values.existingJwtSecret | default (include "defguard.jwtSecretName" .) }}
                   key: gateway
             - name: DEFGUARD_YUBIBRIDGE_SECRET
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.jwtSecret }}
+                  name: {{ .Values.existingJwtSecret | default (include "defguard.jwtSecretName" .) }}
                   key: yubi-bridge
             - name: DEFGUARD_SECRET_KEY
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.jwtSecret }}
+                  name: {{ .Values.existingJwtSecret | default (include "defguard.jwtSecretName" .) }}
                   key: secret-key
             - name: DEFGUARD_OPENID_KEY
               value: "/etc/defguard-openid-key.pem"
@@ -101,5 +101,5 @@ spec:
       volumes:
         - name: openid-key
           secret:
-            secretName: {{ .Values.openIdKey }}
+            secretName: {{ .Values.existingOpenIdSecret | default (include "defguard.openidSecretName" .) }}
             optional: false

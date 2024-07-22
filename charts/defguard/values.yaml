@@ -20,7 +20,7 @@ ingress:
     grpc: defguard-grpc.local
     web: defguard.local
   tls: []
-jwtSecret: jwt-secrets
+existingJwtSecret: ""
 ldap:
   admin_group: ""
   bind_password: ""
@@ -31,15 +31,19 @@ ldap:
   user_search_base: ""
 nameOverride: ""
 nodeSelector: {}
-openIdKey: openid-key
+existingOpenIdSecret: ""
 podAnnotations: {}
 podLabels: {}
 podSecurityContext: {}
 # sub-chart bitnami/postgresql
 postgresql:
+  enabled: true
+  host: "" # set if using external postgresql ~ enabled: false
+  port: 5432
   auth:
     database: defguard
     existingSecret: postgres-password
+    existingSecretPasswordKey: "" # set if using external postgresql ~ enabled: false
     username: defguard
 proxyUrl: ""
 publicUrl: "http://defguard.local"
