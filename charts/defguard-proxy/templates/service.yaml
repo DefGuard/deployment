@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "defguard-proxy.fullname" . }}
+  name: {{ include "defguard-proxy.fullname" . }}-web
   labels:
     {{- include "defguard-proxy.labels" . | nindent 4 }}
 spec:
