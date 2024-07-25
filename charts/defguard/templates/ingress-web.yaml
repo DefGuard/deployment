@@ -1,8 +1,8 @@
-{{- if .Values.ingress.enabled -}}
+{{- if .Values.ingress.web.enabled -}}
 {{- $fullName := include "defguard.fullname" . -}}
-{{- if and .Values.ingress.className (not (semverCompare ">=1.18-0" .Capabilities.KubeVersion.GitVersion)) }}
-  {{- if not (hasKey .Values.ingress.annotations "kubernetes.io/ingress.class") }}
-  {{- $_ := set .Values.ingress.annotations "kubernetes.io/ingress.class" .Values.ingress.className}}
+{{- if and .Values.ingress.web.className (not (semverCompare ">=1.18-0" .Capabilities.KubeVersion.GitVersion)) }}
+  {{- if not (hasKey .Values.ingress.web.annotations "kubernetes.io/ingress.class") }}
+  {{- $_ := set .Values.ingress.web.annotations "kubernetes.io/ingress.class" .Values.ingress.web.className}}
   {{- end }}
 {{- end }}
 {{- if semverCompare ">=1.19-0" .Capabilities.KubeVersion.GitVersion -}}
@@ -17,17 +17,17 @@ metadata:
   name: {{ $fullName }}
   labels:
     {{- include "defguard.labels" . | nindent 4 }}
-  {{- with .Values.ingress.annotations }}
+  {{- with .Values.ingress.web.annotations }}
   annotations:
     {{- toYaml . | nindent 4 }}
   {{- end }}
 spec:
-  {{- if and .Values.ingress.className (semverCompare ">=1.18-0" .Capabilities.KubeVersion.GitVersion) }}
-  ingressClassName: {{ .Values.ingress.className }}
+  {{- if and .Values.ingress.web.className (semverCompare ">=1.18-0" .Capabilities.KubeVersion.GitVersion) }}
+  ingressClassName: {{ .Values.ingress.web.className }}
   {{- end }}
-  {{- if .Values.ingress.tls }}
+  {{- if .Values.ingress.web.tls }}
   tls:
-    {{- range .Values.ingress.tls }}
+    {{- range .Values.ingress.web.tls }}
     - hosts:
         {{- range .hosts }}
         - {{ . | quote }}
@@ -36,7 +36,7 @@ spec:
     {{- end }}
   {{- end }}
   rules:
-    - host: {{ .Values.ingress.hosts.web | quote }}
+    - host: {{ .Values.ingress.web.hosts.web | quote }}
       http:
         paths:
           - path: /
@@ -52,22 +52,5 @@ spec:
               {{- else }}
               serviceName: {{ $fullName }}-web
               servicePort: {{ .Values.service.ports.http }}
-              {{- end }}
-    - host: {{ .Values.ingress.hosts.grpc | quote }}
-      http:
-        paths:
-          - path: /
-            {{- if semverCompare ">=1.18-0" $.Capabilities.KubeVersion.GitVersion }}
-            pathType: ImplementationSpecific
-            {{- end }}
-            backend:
-              {{- if semverCompare ">=1.19-0" $.Capabilities.KubeVersion.GitVersion }}
-              service:
-                name: {{ $fullName }}-grpc
-                port:
-                  number: {{ .Values.service.ports.grpc }}
-              {{- else }}
-              serviceName: {{ $fullName }}-grpc
-              servicePort: {{ .Values.service.ports.grpc }}
               {{- end }}
 {{- end }}

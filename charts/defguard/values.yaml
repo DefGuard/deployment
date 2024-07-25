@@ -13,13 +13,20 @@ image:
   tag: ""
 imagePullSecrets: []
 ingress:
-  annotations: {}
-  className: ""
-  enabled: true
-  hosts:
-    grpc: defguard-grpc.local
-    web: defguard.local
-  tls: []
+  grpc:
+    annotations: {}
+    className: ""
+    enabled: true
+    hosts:
+      grpc: defguard-grpc.local
+    tls: []
+  web:
+    annotations: {}
+    className: ""
+    enabled: true
+    hosts:
+      web: defguard.local
+    tls: []
 existingJwtSecret: ""
 ldap:
   admin_group: ""
