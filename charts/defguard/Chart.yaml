@@ -3,7 +3,7 @@ name: defguard
 description: Defguard is an open-source identity management system
 
 type: application
-version: 0.7.1
+version: 0.7.2
 appVersion: 0.11.0
 
 dependencies:
@@ -13,5 +13,5 @@ dependencies:
     repository: https://charts.bitnami.com/bitnami
   - name: defguard-proxy
     condition: defguard-proxy.enabled
-    version: 0.3.1
+    version: 0.3.3
     repository: https://defguard.github.io/deployment
