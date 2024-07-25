@@ -18,13 +18,13 @@ ingress:
     className: ""
     enabled: true
     host: defguard-grpc.local
-    tls: []
+    tls: false
   web:
     annotations: {}
     className: ""
     enabled: true
     host: defguard.local
-    tls: []
+    tls: false
 existingJwtSecret: ""
 ldap:
   admin_group: ""
