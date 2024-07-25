@@ -3,6 +3,25 @@ entries:
   defguard:
   - apiVersion: v2
     appVersion: 0.11.0
+    created: "2024-07-25T15:00:17.325169067+02:00"
+    dependencies:
+    - condition: postgresql.enabled
+      name: postgresql
+      repository: https://charts.bitnami.com/bitnami
+      version: 12.12.10
+    - condition: defguard-proxy.enabled
+      name: defguard-proxy
+      repository: https://defguard.github.io/deployment
+      version: 0.3.3
+    description: Defguard is an open-source identity management system
+    digest: 8d7fbef4f53e0725007dfb74d143b0d18367403fbf5fd95e4da707058d143909
+    name: defguard
+    type: application
+    urls:
+    - https://github.com/DefGuard/deployment/releases/download/defguard-0.7.2/defguard-0.7.2.tgz
+    version: 0.7.2
+  - apiVersion: v2
+    appVersion: 0.11.0
     created: "2024-07-25T10:21:31.314518893+02:00"
     dependencies:
     - condition: postgresql.enabled
@@ -298,4 +317,4 @@ entries:
     urls:
     - https://github.com/DefGuard/deployment/releases/download/defguard-proxy-0.1.0/defguard-proxy-0.1.0.tgz
     version: 0.1.0
-generated: "2024-07-25T14:28:15.502357759+02:00"
+generated: "2024-07-25T15:00:17.325274876+02:00"
