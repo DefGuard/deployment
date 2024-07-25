@@ -14,7 +14,7 @@ apiVersion: extensions/v1beta1
 {{- end }}
 kind: Ingress
 metadata:
-  name: {{ $fullName }}
+  name: {{ $fullName }}-grpc
   labels:
     {{- include "defguard-proxy.labels" . | nindent 4 }}
   {{- with .Values.ingress.grpc.annotations }}

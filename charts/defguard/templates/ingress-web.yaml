@@ -14,7 +14,7 @@ apiVersion: extensions/v1beta1
 {{- end }}
 kind: Ingress
 metadata:
-  name: {{ $fullName }}
+  name: {{ $fullName }}-web
   labels:
     {{- include "defguard.labels" . | nindent 4 }}
   {{- with .Values.ingress.web.annotations }}
