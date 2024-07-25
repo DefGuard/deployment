@@ -14,7 +14,7 @@ ingress:
     annotations: {}
     className: ""
     enabled: true
-    host: enrollment.local
+    host: enrollment-grpc.local
     tls: []
   web:
     annotations: {}
