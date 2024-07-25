@@ -29,14 +29,12 @@ spec:
   tls:
     {{- range .Values.ingress.web.tls }}
     - hosts:
-        {{- range .hosts }}
-        - {{ . | quote }}
-        {{- end }}
+      - {{ .Values.ingress.web.host | quote }}
       secretName: {{ .secretName }}
     {{- end }}
   {{- end }}
   rules:
-    - host: {{ .Values.ingress.web.hosts.web | quote }}
+    - host: {{ .Values.ingress.web.host | quote }}
       http:
         paths:
           - path: /

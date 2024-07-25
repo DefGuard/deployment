@@ -17,15 +17,13 @@ ingress:
     annotations: {}
     className: ""
     enabled: true
-    hosts:
-      grpc: defguard-grpc.local
+    host: defguard-grpc.local
     tls: []
   web:
     annotations: {}
     className: ""
     enabled: true
-    hosts:
-      web: defguard.local
+    host: defguard.local
     tls: []
 existingJwtSecret: ""
 ldap:
