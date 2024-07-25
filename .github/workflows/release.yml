@@ -7,7 +7,7 @@ on:
 
 jobs:
   release:
-    runs-on: [self-hosted, Linux]
+    runs-on: [self-hosted, Linux, X64]
 
     steps:
       - name: Checkout
