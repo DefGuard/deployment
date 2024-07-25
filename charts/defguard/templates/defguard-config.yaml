@@ -19,7 +19,7 @@ data:
   DEFGUARD_PROXY_URL: {{ .Values.proxyUrl }}
   {{- end }}
   DEFGUARD_URL: {{ .Values.publicUrl }}
-  DEFGUARD_WEBAUTHN_RP_ID: {{ .Values.ingress.hosts.web }}
+  DEFGUARD_WEBAUTHN_RP_ID: {{ .Values.ingress.web.host }}
   {{- if .Values.ldap.enabled }}
   DEFGUARD_LDAP_ADMIN_GROUP: {{ .Values.ldap.admin_group | quote }}
   DEFGUARD_LDAP_BIND_PASSWORD: {{ .Values.ldap.bind_password | quote }}
