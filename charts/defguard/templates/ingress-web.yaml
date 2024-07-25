@@ -27,11 +27,9 @@ spec:
   {{- end }}
   {{- if .Values.ingress.web.tls }}
   tls:
-    {{- range .Values.ingress.web.tls }}
     - hosts:
       - {{ .Values.ingress.web.host | quote }}
-      secretName: {{ .secretName }}
-    {{- end }}
+      secretName: {{ printf "%s-web-tls" .Values.ingress.web.host }}
   {{- end }}
   rules:
     - host: {{ .Values.ingress.web.host | quote }}

@@ -27,11 +27,9 @@ spec:
   {{- end }}
   {{- if .Values.ingress.grpc.tls }}
   tls:
-    {{- range .Values.ingress.grpc.tls }}
     - hosts:
       - {{ .Values.ingress.grpc.host | quote }}
-      secretName: {{ .secretName }}
-    {{- end }}
+      secretName: {{ printf "%s-grpc-tls" .Values.ingress.grpc.host }}
   {{- end }}
   rules:
     - host: {{ .Values.ingress.grpc.host | quote }}
