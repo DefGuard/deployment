@@ -16,7 +16,7 @@ data:
   DEFGUARD_GRPC_PORT: {{ .Values.service.ports.grpc | quote }}
   DEFGUARD_ENROLLMENT_URL: {{ index .Values "defguard-proxy" "publicUrl" }}
   {{- if .Values.proxyUrl }}
-  DEGUARD_PROXY_URL: {{ .Values.proxyUrl }}
+  DEFGUARD_PROXY_URL: {{ .Values.proxyUrl }}
   {{- end }}
   DEFGUARD_URL: {{ .Values.publicUrl }}
   DEFGUARD_WEBAUTHN_RP_ID: {{ .Values.ingress.hosts.web }}
