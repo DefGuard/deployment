@@ -1,6 +1,6 @@
 apiVersion: v2
 name: defguard
-description: Defguard is an open-source identity management system
+description: Defguard is an open-source enterprise wireGuard VPN with MFA and SSO 
 
 type: application
 version: 0.7.2
