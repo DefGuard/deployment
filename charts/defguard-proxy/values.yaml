@@ -10,12 +10,18 @@ image:
   tag: ""
 imagePullSecrets: []
 ingress:
-  annotations: {}
-  className: ""
-  enabled: true
-  hosts:
-    web: enrollment.local
-  tls: []
+  grpc:
+    annotations: {}
+    className: ""
+    enabled: true
+    host: enrollment.local
+    tls: []
+  web:
+    annotations: {}
+    className: ""
+    enabled: true
+    host: enrollment.local
+    tls: []
 nameOverride: ""
 nodeSelector: {}
 podAnnotations: {}
