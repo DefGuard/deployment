@@ -69,6 +69,7 @@ defguard-proxy:
   enabled: false
   publicUrl: "http://enrollment.local"
   ingress:
-    hosts:
-      grpc: defguard-proxy-grpc.local
-      web: enrollment.local
+    grpc:
+      host: defguard-proxy-grpc.local
+    web:
+      host: enrollment.local
