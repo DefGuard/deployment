@@ -4,6 +4,6 @@ dependencies:
   version: 12.12.10
 - name: defguard-proxy
   repository: https://defguard.github.io/deployment
-  version: 0.3.4
-digest: sha256:921494696a7945e61175e7a9124e1546ecbf4b12eaf55a3157dfe48cc77b9b02
-generated: "2024-07-25T18:38:33.093070895+02:00"
+  version: 0.3.5
+digest: sha256:de930b480616cfa369caf7b1447c5b3e729fce3e17994717ab0f64aa02c027e7
+generated: "2024-07-26T09:00:54.309522115+02:00"
