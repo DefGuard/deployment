@@ -40,3 +40,4 @@ serviceAccount:
   annotations: {}
   create: true
 tolerations: []
+additionalEnvFromConfigMap: ""

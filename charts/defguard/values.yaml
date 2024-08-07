@@ -73,3 +73,4 @@ defguard-proxy:
       host: defguard-proxy-grpc.local
     web:
       host: enrollment.local
+additionalEnvFromConfigMap: ""
