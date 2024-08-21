@@ -24,7 +24,7 @@ LOG_FILE=$(mktemp setup.log.XXXXXX)
 BASE_COMPOSE_FILE_URL="https://raw.githubusercontent.com/DefGuard/deployment/main/docker-compose/docker-compose.yaml"
 BASE_ENV_FILE_URL="https://raw.githubusercontent.com/DefGuard/deployment/main/docker-compose/.env.template"
 
-CORE_IMAGE_TAG="${CORE_IMAGE_TAG:-latest}"
+CORE_IMAGE_TAG="sha-74a7a26"
 GATEWAY_IMAGE_TAG="${GATEWAY_IMAGE_TAG:-latest}"
 PROXY_IMAGE_TAG="${PROXY_IMAGE_TAG:-latest}"
 
