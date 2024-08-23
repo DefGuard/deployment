@@ -27,7 +27,7 @@ services:
   #     - "443:443"  # [PROXY]
 
   core:
-    image: ghcr.io/defguard/defguard:${CORE_IMAGE_TAG:-latest}
+    image: ghcr.io/defguard/defguard:sha-afa822a
     restart: unless-stopped
     environment:
       DEFGUARD_AUTH_SECRET: ${DEFGUARD_AUTH_SECRET}
