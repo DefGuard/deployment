@@ -13,5 +13,5 @@ dependencies:
     repository: https://charts.bitnami.com/bitnami
   - name: defguard-proxy
     condition: defguard-proxy.enabled
-    version: 0.3.5
+    version: 0.3.6
     repository: https://defguard.github.io/deployment

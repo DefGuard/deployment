@@ -4,4 +4,4 @@ description: Defguard proxy is a public-facing proxy for core defguard service
 
 type: application
 version: 0.3.6
-appVersion: 0.5.0
+appVersion: 0.5.1
