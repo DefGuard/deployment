@@ -24,11 +24,6 @@ LOG_FILE=$(mktemp setup.log.XXXXXX)
 BASE_COMPOSE_FILE_URL="https://raw.githubusercontent.com/DefGuard/deployment/main/docker-compose/docker-compose.yaml"
 BASE_ENV_FILE_URL="https://raw.githubusercontent.com/DefGuard/deployment/main/docker-compose/.env.template"
 
-CORE_IMAGE_TAG="${CORE_IMAGE_TAG:-latest}"
-GATEWAY_IMAGE_TAG="${GATEWAY_IMAGE_TAG:-latest}"
-PROXY_IMAGE_TAG="${PROXY_IMAGE_TAG:-latest}"
-
-
 #####################
 ### MAIN FUNCTION ###
 #####################
@@ -75,7 +70,7 @@ main() {
     RSA_DIR="${VOLUME_DIR}/core"
 	fi
 
-  export VOLUME_DIR
+  	export VOLUME_DIR
 
   # We have enough to check the enviromnent
 	# so check if necessary tools are available
@@ -104,6 +99,23 @@ main() {
 	# generate caddyfile
 	create_caddyfile
 
+	if [[ $CFG_DEV == 1 ]]; then
+		IMAGE_TYPE_NAME="development"
+		CORE_IMAGE_TAG="dev"
+		GATEWAY_IMAGE_TAG="dev"
+		PROXY_IMAGE_TAG="dev"
+	elif [[ $CFG_PRE_RELEASE == 1 ]]; then
+		IMAGE_TYPE_NAME="pre-release"
+		CORE_IMAGE_TAG="pre-release"
+		GATEWAY_IMAGE_TAG="pre-release"
+		PROXY_IMAGE_TAG="pre-release"
+	else
+		IMAGE_TYPE_NAME="latest release"
+		CORE_IMAGE_TAG="${CORE_IMAGE_TAG:-latest}"
+		GATEWAY_IMAGE_TAG="${GATEWAY_IMAGE_TAG:-latest}"
+		PROXY_IMAGE_TAG="${PROXY_IMAGE_TAG:-latest}"
+	fi
+	
 	# generate `.env` file
 	generate_env_file
 
@@ -130,7 +142,9 @@ main() {
 	fi
 
 	# fetch latest images
-	echo " ${TXT_BEGIN} Fetching latest Docker images: "
+
+	echo " ${TXT_BEGIN} ${IMAGE_TYPE_NAME} Docker images will be used"
+	echo " ${TXT_BEGIN} Fetching ${IMAGE_TYPE_NAME} Docker images: "
 	$COMPOSE_CMD -f "${PROD_COMPOSE_FILE}" --env-file "${PROD_ENV_FILE}" pull
 
 	# enable and setup VPN gateway
@@ -253,8 +267,8 @@ print_header() {
       ##   #                           #######                                  
           #                                                                     
 _EOF_
-  echo -e "${C_END}"
-  echo
+  	echo -e "${C_END}"
+	echo
 	echo "defguard docker-compose deployment setup script v${VERSION}"
 	echo -e "Copyright (C) 2023-2024 ${C_BOLD}teonite${C_END} <${C_BG_GREY}${C_YELLOW}https://teonite.com${C_END}>"
 	echo
@@ -278,8 +292,10 @@ print_usage() {
 	echo -e "\t--volume <directory>           Docker volumes directory - default: ${VOLUME_DIR}"
 	echo -e "\t--vpn-name <name>              VPN location name"
 	echo -e "\t--vpn-ip <address>             VPN server address & netmask (e.g. 10.0.50.1/24)"
-  echo -e "\t--vpn-gateway-ip <ip>          VPN gateway external IP (! NOT DOMAIN - IP)"
-  echo -e "\t--vpn-gateway-port <port>      VPN gateway external port (your clients connect here)"
+	echo -e "\t--vpn-gateway-ip <ip>          VPN gateway external IP (! NOT DOMAIN - IP)"
+	echo -e "\t--vpn-gateway-port <port>      VPN gateway external port (your clients connect here)"
+	echo -e "\t--dev                          use development images"
+	echo -e "\t--pre-release                  use pre-release images"
 	echo
 }
 
@@ -353,6 +369,8 @@ load_configuration_from_env() {
 	CFG_VPN_GATEWAY_IP="$DEFGUARD_VPN_GATEWAY_IP"
 	CFG_VPN_GATEWAY_PORT="$DEFGUARD_VPN_GATEWAY_PORT"
 	CFG_ENROLLMENT_DOMAIN="$DEFGUARD_ENROLLMENT_DOMAIN"
+	CFG_PRE_RELEASE="$DEFGUARD_PRE_RELEASE"
+	CFG_DEV="$DEFGUARD_DEV"
   if ! [ $CFG_USE_HTTPS ]; then
 	  CFG_USE_HTTPS="$DEFGUARD_USE_HTTPS"
   fi
@@ -363,20 +381,23 @@ load_configuration_from_env() {
 load_configuration_from_cli() {
 	echo -n " ${TXT_BEGIN} Loading configuration from CLI arguments... "
 
+	# ":" means that the option has to have an argument (e.g. --domain example.com)
 	ARGUMENT_LIST=(
-		"domain"
-		"enrollment-domain"
-		"volume"
-		"vpn-name"
-		"vpn-ip"
-		"vpn-gateway-ip"
-		"vpn-gateway-port"
+		"domain:"
+		"enrollment-domain:"
+		"volume:"
+		"vpn-name:"
+		"vpn-ip:"
+		"vpn-gateway-ip:"
+		"vpn-gateway-port:"
+		"dev"
+		"pre-release"
 	)
 
 	# read arguments
 	opts=$(
 		getopt \
-			--longoptions "$(printf "%s:," "${ARGUMENT_LIST[@]}")" \
+			--longoptions "$(printf "%s," "${ARGUMENT_LIST[@]}")" \
 			--name "$(basename "$0")" \
 			--options "" \
 			-- "$@"
@@ -421,11 +442,26 @@ load_configuration_from_cli() {
 			shift 2
 			;;
 
+		--pre-release)
+			CFG_PRE_RELEASE=1
+			shift
+			;;
+
+		--dev)
+			CFG_DEV=1
+			shift
+			;;
+
 		*)
 			break
 			;;
 		esac
 	done
+
+	if [ $CFG_DEV ] && [ $CFG_PRE_RELEASE ]; then
+		echo >&2 "ERROR: both --dev and --pre-release flags cannot be set at the same time. You can only either use the dev builds or the pre-release builds."
+		exit 4
+	fi
 
 	print_confirmation
 }
