@@ -44,3 +44,5 @@ jobs:
         if: always()
         working-directory: temp
         run: docker compose down
+      - name: Cleanup temp
+        run: rm -r temp
