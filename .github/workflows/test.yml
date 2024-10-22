@@ -3,11 +3,10 @@ name: Test setup script
 on:
   push:
     branches:
-      # - main
-      - fix-test
-    # paths:
-    #   - 'docker-compose/**'
-    #   - '.github/workflows/test.yml'
+      - main
+    paths:
+      - 'docker-compose/**'
+      - '.github/workflows/test.yml'
 
 jobs:
   test:
