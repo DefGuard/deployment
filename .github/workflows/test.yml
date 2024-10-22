@@ -43,6 +43,6 @@ jobs:
       - name: Stop compose stack
         if: always()
         working-directory: temp
-        run: docker compose down
+        run: docker compose down -v
       - name: Cleanup temp
         run: rm -r temp
