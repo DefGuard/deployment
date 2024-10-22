@@ -9,7 +9,7 @@ set -o errexit  # abort on nonzero exitstatus
 set -o pipefail # don't hide errors within pipes
 
 # Global variables
-VERSION="1.1.0"
+VERSION="1.2.0"
 SECRET_LENGTH=64
 PASSWORD_LENGTH=16
 
@@ -72,9 +72,22 @@ main() {
 
   	export VOLUME_DIR
 
-  # We have enough to check the enviromnent
+	# set current working directory
+	WORK_DIR_PATH=$(pwd)
+
+	# set docker compose file directory
+	PROD_COMPOSE_FILE="${WORK_DIR_PATH}/${COMPOSE_FILE}"
+
+  	# We have enough to check the enviromnent
 	# so check if necessary tools are available
 	check_environment
+
+	# Set the correct docker image version based on passed arguments/env variables
+	# either latest, pre-release or dev
+	setup_docker_image_version
+
+	# Print architecture for debugging purposes
+	echo " ${TXT_BEGIN} Identified architecture as: $(uname -m)"
 
 	# load configuration from user inputs
 	if ! [ $CFG_NON_INTERACTIVE ]; then
@@ -90,31 +103,11 @@ main() {
 	# print out config
 	print_config
 
-	# set current working directory
-	WORK_DIR_PATH=$(pwd)
-
 	# setup RSA & SSL keys
 	setup_keys
 
 	# generate caddyfile
 	create_caddyfile
-
-	if [[ $CFG_DEV == 1 ]]; then
-		IMAGE_TYPE_NAME="development"
-		CORE_IMAGE_TAG="dev"
-		GATEWAY_IMAGE_TAG="dev"
-		PROXY_IMAGE_TAG="dev"
-	elif [[ $CFG_PRE_RELEASE == 1 ]]; then
-		IMAGE_TYPE_NAME="pre-release"
-		CORE_IMAGE_TAG="pre-release"
-		GATEWAY_IMAGE_TAG="pre-release"
-		PROXY_IMAGE_TAG="pre-release"
-	else
-		IMAGE_TYPE_NAME="latest release"
-		CORE_IMAGE_TAG="${CORE_IMAGE_TAG:-latest}"
-		GATEWAY_IMAGE_TAG="${GATEWAY_IMAGE_TAG:-latest}"
-		PROXY_IMAGE_TAG="${PROXY_IMAGE_TAG:-latest}"
-	fi
 	
 	# generate `.env` file
 	generate_env_file
@@ -125,13 +118,7 @@ main() {
 	fi
 
 	# generate base docker-compose file
-	PROD_COMPOSE_FILE="${WORK_DIR_PATH}/${COMPOSE_FILE}"
-	if [ -f "$PROD_COMPOSE_FILE" ]; then
-		echo -n " ${TXT_BEGIN} Using existing docker-compose file at ${PROD_COMPOSE_FILE}... "
-		print_confirmation
-	else
-		fetch_base_compose_file
-	fi
+	fetch_base_compose_file
 
 	# enable reverse proxy in compose file
 	uncomment_feature "PROXY" "${PROD_COMPOSE_FILE}"
@@ -143,8 +130,7 @@ main() {
 
 	# fetch latest images
 
-	echo " ${TXT_BEGIN} ${IMAGE_TYPE_NAME} Docker images will be used"
-	echo " ${TXT_BEGIN} Fetching ${IMAGE_TYPE_NAME} Docker images: "
+	echo -e " ${TXT_BEGIN} Fetching ${IMAGE_TYPE_NAME} Docker images: "
 	$COMPOSE_CMD -f "${PROD_COMPOSE_FILE}" --env-file "${PROD_ENV_FILE}" pull
 
 	# enable and setup VPN gateway
@@ -334,27 +320,56 @@ check_environment() {
 	command_exists_check curl
 	command_exists_check grep
 
-  # Check if the volume dir is an absolute path since docker requires it
-  VOLUME_DIR=$(to_absolute_path "${VOLUME_DIR}")
+	# Check if the volume dir is an absolute path since docker requires it
+	VOLUME_DIR=$(to_absolute_path "${VOLUME_DIR}")
 
-  if [ -d ${VOLUME_DIR} ]; then
-      echo
-			echo >&2 "ERROR: volume directory: ${VOLUME_DIR} exists."
-			echo >&2 "ERROR: this means, I would overwrite the configuration, database and certificates."
-			echo >&2 "ERROR: please backup or remove the volume directory."
-      exit 3
-  fi
+	if [ -d ${VOLUME_DIR} ]; then
+		echo
+				echo >&2 "ERROR: volume directory: ${VOLUME_DIR} exists."
+				echo >&2 "ERROR: this means, I would overwrite the configuration, database and certificates."
+				echo >&2 "ERROR: please backup or remove the volume directory."
+		exit 3
+	fi
 
-  # create all necessary directories
-  for dir in ${VOLUME_DIR} ${SSL_DIR} ${RSA_DIR}; do
-    mkdir ${dir}
-    if [ $? -ne 0 ]; then
-      echo >&2 "ERROR: cloud not create volume directory: ${dir}"
-      exit 3
-    fi
-  done
+	if [ -f "$PROD_COMPOSE_FILE" ]; then
+		echo
+			echo >&2 "ERROR: docker compose file: ${PROD_COMPOSE_FILE} already exists."
+			echo >&2 "ERROR: this means I would overwrite the previous configuration."
+			echo >&2 "ERROR: please backup or remove the docker compose file."
+		exit 3
+	fi
+
+	# create all necessary directories
+	for dir in ${VOLUME_DIR} ${SSL_DIR} ${RSA_DIR}; do
+		mkdir ${dir}
+		if [ $? -ne 0 ]; then
+		echo >&2 "ERROR: cloud not create volume directory: ${dir}"
+		exit 3
+		fi
+	done
 
 	print_confirmation
+}
+
+setup_docker_image_version() {
+	if [[ $CFG_DEV == 1 ]]; then
+		IMAGE_TYPE_NAME="${C_RED}development${C_END}"
+		CORE_IMAGE_TAG="dev"
+		GATEWAY_IMAGE_TAG="dev"
+		PROXY_IMAGE_TAG="dev"
+	elif [[ $CFG_PRE_RELEASE == 1 ]]; then
+		IMAGE_TYPE_NAME="${C_YELLOW}pre-release${C_END}"
+		CORE_IMAGE_TAG="pre-release"
+		GATEWAY_IMAGE_TAG="pre-release"
+		PROXY_IMAGE_TAG="pre-release"
+	else
+		IMAGE_TYPE_NAME="${C_GREEN}latest production${C_END}"
+		CORE_IMAGE_TAG="${CORE_IMAGE_TAG:-latest}"
+		GATEWAY_IMAGE_TAG="${GATEWAY_IMAGE_TAG:-latest}"
+		PROXY_IMAGE_TAG="${PROXY_IMAGE_TAG:-latest}"
+	fi
+
+	echo -e " ${TXT_BEGIN} ${IMAGE_TYPE_NAME} Docker images will be used"
 }
 
 load_configuration_from_env() {
@@ -870,8 +885,8 @@ enable_vpn_gateway() {
 	uncomment_feature "VPN" "${PROD_COMPOSE_FILE}"
 	uncomment_feature "VPN" "${PROD_ENV_FILE}"
 
-	# fetch latest image
-	echo "   ${TXT_SUB} Fetching latest gateway image..."
+	# fetch image
+	echo -e "   ${TXT_SUB} Fetching ${IMAGE_TYPE_NAME} gateway image..."
 	$COMPOSE_CMD -f "${PROD_COMPOSE_FILE}" --env-file "${PROD_ENV_FILE}" pull gateway
 
 	# create VPN location
@@ -889,8 +904,8 @@ enable_vpn_gateway() {
 
 print_instance_summary() {
 	echo
-	echo -e "${C_LGREEN} ${TXT_CHECK} defguard setup finished successfully${C_END}"
-  echo
+	echo -e "${C_LGREEN} ${TXT_CHECK} defguard setup finished successfully${C_END}. The Docker image version used for the setup was: ${IMAGE_TYPE_NAME}"
+	echo
 	echo "If your DNS configuration is correct your defguard instance should be available at:"
 	echo
 	echo -e "\t${TXT_SUB} Web UI: ${C_BOLD}${CFG_DEFGUARD_URL}${C_END}"
@@ -907,19 +922,19 @@ print_instance_summary() {
   		echo -e "\t\tVPN server public endpoint is ${C_BOLD}${CFG_VPN_GATEWAY_IP}:${CFG_VPN_GATEWAY_PORT}${C_END}"
   		echo -e "\t\tVPN network is ${C_BOLD}${VPN_NETWORK}${C_END}"
   		echo -e "\t\t! Make sure your firewall allows external UDP traffic to port ${C_BOLD}${CFG_VPN_GATEWAY_PORT}${C_END} !"
-      echo
-      echo -e "\t\tTo test if the VPN is working: ping ${CFG_VPN_IP} (after connecting to VPN)"
-  fi
+		echo
+		echo -e "\t\tTo test if the VPN is working: ping ${CFG_VPN_IP} (after connecting to VPN)"
+  	fi
 	echo
 	echo -e "Files used to deploy your instance are stored in:"
 	echo -e "\t docker compose file: ${C_BOLD}${PROD_COMPOSE_FILE}${C_END}"
 	echo -e "\t docker compose environment: ${C_BOLD}${PROD_ENV_FILE}${C_END}"
-  echo
-  echo -e "Persistent data (docker volumes) is stored in ${C_BOLD}${VOLUME_DIR}${C_END}"
-  echo
-  echo -e " ${C_YELLOW}${TXT_STAR} To support our work, please star us on GitHub! ${TXT_STAR}${C_END}"
-  echo -e " ${C_YELLOW}${TXT_STAR} https://github.com/defguard/defguard ${TXT_STAR}${C_END}"
-  echo
+	echo
+	echo -e "Persistent data (docker volumes) is stored in ${C_BOLD}${VOLUME_DIR}${C_END}"
+	echo
+	echo -e " ${C_YELLOW}${TXT_STAR} To support our work, please star us on GitHub! ${TXT_STAR}${C_END}"
+	echo -e " ${C_YELLOW}${TXT_STAR} https://github.com/defguard/defguard ${TXT_STAR}${C_END}"
+	echo
 }
 
 # run main function
