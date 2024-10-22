@@ -3,10 +3,11 @@ name: Test setup script
 on:
   push:
     branches:
-      - main
-    paths:
-      - 'docker-compose/**'
-      - '.github/workflows/test.yml'
+      # - main
+      - fix-test
+    # paths:
+    #   - 'docker-compose/**'
+    #   - '.github/workflows/test.yml'
 
 jobs:
   test:
@@ -19,6 +20,8 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      - name: debug
+        run: pwd 
       - name: Create working directory
         run: mkdir temp
       - name: Run setup script
