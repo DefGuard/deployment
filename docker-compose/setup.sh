@@ -9,7 +9,7 @@ set -o errexit  # abort on nonzero exitstatus
 set -o pipefail # don't hide errors within pipes
 
 # Global variables
-VERSION="1.2.0"
+VERSION="1.2.1"
 SECRET_LENGTH=64
 PASSWORD_LENGTH=16
 
