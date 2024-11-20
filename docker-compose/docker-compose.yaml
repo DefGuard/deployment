@@ -75,6 +75,7 @@ services:
   #     DEFGUARD_PROXY_GRPC_PORT: 50052  # [ENROLLMENT]
   #     DEFGUARD_PROXY_GRPC_CERT: /ssl/defguard-proxy-grpc.crt  # [ENROLLMENT]
   #     DEFGUARD_PROXY_GRPC_KEY: /ssl/defguard-proxy-grpc.key  # [ENROLLMENT]
+  #     DEFGUARD_PROXY_URL: ${DEFGUARD_ENROLLMENT_URL}  # [ENROLLMENT]
   #   volumes:  # [ENROLLMENT]
   # SSL setup guide: https://defguard.gitbook.io/defguard/features/setting-up-your-instance/docker-compose#ssl-setup
   #     - ${VOLUME_DIR:-./.volumes}/ssl:/ssl  # [ENROLLMENT]
