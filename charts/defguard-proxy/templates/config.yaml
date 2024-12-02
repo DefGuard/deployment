@@ -7,3 +7,5 @@ metadata:
 data:
   DEFGUARD_PROXY_HTTP_PORT: {{ .Values.service.ports.http | quote }}
   DEFGUARD_PROXY_GRPC_PORT: {{ .Values.service.ports.grpc | quote }}
+  DEFGUARD_PROXY_URL: {{ .Values.publicUrl | quote }}
+  
