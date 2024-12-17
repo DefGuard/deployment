@@ -1,17 +1,29 @@
-affinity: {}
+---
+# this should be a URL based on defguard-proxy.ingress.grpc.host
+proxyUrl: "http://defguard-proxy-grpc.local"
+# this should be a URL based on ingress.web.host
+publicUrl: "http://defguard.local"
+# defguard-core pod autoscaling configuration
 autoscaling:
   enabled: false
   minReplicas: 1
   maxReplicas: 10
+# defguard-core cookie configuration
 cookie:
   domain: ""
   insecure: false
+# defguard full name override
 fullnameOverride: ""
+# defguard name override
+nameOverride: ""
+# defguard-core container image configuration
 image:
   pullPolicy: IfNotPresent
   repository: ghcr.io/defguard/defguard
-  tag: ""
+  tag: "" # overrides .Chart.AppVersion
+# defguard-core container image pull secrets
 imagePullSecrets: []
+# defguard-core ingress configuration
 ingress:
   grpc:
     annotations: {}
@@ -25,7 +37,9 @@ ingress:
     enabled: true
     host: defguard.local
     tls: false
+# defguard-core existing JWT secret
 existingJwtSecret: ""
+# defguard-core ldap config
 ldap:
   admin_group: ""
   bind_password: ""
@@ -34,13 +48,42 @@ ldap:
   group_search_base: ""
   url: ""
   user_search_base: ""
-nameOverride: ""
+# defguard-core pod affinity configuration
+affinity: {}
+# defguard-core node selector cnfiguration
 nodeSelector: {}
+# defguard-core existing OpenID secret
 existingOpenIdSecret: ""
+# defguard-core pod annotation
 podAnnotations: {}
+# defguard-core pod labels
 podLabels: {}
+# defguard-core pod security context
 podSecurityContext: {}
+# defguard-core container security context
+securityContext: {}
+# defguard-core container replica count
+replicaCount: 1
+# defguard-core pod resource configuration
+resources: {}
+# defguard-core service configuration
+service:
+  ports:
+    grpc: 50055
+    http: 80
+  type: ClusterIP
+# defguard-core serviceaccount configuration
+serviceAccount:
+  annotations: {}
+  create: true
+# defguard-core pod tolerations
+tolerations: []
+# defguard-core additional ENV config from config map
+additionalEnvFromConfigMap: ""
+
+#
 # sub-chart bitnami/postgresql
+#
 postgresql:
   enabled: true
   host: "" # set if using external postgresql ~ enabled: false
@@ -50,27 +93,141 @@ postgresql:
     existingSecret: postgres-password
     existingSecretPasswordKey: "" # set if using external postgresql ~ enabled: false
     username: defguard
-proxyUrl: ""
-publicUrl: "http://defguard.local"
-replicaCount: 1
-resources: {}
-securityContext: {}
-service:
-  ports:
-    grpc: 50055
-    http: 80
-  type: ClusterIP
-serviceAccount:
-  annotations: {}
-  create: true
-tolerations: []
+
+#
 # sub-chart defguard-proxy
+#
 defguard-proxy:
+  # defguard-proxy is turned off by default. enable to allow use of the enrollment interface
   enabled: false
+  # this should be a URL based on defguard-proxy.ingress.web.host
   publicUrl: "http://enrollment.local"
+  # defguard-proxy full name override
+  fullnameOverride: ""
+  # defguard-proxy name override
+  nameOverride: ""
+  # defguard-proxy pod autoscaling configuration
+  autoscaling:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 10
+  # defguard-proxy container image configuration
+  image:
+    pullPolicy: IfNotPresent
+    repository: ghcr.io/defguard/defguard-proxy
+    tag: "" # overrides .Chart.AppVersion
+  # defguard-proxy container image pull secrets configuration
+  imagePullSecrets: []
+  # defguard-proxy ingress configuration
   ingress:
     grpc:
-      host: defguard-proxy-grpc.local
+      annotations: {}
+      className: ""
+      enabled: true
+      host: enrollment-grpc.local
+      tls: false
     web:
+      annotations: {}
+      className: ""
+      enabled: true
       host: enrollment.local
-additionalEnvFromConfigMap: ""
+      tls: false
+  # defguard-proxy pod affinity
+  affinity: {}
+  # defguard-proxy pod node selection
+  nodeSelector: {}
+  # defguard-proxy pod tolerations 
+  tolerations: []
+  # defguard-proxy pod annotations
+  podAnnotations: {}
+  # defguard-proxy pod labels
+  podLabels: {}
+  # defguard-proxy pod security context
+  podSecurityContext: {}
+  # defguard-proxy container security context
+  securityContext: {}
+  # defguard-proxy container replica count
+  replicaCount: 1
+  # defguard-proxy pod resource configuration
+  resources: {}
+  # defguard-proxy service configuration
+  service:
+    ports:
+      http: 8080
+      grpc: 50051
+    type: ClusterIP
+  # defguard-proxy service account configuration
+  serviceAccount:
+    annotations: {}
+    create: true
+  # defguard-proxy additional ENV from configmap
+  additionalEnvFromConfigMap: ""
+
+#
+# sub-chart defguard-gateway
+#
+defguard-gateway:
+  enabled: false
+  # Use userspace wireguard implementation, useful on systems without native wireguard support. Set to 0/1
+  userspace: 0
+  # Defguard GRPC URL, e.g.: defguard-grpc.mycompany.com
+  grpcUrl: ""
+  # Token from Defguard app to secure gRPC connection, available on network page.
+  # It is not recommended to use this. Create a secret yourself and use existingTokenSecret instead
+  token: ""
+  # Secret to get the token from
+  existingTokenSecret: ""
+  # Key to extract the token from in existingTokenSecret
+  existingTokenSecretKey: ""
+  # Defines how often (in seconds) should interface statistics be sent to Defguard server
+  statsPeriod: 30
+  # rust log level, default is debug
+  logLevel: "debug"
+  # defguard-gateway full name override 
+  fullnameOverride: ""
+  # defguard-gateway name override 
+  nameOverride: ""
+  # defguard-gateway container image configuration 
+  image:
+    pullPolicy: IfNotPresent
+    repository: ghcr.io/defguard/gateway
+    tag: "" # overrides .Chart.AppVersion
+  # defguard-gateway container image pull secrets
+  imagePullSecrets: []
+  # defguard-gateway container ingress configuration
+  ingress:
+    grpc:
+      annotations: {}
+      className: ""
+      enabled: true
+      host: defguard-gateway-grpc.local
+      tls: false
+  # defguard-gateway pod affinity configuration
+  affinity: {}
+  # defguard-gateway node selector configuration
+  nodeSelector: {}
+  # defguard-gateway pod tolerations
+  tolerations: []
+  # defguard-gateway pod annotations
+  podAnnotations: {}
+  # defguard-gateway pod labels
+  podLabels: {}
+  # defguard-gateway pod replica count
+  replicaCount: 1
+  # defguard-gateway pod resources
+  resources: {}
+  # defguard-gateway pod security context
+  podSecurityContext: {}
+  # defguard-gateway container security context
+  securityContext: {}
+  # defguard-gateway pod additional ENV from configmap
+  additionalEnvFromConfigMap: ""
+  # defguard-gateway service configuration
+  service:
+    ports:
+      grpc: 50051
+    type: ClusterIP
+  # defguard-gateway serviceaccount configuration
+  serviceAccount:
+    annotations: {}
+    create: true

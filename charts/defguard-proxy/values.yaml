@@ -1,14 +1,25 @@
-affinity: {}
+---
+# defguard-proxy is turned off by default. enable to allow use of the enrollment interface
+enabled: false
+# this should be a URL based on defguard-proxy.ingress.web.host
+publicUrl: "http://enrollment.local"
+# defguard-proxy full name override
+fullnameOverride: ""
+# defguard-proxy name override
+nameOverride: ""
+# defguard-proxy pod autoscaling configuration
 autoscaling:
   enabled: false
   minReplicas: 1
   maxReplicas: 10
-fullnameOverride: ""
+# defguard-proxy container image configuration
 image:
   pullPolicy: IfNotPresent
   repository: ghcr.io/defguard/defguard-proxy
-  tag: ""
+  tag: "" # overrides .Chart.AppVersion
+# defguard-proxy container image pull secrets configuration
 imagePullSecrets: []
+# defguard-proxy ingress configuration
 ingress:
   grpc:
     annotations: {}
@@ -22,22 +33,33 @@ ingress:
     enabled: true
     host: enrollment.local
     tls: false
-nameOverride: ""
+# defguard-proxy pod affinity
+affinity: {}
+# defguard-proxy pod node selection
 nodeSelector: {}
+# defguard-proxy pod tolerations 
+tolerations: []
+# defguard-proxy pod annotations
 podAnnotations: {}
+# defguard-proxy pod labels
 podLabels: {}
+# defguard-proxy pod security context
 podSecurityContext: {}
-publicUrl: "http://enrollment.local"
-replicaCount: 1
-resources: {}
+# defguard-proxy container security context
 securityContext: {}
+# defguard-proxy container replica count
+replicaCount: 1
+# defguard-proxy pod resource configuration
+resources: {}
+# defguard-proxy service configuration
 service:
   ports:
     http: 8080
     grpc: 50051
   type: ClusterIP
+# defguard-proxy service account configuration
 serviceAccount:
   annotations: {}
   create: true
-tolerations: []
+# defguard-proxy additional ENV from configmap
 additionalEnvFromConfigMap: ""

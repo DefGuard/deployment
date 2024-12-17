@@ -15,3 +15,7 @@ dependencies:
     condition: defguard-proxy.enabled
     version: 0.5.3
     repository: https://defguard.github.io/deployment
+  - name: defguard-gateway
+    condition: defguard-gateway.enabled
+    version: 0.1.0
+    repository: https://defguard.github.io/deployment
