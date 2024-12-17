@@ -14,11 +14,11 @@ existingTokenSecretKey: ""
 statsPeriod: 30
 # rust log level, default is debug
 logLevel: "debug"
-# defguard-gateway full name override 
+# defguard-gateway full name override
 fullnameOverride: ""
-# defguard-gateway name override 
+# defguard-gateway name override
 nameOverride: ""
-# defguard-gateway container image configuration 
+# defguard-gateway container image configuration
 image:
   pullPolicy: IfNotPresent
   repository: ghcr.io/defguard/gateway

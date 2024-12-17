@@ -1,6 +1,6 @@
 apiVersion: v2
 name: defguard-gateway
-description: Defguard gateway is a public-facing VPN endpoint. 
+description: Defguard gateway is a public-facing VPN endpoint.
 
 type: application
 version: 0.1.0

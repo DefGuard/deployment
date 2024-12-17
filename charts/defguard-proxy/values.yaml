@@ -37,7 +37,7 @@ ingress:
 affinity: {}
 # defguard-proxy pod node selection
 nodeSelector: {}
-# defguard-proxy pod tolerations 
+# defguard-proxy pod tolerations
 tolerations: []
 # defguard-proxy pod annotations
 podAnnotations: {}
