@@ -1,0 +1,67 @@
+apiVersion: v1
+entries:
+  defguard-gateway:
+  - apiVersion: v2
+    appVersion: 1.1.0
+    created: "2024-12-17T17:00:39.326528671-05:00"
+    description: Defguard gateway is a public-facing VPN endpoint.
+    digest: 07db3d98e4fa53f6bd9d2138a2ea55e747f00b70c99bad6ca541fe787936265a
+    name: defguard-gateway
+    type: application
+    urls:
+    - charts/defguard-gateway-0.1.0.tgz
+    version: 0.1.0
+  defguard-proxy:
+  - apiVersion: v2
+    appVersion: 1.1.2
+    created: "2024-12-17T17:00:39.327154332-05:00"
+    description: Defguard proxy is a public-facing proxy for core defguard service
+    digest: 432075293f323d12d50e65ae13b3f8d77bfbaa188cf70b3ff8897063ca141554
+    name: defguard-proxy
+    type: application
+    urls:
+    - charts/defguard-proxy-0.5.3.tgz
+    version: 0.5.3
+  postgresql:
+  - annotations:
+      category: Database
+      images: |
+        - name: os-shell
+          image: docker.io/bitnami/os-shell:11-debian-11-r77
+        - name: postgres-exporter
+          image: docker.io/bitnami/postgres-exporter:0.14.0-debian-11-r2
+        - name: postgresql
+          image: docker.io/bitnami/postgresql:15.4.0-debian-11-r45
+      licenses: Apache-2.0
+    apiVersion: v2
+    appVersion: 15.4.0
+    created: "2024-12-17T17:00:39.336089055-05:00"
+    dependencies:
+    - name: common
+      repository: oci://registry-1.docker.io/bitnamicharts
+      tags:
+      - bitnami-common
+      version: 2.x.x
+    description: PostgreSQL (Postgres) is an open source object-relational database
+      known for reliability and data integrity. ACID-compliant, it supports foreign
+      keys, joins, views, triggers and stored procedures.
+    digest: 6e7c4f44ebf2606b9a2c3339a5e3317e98e492c6ec2e732654382cf4e5726d07
+    home: https://bitnami.com
+    icon: https://bitnami.com/assets/stacks/postgresql/img/postgresql-stack-220x234.png
+    keywords:
+    - postgresql
+    - postgres
+    - database
+    - sql
+    - replication
+    - cluster
+    maintainers:
+    - name: VMware, Inc.
+      url: https://github.com/bitnami/charts
+    name: postgresql
+    sources:
+    - https://github.com/bitnami/charts/tree/main/bitnami/postgresql
+    urls:
+    - charts/postgresql-12.12.10.tgz
+    version: 12.12.10
+generated: "2024-12-17T17:00:39.325866812-05:00"
