@@ -1,0 +1,64 @@
+---
+# Use userspace wireguard implementation, useful on systems without native wireguard support. Set to true/false
+userspace: "false"
+# Defguard GRPC URL, e.g.: defguard-grpc.mycompany.com
+grpcUrl: ""
+# Token from Defguard app to secure gRPC connection, available on network page.
+# It is not recommended to use this. Create a secret yourself and use existingTokenSecret instead
+token: ""
+# Secret to get the token from
+existingTokenSecret: ""
+# Key to extract the token from in existingTokenSecret
+existingTokenSecretKey: ""
+# Defines how often (in seconds) should interface statistics be sent to Defguard server
+statsPeriod: 30
+# rust log level, default is debug
+logLevel: "debug"
+# defguard-gateway full name override
+fullnameOverride: ""
+# defguard-gateway name override
+nameOverride: ""
+# defguard-gateway container image configuration
+image:
+  pullPolicy: IfNotPresent
+  repository: ghcr.io/defguard/gateway
+  tag: "" # overrides .Chart.AppVersion
+# defguard-gateway container image pull secrets
+imagePullSecrets: []
+# defguard-gateway container ingress configuration
+ingress:
+  grpc:
+    annotations: {}
+    className: ""
+    enabled: true
+    host: defguard-gateway-grpc.local
+    tls: false
+# defguard-gateway pod affinity configuration
+affinity: {}
+# defguard-gateway node selector configuration
+nodeSelector: {}
+# defguard-gateway pod tolerations
+tolerations: []
+# defguard-gateway pod annotations
+podAnnotations: {}
+# defguard-gateway pod labels
+podLabels: {}
+# defguard-gateway pod replica count
+replicaCount: 1
+# defguard-gateway pod resources
+resources: {}
+# defguard-gateway pod security context
+podSecurityContext: {}
+# defguard-gateway container security context
+securityContext: {}
+# defguard-gateway pod additional ENV from configmap
+additionalEnvFromConfigMap: ""
+# defguard-gateway service configuration
+service:
+  ports:
+    grpc: 50051
+  type: ClusterIP
+# defguard-gateway serviceaccount configuration
+serviceAccount:
+  annotations: {}
+  create: true
