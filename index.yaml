@@ -3,18 +3,18 @@ entries:
   defguard-gateway:
   - apiVersion: v2
     appVersion: 1.1.0
-    created: "2024-12-18T11:40:40.460585281-05:00"
+    created: "2024-12-18T11:49:39.128953181-05:00"
     description: Defguard gateway is a public-facing VPN endpoint.
-    digest: 556a4a6d6ab1bc5417163aec58daf6cc2dcca3262fb9fc758857abad8f2b60f5
+    digest: 6e3de767a03ebff597ea60d15e9215d2517f16a1eb1da55a7603381b3016d1ce
     name: defguard-gateway
     type: application
     urls:
-    - charts/defguard-gateway-0.1.1.tgz
-    version: 0.1.1
+    - charts/defguard-gateway-0.1.2.tgz
+    version: 0.1.2
   defguard-proxy:
   - apiVersion: v2
     appVersion: 1.1.2
-    created: "2024-12-18T11:40:40.460834499-05:00"
+    created: "2024-12-18T11:49:39.129191483-05:00"
     description: Defguard proxy is a public-facing proxy for core defguard service
     digest: 432075293f323d12d50e65ae13b3f8d77bfbaa188cf70b3ff8897063ca141554
     name: defguard-proxy
@@ -35,7 +35,7 @@ entries:
       licenses: Apache-2.0
     apiVersion: v2
     appVersion: 15.4.0
-    created: "2024-12-18T11:40:40.465046116-05:00"
+    created: "2024-12-18T11:49:39.13273407-05:00"
     dependencies:
     - name: common
       repository: oci://registry-1.docker.io/bitnamicharts
@@ -64,4 +64,4 @@ entries:
     urls:
     - charts/postgresql-12.12.10.tgz
     version: 12.12.10
-generated: "2024-12-18T11:40:40.46016354-05:00"
+generated: "2024-12-18T11:49:39.128553186-05:00"
