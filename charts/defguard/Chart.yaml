@@ -18,4 +18,4 @@ dependencies:
   - name: defguard-gateway
     condition: defguard-gateway.enabled
     version: 0.1.2
-    repository: https://mk-dkovach.github.io/defguard-deployment
+    repository: https://defguard.github.io/deployment
