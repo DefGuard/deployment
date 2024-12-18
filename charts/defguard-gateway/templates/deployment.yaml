@@ -42,14 +42,6 @@ spec:
             - name: grpc
               containerPort: {{ .Values.service.ports.grpc }}
               protocol: UDP
-          livenessProbe:
-            httpGet:
-              path: /api/v1/health
-              port: http
-          readinessProbe:
-            httpGet:
-              path: /api/v1/health
-              port: http
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           {{- if .Values.token }}
