@@ -2,6 +2,30 @@ apiVersion: v1
 entries:
   defguard:
   - apiVersion: v2
+    appVersion: 1.2.3
+    created: "2025-02-11T10:26:11.348785173+01:00"
+    dependencies:
+    - condition: postgresql.enabled
+      name: postgresql
+      repository: https://charts.bitnami.com/bitnami
+      version: 12.12.10
+    - condition: defguard-proxy.enabled
+      name: defguard-proxy
+      repository: https://defguard.github.io/deployment
+      version: 0.5.4
+    - condition: defguard-gateway.enabled
+      name: defguard-gateway
+      repository: https://defguard.github.io/deployment
+      version: 0.1.3
+    description: Defguard is an open-source enterprise wireGuard VPN with MFA and
+      SSO
+    digest: d14be3971bfdf14b859f0108760ce834b43ef2c2809a697fc54134eb925ffb69
+    name: defguard
+    type: application
+    urls:
+    - https://github.com/DefGuard/deployment/releases/download/defguard-0.10.5/defguard-0.10.5.tgz
+    version: 0.10.5
+  - apiVersion: v2
     appVersion: 1.2.1
     created: "2025-01-27T17:50:50.58975344+01:00"
     dependencies:
@@ -726,4 +750,4 @@ entries:
     urls:
     - https://github.com/DefGuard/deployment/releases/download/defguard-proxy-0.1.0/defguard-proxy-0.1.0.tgz
     version: 0.1.0
-generated: "2025-01-27T17:50:51.033963115+01:00"
+generated: "2025-02-11T10:26:11.349046308+01:00"
