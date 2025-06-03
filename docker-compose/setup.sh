@@ -24,6 +24,12 @@ LOG_FILE=$(mktemp setup.log.XXXXXX)
 BASE_COMPOSE_FILE_URL="https://raw.githubusercontent.com/DefGuard/deployment/main/docker-compose/docker-compose.yaml"
 BASE_ENV_FILE_URL="https://raw.githubusercontent.com/DefGuard/deployment/main/docker-compose/.env.template"
 
+if [ "$(uname)" = 'Darwin' ]; then
+  SED=(sed -i '')
+else
+  SED=(sed -i)
+fi
+
 #####################
 ### MAIN FUNCTION ###
 #####################
@@ -851,7 +857,7 @@ update_env_file() {
 set_env_file_value() {
 	# make sure variable exists in file
 	grep -qF "${1}=" "${PROD_ENV_FILE}" || echo "${1}=" >>"${PROD_ENV_FILE}"
-	sed -i "s@\(${1}\)=.*@\1=${2}@" "${PROD_ENV_FILE}"
+	"${SED[@]}" "s@\(${1}\)=.*@\1=${2}@" "${PROD_ENV_FILE}"
 }
 
 set_env_file_secret() {
@@ -863,7 +869,7 @@ set_env_file_password() {
 }
 
 uncomment_feature() {
-	sed -i "s@# \(.*\) # \[${1}\]@\1@" "${2}"
+	"${SED[@]}" "s@# \(.*\) # \[${1}\]@\1@" "${2}"
 }
 
 enable_enrollment() {
