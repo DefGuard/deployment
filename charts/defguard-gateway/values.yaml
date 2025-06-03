@@ -46,18 +46,32 @@ podLabels: {}
 # defguard-gateway pod replica count
 replicaCount: 1
 # defguard-gateway pod resources
-resources: {}
+resources:
+  requests:
+    cpu: 50m
+    memory: 100Mi
+  limits:
+    cpu: 500m
+    memory: 500Mi
 # defguard-gateway pod security context
 podSecurityContext: {}
 # defguard-gateway container security context
-securityContext: {}
+securityContext:
+  privileged: false
+  readOnlyRootFilesystem: true
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop: [ "ALL" ]
+    add: [ "NET_ADMIN" ] # wireguard fails to start without this as it's not able to create interfaces
 # defguard-gateway pod additional ENV from configmap
 additionalEnvFromConfigMap: ""
 # defguard-gateway service configuration
 service:
   ports:
     grpc: 50051
+    wireguard: 51820 # wireguard listening port
   type: ClusterIP
+cloudProvider: aws
 # defguard-gateway serviceaccount configuration
 serviceAccount:
   annotations: {}

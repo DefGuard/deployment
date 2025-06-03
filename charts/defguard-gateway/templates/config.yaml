@@ -9,3 +9,5 @@ data:
   DEFGUARD_GRPC_URL: {{ .Values.grpcUrl | quote }}
   DEFGUARD_STATS_PERIOD: {{ .Values.statsPeriod | quote }}
   RUST_LOG: {{ .Values.logLevel | quote }}
+  PRE_UP: "iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE"
+  PRE_DOWN: "iptables -t nat -D POSTROUTING -o eth0 -j MASQUERADE"
