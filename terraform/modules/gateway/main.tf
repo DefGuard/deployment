@@ -1,0 +1,26 @@
+resource "aws_instance" "defguard_gateway" {
+  ami           = var.ami
+  instance_type = var.instance_type
+
+  user_data = templatefile("${path.module}/setup.sh", {
+    gateway_port            = var.gateway_port
+    gateway_secret          = var.gateway_secret
+    network_id              = var.network_id
+    defguard_core_address   = var.defguard_core_address
+    defguard_core_grpc_port = var.defguard_core_grpc_port
+    package_version         = var.package_version
+    nat                     = var.nat
+    gateway_name            = "defguard-gateway-${var.network_id}"
+    arch                    = var.arch
+  })
+  user_data_replace_on_change = true
+
+  network_interface {
+    network_interface_id = var.network_interface_id
+    device_index         = 0
+  }
+
+  tags = {
+    Name = "defguard-gateway-instance-${var.network_id}"
+  }
+}
