@@ -6,53 +6,53 @@ locals {
 
   ############################ Core configuration ###########################
 
-  # The URL for the Defguard core. This is the URL under which the Defguard core should be accessible.
+  # The URL for the Defguard Core. This is the URL under which the Defguard Core should be accessible.
   core_url = "https://defguard.example.com"
 
-  # The gRPC port for the Defguard core. This is the port that the core will use to communicate with Defguard gateways.
+  # The gRPC port for the Defguard Core. This is the port that the core will use to communicate with Defguard Gateways.
   core_grpc_port = 50055
 
-  # The HTTP port for the Defguard core web UI. This is the port that the core will listen on for incoming HTTP requests.
+  # The HTTP port for the Defguard Core web UI. This is the port that the core will listen on for incoming HTTP requests.
   core_http_port = 8000
 
-  # Whether to allow insecure cookies for the Defguard core web UI. Set to true if you
-  # are using HTTP to access the Defguard core web UI.
+  # Whether to allow insecure cookies for the Defguard Core web UI. Set to true if you
+  # are using HTTP to access the Defguard Core web UI.
   core_cookie_insecure = false
 
-  # The initial password for the "admin" user. Use it to login to the Defguard core web UI for the first time.
+  # The initial password for the "admin" user. Use it to login to the Defguard Core web UI for the first time.
   default_admin_password = "pass123"
 
-  # The deb package version of the Defguard core that will be installed on the instance.
-  # Must be a valid, released version of Defguard core.
+  # The deb package version of the Defguard Core that will be installed on the instance.
+  # Must be a valid, released version of Defguard Core.
   core_package_version = "1.3.2-alpha2"
 
-  # The architecture of the Defguard core server instance.
+  # The architecture of the Defguard Core server instance.
   # Supported values: "x86_64", "aarch64"
   core_arch = "x86_64"
 
-  # The instance type for the Defguard core server.
+  # The instance type for the Defguard Core server.
   core_instance_type = "t3.micro"
 
   ########################### Proxy configuration ###########################
 
-  # The URL for the Defguard proxy. This is the URL under which the Defguard proxy should be accessible.
+  # The URL for the Defguard Proxy. This is the URL under which the Defguard Proxy should be accessible.
   proxy_url = "https://proxy.example.com"
 
-  # The gRPC port for the Defguard proxy. This is the port that the proxy will use to communicate with the Defguard core.
+  # The gRPC port for the Defguard Proxy. This is the port that the proxy will use to communicate with the Defguard Core.
   proxy_grpc_port = 50051
 
-  # The HTTP port for the Defguard proxy. This is the port that the proxy will listen on for incoming HTTP requests.
+  # The HTTP port for the Defguard Proxy. This is the port that the proxy will listen on for incoming HTTP requests.
   proxy_http_port = 8000
 
   # The deb package version of the proxy that will be installed on the instance.
-  # Must be a valid, released version of Defguard proxy.
+  # Must be a valid, released version of Defguard Proxy.
   proxy_package_version = "1.2.0"
 
-  # The architecture of the Defguard proxy server instance.
+  # The architecture of the Defguard Proxy server instance.
   # Supported values: "x86_64", "aarch64"
   proxy_arch = "x86_64"
 
-  # The instance type for the Defguard proxy server.
+  # The instance type for the Defguard Proxy server.
   proxy_instance_type = "t3.micro"
 
   ###################### VPN and Gateway configuration ######################
@@ -76,28 +76,28 @@ locals {
   ]
 
   # The gateway deb package version that will be installed on the instance.
-  # Must be a valid, released version of Defguard gateway.
+  # Must be a valid, released version of Defguard Gateway.
   gateway_package_version = "1.3.0"
 
-  # The architecture of the Defguard gateway server instance.
+  # The architecture of the Defguard Gateway server instance.
   # Supported values: "x86_64", "aarch64"
   gateway_arch = "x86_64"
 
-  # The instance type for the Defguard gateway server.
+  # The instance type for the Defguard Gateway server.
   gateway_instance_type = "t3.micro"
 
   ########################## Database configuration #########################
 
-  # The name of the database that will be created for the Defguard core.
+  # The name of the database that will be created for the Defguard Core.
   db_name = "defguard"
 
-  # The username for the database that will be created for the Defguard core.
+  # The username for the database that will be created for the Defguard Core.
   db_username = "defguard"
 
   # The port on which the database will listen for incoming connections.
   db_port = 5432
 
-  # The password for the database user. This will be used by the Defguard core to connect to the database.
+  # The password for the database user. This will be used by the Defguard Core to connect to the database.
   db_password = "defguard"
 
   # The amount of storage allocated for the database in GB. The minimum amount for this example required by AWS is 20 GB.
@@ -123,7 +123,7 @@ locals {
   # Note: 2 subnets are required for high availability of the database instance.
   vpc_private_subnets = ["10.0.2.0/24", "10.0.3.0/24"]
 
-  # The subnets for the VPC that will be used for the Defguard core, proxy, and gateways.
+  # The subnets for the VPC that will be used for the Defguard Core, proxy, and gateways.
   vpc_public_subnets = ["10.0.1.0/24"]
 
   # The availability zones for the VPC. This is used mainly for the database instance to ensure high availability.
@@ -149,11 +149,13 @@ terraform {
   }
 }
 
-data "aws_ami_ids" "ubuntu" {
-  owners = ["099720109477"]
+data "aws_ami" "ubuntu" {
+  most_recent = true
+  owners      = ["099720109477"]
+
   filter {
     name   = "name"
-    values = ["ubuntu/images/hvm-ssd/ubuntu-*-22.04-amd64-server-*"]
+    values = ["ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-amd64-server-*"]
   }
 }
 
@@ -169,10 +171,13 @@ resource "random_password" "gateway_secret" {
 }
 
 module "defguard_core" {
+  # source = "../../modules/core"
   source          = "github.com/DefGuard/deployment//terraform/modules/core?ref=697d1781b5ab0155ad8edd7cfa5ea21c8e746521"
   instance_type   = local.core_instance_type
   package_version = local.core_package_version
   arch            = local.core_arch
+  ami             = data.aws_ami.ubuntu.id
+
   core_url        = local.core_url
   proxy_grpc_port = local.proxy_grpc_port
   proxy_url       = local.proxy_url
@@ -193,14 +198,14 @@ module "defguard_core" {
     port     = local.db_port
     address  = aws_db_instance.defguard_core_db.address
   }
-
-  ami                  = data.aws_ami_ids.ubuntu.ids[0]
   proxy_address        = module.defguard_proxy.proxy_private_address
   gateway_secret       = random_password.gateway_secret.result
   network_interface_id = aws_network_interface.defguard_core_network_interface.id
+  # log_level            = "info"
 }
 
 module "defguard_proxy" {
+  # source = "../../modules/proxy"
   source = "github.com/DefGuard/deployment//terraform/modules/proxy?ref=697d1781b5ab0155ad8edd7cfa5ea21c8e746521"
 
   instance_type   = local.proxy_instance_type
@@ -209,27 +214,31 @@ module "defguard_proxy" {
   grpc_port       = local.proxy_grpc_port
   http_port       = local.proxy_http_port
   proxy_url       = local.proxy_url
+  # log_level            = "info"
 
-  ami                  = data.aws_ami_ids.ubuntu.ids[0]
+  ami                  = data.aws_ami.ubuntu.id
   network_interface_id = aws_network_interface.defguard_proxy_network_interface.id
 }
 
 module "defguard_gateway" {
-  count  = length(local.vpn_networks)
+  count = length(local.vpn_networks)
+  # source = "../../modules/gateway"
   source = "github.com/DefGuard/deployment//terraform/modules/gateway?ref=697d1781b5ab0155ad8edd7cfa5ea21c8e746521"
 
-  instance_type           = local.gateway_instance_type
-  package_version         = local.gateway_package_version
-  arch                    = local.gateway_arch
-  defguard_core_grpc_port = local.core_grpc_port
-  nat                     = local.vpn_networks[count.index].nat
-  network_id              = local.vpn_networks[count.index].id
+  ami             = data.aws_ami.ubuntu.id
+  instance_type   = local.gateway_instance_type
+  package_version = local.gateway_package_version
+  arch            = local.gateway_arch
 
-  ami                   = data.aws_ami_ids.ubuntu.ids[0]
-  gateway_secret        = random_password.gateway_secret.result
-  network_interface_id  = aws_network_interface.defguard_gateway_network_interface[count.index].id
-  defguard_core_address = aws_network_interface.defguard_core_network_interface.private_ip
-  depends_on            = [module.defguard_core]
+  core_grpc_port       = local.core_grpc_port
+  nat                  = local.vpn_networks[count.index].nat
+  network_id           = local.vpn_networks[count.index].id
+  gateway_secret       = random_password.gateway_secret.result
+  network_interface_id = aws_network_interface.defguard_gateway_network_interface[count.index].id
+  core_address         = aws_network_interface.defguard_core_network_interface.private_ip
+  # log_level            = "info"
+
+  depends_on = [module.defguard_core]
 }
 
 module "vpc" {
@@ -282,7 +291,7 @@ resource "aws_db_subnet_group" "defguard" {
 ######################## Core network configuration #######################
 ###########################################################################
 
-# Public IP address for the Defguard core instance
+# Public IP address for the Defguard Core instance
 # Remove this if you want to use a private IP only
 # or you are running Defguard behind a reverse proxy.
 resource "aws_eip" "defguard_core_endpoint" {
@@ -301,7 +310,7 @@ resource "aws_security_group" "defguard_core_sg" {
 
   ########################### General access rules ##########################
 
-  # (optional) SSH access to the Defguard core server instance
+  # (optional) SSH access to the Defguard Core server instance
   # ingress {
   #   from_port   = 22
   #   to_port     = 22
@@ -309,7 +318,7 @@ resource "aws_security_group" "defguard_core_sg" {
   #   cidr_blocks = ["0.0.0.0/0"]
   # }
 
-  # HTTP access to the Defguard core web UI from connected VPN clients
+  # HTTP access to the Defguard Core web UI from connected VPN clients
   # Remove this rule if you want to run core only behind a reverse proxy
   # Note that the core access should be limited to the VPN clients and internal networks only.
   ingress {
@@ -331,7 +340,7 @@ resource "aws_security_group" "defguard_core_sg" {
 
   ########## Security group rules essential for Defguard operation ##########
 
-  # gRPC communication with Defguard gateways
+  # gRPC communication with Defguard Gateways
   ingress {
     from_port = local.core_grpc_port
     to_port   = local.core_grpc_port
@@ -363,7 +372,7 @@ resource "aws_network_interface" "defguard_core_network_interface" {
 ###################### Gateway network configuration ######################
 ###########################################################################
 
-# Public IP addresses for the Defguard gateway instances
+# Public IP addresses for the Defguard Gateway instances
 # Gateways must be accessible externally to allow VPN clients to connect.
 
 resource "aws_eip" "defguard_gateway_endpoint" {
@@ -385,7 +394,7 @@ resource "aws_security_group" "defguard_gateway_sg" {
 
   ########################### General access rules ##########################
 
-  # (optional) SSH access to the Defguard gateway server instance
+  # (optional) SSH access to the Defguard Gateway server instance
   # ingress {
   #   from_port   = 22
   #   to_port     = 22
@@ -426,7 +435,7 @@ resource "aws_network_interface" "defguard_gateway_network_interface" {
 ####################### Proxy network configuration #######################
 ###########################################################################
 
-# Public IP address for the Defguard proxy instance
+# Public IP address for the Defguard Proxy instance
 # Remove this if you want to run proxy behind a reverse proxy
 resource "aws_eip" "defguard_proxy_endpoint" {
   domain = "vpc"
@@ -444,7 +453,7 @@ resource "aws_security_group" "defguard_proxy_sg" {
 
   ########################### General access rules ##########################
 
-  # (optional) SSH access to the Defguard proxy server instance
+  # # (optional) SSH access to the Defguard Proxy server instance
   # ingress {
   #   from_port   = 22
   #   to_port     = 22
@@ -452,7 +461,7 @@ resource "aws_security_group" "defguard_proxy_sg" {
   #   cidr_blocks = ["0.0.0.0/0"]
   # }
 
-  # HTTP access to the Defguard proxy web UI from anywhere
+  # HTTP access to the Defguard Proxy web UI from anywhere
   # Remove this rule if you want to run proxy behind a reverse proxy
   # Note that the proxy should be accessible externally to allow Defguard clients
   # to communicate through it and to allow the enrollment of new users.
@@ -473,7 +482,7 @@ resource "aws_security_group" "defguard_proxy_sg" {
 
   ########## Security group rules essential for Defguard operation ##########
 
-  # Internal communication with Defguard core
+  # Internal communication with Defguard Core
   ingress {
     from_port       = local.proxy_grpc_port
     to_port         = local.proxy_grpc_port
@@ -509,7 +518,7 @@ resource "aws_security_group" "defguard_db_sg" {
   description = "Access to the database"
   vpc_id      = module.vpc.vpc_id
 
-  # Allows access to the database from the Defguard core instance
+  # Allows access to the database from the Defguard Core instance
   ingress {
     from_port       = local.db_port
     to_port         = local.db_port
@@ -527,31 +536,31 @@ resource "aws_security_group" "defguard_db_sg" {
 ###########################################################################
 
 output "defguard_core_private_address" {
-  description = "The IP address of the Defguard core instance in the internal network"
+  description = "The IP address of the Defguard Core instance in the internal network"
   value       = aws_network_interface.defguard_core_network_interface.private_ip
 }
 
 output "defguard_core_public_address" {
-  description = "The public IP address of the Defguard core instance"
+  description = "The public IP address of the Defguard Core instance"
   value       = aws_eip.defguard_core_endpoint.public_ip
 }
 
 output "defguard_proxy_public_address" {
-  description = "The public IP address of the Defguard proxy instance"
+  description = "The public IP address of the Defguard Proxy instance"
   value       = aws_eip.defguard_proxy_endpoint.public_ip
 }
 
 output "defguard_proxy_private_address" {
-  description = "The private IP address of the Defguard proxy instance"
+  description = "The private IP address of the Defguard Proxy instance"
   value       = aws_network_interface.defguard_proxy_network_interface.private_ip
 }
 
 output "defguard_gateway_public_addresses" {
-  description = "The public IP addresses of the Defguard gateway instances"
+  description = "The public IP addresses of the Defguard Gateway instances"
   value       = [for gw in aws_eip.defguard_gateway_endpoint : gw.public_ip]
 }
 
 output "defguard_gateway_private_addresses" {
-  description = "The private IP addresses of the Defguard gateway instances"
+  description = "The private IP addresses of the Defguard Gateway instances"
   value       = [for gw in aws_network_interface.defguard_gateway_network_interface : gw.private_ip]
 }

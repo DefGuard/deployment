@@ -1,13 +1,14 @@
 resource "aws_instance" "defguard_proxy" {
   ami           = var.ami
   instance_type = var.instance_type
-  
+
   user_data = templatefile("${path.module}/setup.sh", {
-    proxy_url = var.proxy_url
-    grpc_port = var.grpc_port
-    arch      = var.arch
+    proxy_url       = var.proxy_url
+    grpc_port       = var.grpc_port
+    arch            = var.arch
     package_version = var.package_version
-    http_port = var.http_port
+    http_port       = var.http_port
+    log_level       = var.log_level
   })
   user_data_replace_on_change = true
 
@@ -16,7 +17,7 @@ resource "aws_instance" "defguard_proxy" {
     device_index         = 0
   }
 
-  tags= {
+  tags = {
     Name = "defguard-proxy-instance"
   }
 }

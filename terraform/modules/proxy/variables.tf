@@ -15,7 +15,7 @@ variable "proxy_url" {
 }
 
 variable "grpc_port" {
-  description = "Port to be used to communicate with Defguard core"
+  description = "Port to be used to communicate with Defguard Core"
   type        = string
 }
 
@@ -35,7 +35,13 @@ variable "package_version" {
 }
 
 variable "http_port" {
-  description = "Port to be used to access Defguard core via HTTP"
+  description = "Port to be used to access Defguard Proxy via HTTP"
   type        = number
   default     = 8080
+}
+
+variable "log_level" {
+  description = "Log level for Defguard Proxy. Possible values: debug, info, warn, error"
+  type        = string
+  default     = "info"
 }

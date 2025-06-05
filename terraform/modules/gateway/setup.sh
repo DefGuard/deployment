@@ -4,24 +4,31 @@ set -e
 LOG_FILE="/var/log/defguard.log"
 
 log() {
-  echo "$(date '+%Y-%m-%d %H:%M:%S') $1" | tee -a "$LOG_FILE"
+  echo "$(date '+%Y-%m-%d %H:%M:%S') $1"
 }
 
-log "Updating apt repositories..."
-sudo apt update | tee -a "$LOG_FILE"
+LOG_FILE="/var/log/defguard.log"
 
-log "Installing curl..."
-sudo apt install -y curl | tee -a "$LOG_FILE"
-
-log "Downloading defguard-gateway package..."
-curl -fsSL -o /tmp/defguard-gateway.deb https://github.com/DefGuard/gateway/releases/download/v${package_version}/defguard-gateway_${package_version}_${arch}-unknown-linux-gnu.deb | tee -a "$LOG_FILE"
-
-log "Installing defguard-gateway package..."
-sudo dpkg -i /tmp/defguard-gateway.deb | tee -a "$LOG_FILE"
+log() {
+    echo "$(date '+%Y-%m-%d %H:%M:%S') $1"
+}
 
 base64url_encode() {
   echo -n "$1" | openssl base64 -e -A | tr '+/' '-_' | tr -d '='
 }
+
+(
+log "Updating apt repositories..."
+apt update
+
+log "Installing curl..."
+apt install -y curl
+
+log "Downloading defguard-gateway package..."
+curl -fsSL -o /tmp/defguard-gateway.deb https://github.com/DefGuard/gateway/releases/download/v${package_version}/defguard-gateway_${package_version}_${arch}-unknown-linux-gnu.deb
+
+log "Installing defguard-gateway package..."
+dpkg -i /tmp/defguard-gateway.deb
 
 log "Generating gateway token..."
 NETWORK_ID="${network_id}"
@@ -49,7 +56,7 @@ SIGNATURE=$(echo -n "$SIGNING_INPUT" | openssl dgst -sha256 -hmac "$SECRET" -bin
 GATEWAY_TOKEN="$${SIGNING_INPUT}.$${SIGNATURE}"
 
 log "Writing gateway configuration to /etc/defguard/gateway.toml..."
-sudo tee /etc/defguard/gateway.toml <<EOF | tee -a "$LOG_FILE"
+tee /etc/defguard/gateway.toml <<EOF
 # This is an example config file for defguard VPN gateway
 # To use it fill in actual values for your deployment below
 
@@ -58,7 +65,7 @@ sudo tee /etc/defguard/gateway.toml <<EOF | tee -a "$LOG_FILE"
 token = "$${GATEWAY_TOKEN}"
 # Required: defguard server gRPC endpoint URL
 # NOTE: must replace default with actual value
-grpc_url = "http://${defguard_core_address}:${defguard_core_grpc_port}"
+grpc_url = "http://${core_address}:${core_grpc_port}"
 # Optional: gateway name which will be displayed in defguard web UI
 name = "${gateway_name}"
 # Required: use userspace WireGuard implementation (e.g. wireguard-go)
@@ -111,21 +118,31 @@ EOF
 
 %{ if nat ~}
   log "Enabling IP forwarding for NAT (IPv4)..."
-  sudo sysctl -w net.ipv4.ip_forward=1 | tee -a "$LOG_FILE"
-  echo "net.ipv4.ip_forward = 1" | sudo tee -a /etc/sysctl.conf | tee -a "$LOG_FILE"
+  sysctl -w net.ipv4.ip_forward=1
+  grep -q -e '^net.ipv4.ip_forward' /etc/sysctl.conf || echo "net.ipv4.ip_forward = 1" | tee -a /etc/sysctl.conf
 
   log "Enabling IP forwarding for NAT (IPv6)..."
-  sudo sysctl -w net.ipv6.conf.all.forwarding=1 | tee -a "$LOG_FILE"
-  echo "net.ipv6.conf.all.forwarding = 1" | sudo tee -a /etc/sysctl.conf | tee -a "$LOG_FILE"
+  sysctl -w net.ipv6.conf.all.forwarding=1
+  grep -q -e '^net.ipv6.conf.all.forwarding' /etc/sysctl.conf || echo "net.ipv6.conf.all.forwarding = 1" | tee -a /etc/sysctl.conf
 %{ endif ~}
 
+log "Setting log level in defguard-gateway service..."
+if grep -q '^Environment="RUST_LOG=' /lib/systemd/system/defguard-gateway.service; then
+  sed -i "s|^Environment=\"RUST_LOG=.*\"|Environment=\"RUST_LOG=${log_level}\"|" /lib/systemd/system/defguard-gateway.service
+else
+  sed -i "/^\[Service\]/a Environment=\"RUST_LOG=${log_level}\"" /lib/systemd/system/defguard-gateway.service
+fi
+log "Reloading systemd daemon to apply changes..."
+systemctl daemon-reload
+
 log "Enabling defguard-gateway service..."
-sudo systemctl enable defguard-gateway | tee -a "$LOG_FILE"
+systemctl enable defguard-gateway
 
 log "Starting defguard-gateway service..."
-sudo systemctl start defguard-gateway | tee -a "$LOG_FILE"
+systemctl start defguard-gateway
 
-log "Cleaning up after installing Defguard gateway..."
-rm -f /tmp/defguard-gateway.deb | tee -a "$LOG_FILE"
+log "Cleaning up after installing Defguard Gateway..."
+rm -f /tmp/defguard-gateway.deb
 
 log "Setup completed."
+) 2>&1 | tee -a "$LOG_FILE"

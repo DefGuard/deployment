@@ -4,7 +4,7 @@ set -e
 LOG_FILE="/var/log/defguard.log"
 
 log() {
-	echo "$(date '+%Y-%m-%d %H:%M:%S') $1" | tee -a "$LOG_FILE"
+	echo "$(date '+%Y-%m-%d %H:%M:%S') $1"
 }
 
 generate_secret_inner() {
@@ -12,20 +12,21 @@ generate_secret_inner() {
 	openssl rand -base64 $${length} | tr -d "=+/" | tr -d '\n' | cut -c1-$${length-1} 
 }
 
+(
 log "Updating apt repositories..."
-sudo apt update | tee -a "$LOG_FILE"
+apt update
 
 log "Installing curl..."
-sudo apt install -y curl | tee -a "$LOG_FILE"
+apt install -y curl
 
 log "Downloading defguard-core package..."
-curl -fsSL -o /tmp/defguard-core.deb https://github.com/DefGuard/defguard/releases/download/v${package_version}/defguard-${package_version}-${arch}-unknown-linux-gnu.deb | tee -a "$LOG_FILE"
+curl -fsSL -o /tmp/defguard-core.deb https://github.com/DefGuard/defguard/releases/download/v${package_version}/defguard-${package_version}-${arch}-unknown-linux-gnu.deb
 
 log "Installing defguard-core package..."
-sudo dpkg -i /tmp/defguard-core.deb | tee -a "$LOG_FILE"
+dpkg -i /tmp/defguard-core.deb
 
-log "Writing core configuration to /etc/defguard/core.conf..."
-sudo tee /etc/defguard/core.conf <<EOF | tee -a "$LOG_FILE"
+log "Writing Core configuration to /etc/defguard/core.conf..."
+tee /etc/defguard/core.conf <<EOF
 ### Core configuration ###
 DEFGUARD_AUTH_SECRET=$(generate_secret_inner 64)
 DEFGUARD_GATEWAY_SECRET=${gateway_secret}
@@ -41,6 +42,7 @@ DEFGUARD_DEFAULT_ADMIN_PASSWORD=${default_admin_password}
 DEFGUARD_GRPC_PORT=${grpc_port}
 DEFGUARD_HTTP_PORT=${http_port}
 DEFGUARD_COOKIE_INSECURE=${cookie_insecure}
+DEFGUARD_LOG_LEVEL=${log_level}
 
 ### Proxy configuration ###
 # Optional. URL of proxy gRPC server
@@ -56,10 +58,10 @@ DEFGUARD_DB_PASSWORD="${db_password}"
 EOF
 
 log "Enabling defguard service..."
-sudo systemctl enable defguard | tee -a "$LOG_FILE"
+systemctl enable defguard
 
 log "Starting defguard service..."
-sudo systemctl start defguard | tee -a "$LOG_FILE"
+systemctl start defguard
 
 %{ for network in vpn_networks ~}
 log "Creating VPN location ${network.name} with address ${network.address} and endpoint ${network.endpoint} and port ${network.port}..."
@@ -67,7 +69,8 @@ export $(grep -v '^#' /etc/defguard/core.conf | xargs) && /usr/bin/defguard --se
 log "Created VPN location ${network.name} with address ${network.address} and endpoint ${network.endpoint} and port ${network.port}"
 %{ endfor ~}
 
-log "Cleaning up after installing Defguard core..."
-rm -f /tmp/defguard-core.deb | tee -a "$LOG_FILE"
+log "Cleaning up after installing Defguard Core..."
+rm -f /tmp/defguard-core.deb
 
 log "Setup completed."
+) 2>&1 | tee -a "$LOG_FILE"

@@ -16,7 +16,7 @@ variable "gateway_port" {
 }
 
 variable "gateway_secret" {
-  description = "Secret key for the Defguard gateway"
+  description = "Secret key for the Defguard Gateway"
   type        = string
 }
 
@@ -25,13 +25,13 @@ variable "network_id" {
   type        = number
 }
 
-variable "defguard_core_address" {
+variable "core_address" {
   description = "Internal address of the Defguard instance"
   type        = string
 }
 
-variable "defguard_core_grpc_port" {
-  description = "Port to be used to communicate with Defguard core"
+variable "core_grpc_port" {
+  description = "Port to be used to communicate with Defguard Core"
   type        = number
 }
 
@@ -41,12 +41,12 @@ variable "network_interface_id" {
 }
 
 variable "package_version" {
-  description = "Version of the Defguard gateway package to be installed"
+  description = "Version of the Defguard Gateway package to be installed"
   type        = string
 }
 
 variable "arch" {
-  description = "Architecture of the Defguard gateway package to be installed"
+  description = "Architecture of the Defguard Gateway package to be installed"
   type        = string
 }
 
@@ -54,4 +54,10 @@ variable "nat" {
   description = "Enable masquerading"
   type        = bool
   default     = true
+}
+
+variable "log_level" {
+  description = "Log level for Defguard Gateway. Possible values: debug, info, warn, error"
+  type        = string
+  default     = "info"
 }

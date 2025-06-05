@@ -20,6 +20,7 @@ resource "aws_instance" "defguard_core" {
     http_port              = var.http_port
     default_admin_password = var.default_admin_password
     cookie_insecure        = var.cookie_insecure
+    log_level              = var.log_level
   })
   user_data_replace_on_change = true
 

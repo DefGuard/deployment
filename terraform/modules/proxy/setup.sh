@@ -4,29 +4,30 @@ set -e
 LOG_FILE="/var/log/defguard.log"
 
 log() {
-    echo "$(date '+%Y-%m-%d %H:%M:%S') $1" | tee -a "$LOG_FILE"
+    echo "$(date '+%Y-%m-%d %H:%M:%S') $1"
 }
 
+(
 log "Updating apt repositories..."
-sudo apt update | tee -a "$LOG_FILE"
+apt update
 
 log "Installing curl..."
-sudo apt install -y curl | tee -a "$LOG_FILE"
+apt install -y curl
 
 log "Downloading defguard-proxy package..."
-curl -fsSL -o /tmp/defguard-proxy.deb https://github.com/DefGuard/proxy/releases/download/v${package_version}/defguard-proxy-${package_version}-${arch}-unknown-linux-gnu.deb | tee -a "$LOG_FILE"
+curl -fsSL -o /tmp/defguard-proxy.deb https://github.com/DefGuard/proxy/releases/download/v${package_version}/defguard-proxy-${package_version}-${arch}-unknown-linux-gnu.deb
 
 log "Installing defguard-proxy package..."
-sudo dpkg -i /tmp/defguard-proxy.deb | tee -a "$LOG_FILE"
+dpkg -i /tmp/defguard-proxy.deb
 
 log "Writing proxy configuration to /etc/defguard/proxy.toml..."
-sudo tee /etc/defguard/proxy.toml <<EOF | tee -a "$LOG_FILE"
+tee /etc/defguard/proxy.toml <<EOF
 # port the API server will listen on
 http_port = ${http_port}
 # port the gRPC server will listen on
 grpc_port = ${grpc_port}
 
-log_level = "info"
+log_level = "${log_level}"
 rate_limit_per_second = 0
 rate_limit_burst = 0
 url = "${proxy_url}"
@@ -34,12 +35,14 @@ url = "${proxy_url}"
 EOF
 
 log "Enabling defguard-proxy service..."
-sudo systemctl enable defguard-proxy | tee -a "$LOG_FILE"
+systemctl enable defguard-proxy
 
 log "Starting defguard-proxy service..."
-sudo systemctl start defguard-proxy | tee -a "$LOG_FILE"
+systemctl start defguard-proxy
 
-log "Cleaning up after installing Defguard proxy..."
-rm -f /tmp/defguard-proxy.deb | tee -a "$LOG_FILE"
+log "Cleaning up after installing Defguard Proxy..."
+rm -f /tmp/defguard-proxy.deb
 
 log "Setup completed."
+) 2>&1 | tee -a "$LOG_FILE"
+

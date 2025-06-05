@@ -12,11 +12,11 @@ variable "instance_type" {
 variable "db_details" {
   description = "Details of the database connection"
   type = object({
-    name                = string
-    username            = string
-    password            = string
-    port                = number
-    address             = string
+    name     = string
+    username = string
+    password = string
+    port     = number
+    address  = string
   })
 }
 
@@ -26,33 +26,33 @@ variable "core_url" {
 }
 
 variable "proxy_address" {
-  description = "The IP address of the Defguard proxy instance"
+  description = "The IP address of the Defguard Proxy instance"
   type        = string
 }
 
 variable "proxy_grpc_port" {
-  description = "Port to be used to communicate with Defguard proxy"
+  description = "Port to be used to communicate with Defguard Proxy"
   type        = string
 }
 
 variable "proxy_url" {
-  description = "The URL of the Defguard proxy instance where enrollment is performed"
+  description = "The URL of the Defguard Proxy instance where enrollment is performed"
   type        = string
 }
 
 variable "grpc_port" {
-  description = "Port to be used to communicate with Defguard core"
+  description = "Port to be used to communicate with Defguard Core"
   type        = number
 }
 
 variable "http_port" {
-  description = "Port to be used to access Defguard core via HTTP"
+  description = "Port to be used to access Defguard Core via HTTP"
   type        = number
   default     = 8000
 }
 
 variable "gateway_secret" {
-  description = "Secret for the Defguard gateway"
+  description = "Secret for the Defguard Gateway"
   type        = string
 }
 
@@ -63,32 +63,38 @@ variable "network_interface_id" {
 
 variable "vpn_networks" {
   description = "List of VPN networks"
-  type        = list(object({
-    name = string
-    address = string
-    port = number
+  type = list(object({
+    name     = string
+    address  = string
+    port     = number
     endpoint = string
-    id = number
+    id       = number
   }))
 }
 
 variable "package_version" {
-  description = "Version of the Defguard core package to be installed"
+  description = "Version of the Defguard Core package to be installed"
   type        = string
 }
 
 variable "arch" {
-  description = "Architecture of the Defguard core package to be installed"
+  description = "Architecture of the Defguard Core package to be installed"
   type        = string
 }
 
 variable "default_admin_password" {
-  description = "Default admin password for the Defguard core"
+  description = "Default admin password for the Defguard Core"
   type        = string
   default     = "pass123"
 }
 
 variable "cookie_insecure" {
-  description = "Whether to use insecure cookies for the Defguard core"
+  description = "Whether to use insecure cookies for the Defguard Core"
   type        = bool
+}
+
+variable "log_level" {
+  description = "Log level for Defguard Core. Possible values: debug, info, warn, error"
+  type        = string
+  default     = "info"
 }
