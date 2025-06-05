@@ -25,12 +25,12 @@ variable "network_interface_id" {
 }
 
 variable "arch" {
-  description = "Architecture of the Defguard proxy package to be installed"
+  description = "Architecture of the Defguard Proxy package to be installed"
   type        = string
 }
 
 variable "package_version" {
-  description = "Version of the Defguard proxy package to be installed"
+  description = "Version of the Defguard Proxy package to be installed"
   type        = string
 }
 
@@ -41,7 +41,7 @@ variable "http_port" {
 }
 
 variable "log_level" {
-  description = "Log level for Defguard Proxy. Possible values: debug, info, warn, error"
+  description = "Log level for Defguard Proxy. Possible values: trace, debug, info, warn, error"
   type        = string
   default     = "info"
 }

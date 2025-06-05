@@ -57,7 +57,7 @@ variable "nat" {
 }
 
 variable "log_level" {
-  description = "Log level for Defguard Gateway. Possible values: debug, info, warn, error"
+  description = "Log level for Defguard Gateway. Possible values: trace, debug, info, warn, error"
   type        = string
   default     = "info"
 }

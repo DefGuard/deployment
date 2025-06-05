@@ -94,7 +94,7 @@ variable "cookie_insecure" {
 }
 
 variable "log_level" {
-  description = "Log level for Defguard Core. Possible values: debug, info, warn, error"
+  description = "Log level for Defguard Core. Possible values: trace, debug, info, warn, error"
   type        = string
   default     = "info"
 }
