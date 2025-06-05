@@ -214,7 +214,7 @@ module "defguard_proxy" {
   grpc_port       = local.proxy_grpc_port
   http_port       = local.proxy_http_port
   proxy_url       = local.proxy_url
-  # log_level            = "info"
+  # log_level       = "info"
 
   ami                  = data.aws_ami.ubuntu.id
   network_interface_id = aws_network_interface.defguard_proxy_network_interface.id
