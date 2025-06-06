@@ -172,7 +172,7 @@ resource "random_password" "gateway_secret" {
 
 module "defguard_core" {
   # source = "../../modules/core"
-  source          = "github.com/DefGuard/deployment//terraform/modules/core?ref=697d1781b5ab0155ad8edd7cfa5ea21c8e746521"
+  source          = "github.com/DefGuard/deployment//terraform/modules/core?ref=main"
   instance_type   = local.core_instance_type
   package_version = local.core_package_version
   arch            = local.core_arch
@@ -206,7 +206,7 @@ module "defguard_core" {
 
 module "defguard_proxy" {
   # source = "../../modules/proxy"
-  source = "github.com/DefGuard/deployment//terraform/modules/proxy?ref=697d1781b5ab0155ad8edd7cfa5ea21c8e746521"
+  source = "github.com/DefGuard/deployment//terraform/modules/proxy?ref=main"
 
   instance_type   = local.proxy_instance_type
   package_version = local.proxy_package_version
@@ -223,7 +223,7 @@ module "defguard_proxy" {
 module "defguard_gateway" {
   count = length(local.vpn_networks)
   # source = "../../modules/gateway"
-  source = "github.com/DefGuard/deployment//terraform/modules/gateway?ref=697d1781b5ab0155ad8edd7cfa5ea21c8e746521"
+  source = "github.com/DefGuard/deployment//terraform/modules/gateway?ref=main"
 
   ami             = data.aws_ami.ubuntu.id
   instance_type   = local.gateway_instance_type
@@ -453,7 +453,7 @@ resource "aws_security_group" "defguard_proxy_sg" {
 
   ########################### General access rules ##########################
 
-  # # (optional) SSH access to the Defguard Proxy server instance
+  # (optional) SSH access to the Defguard Proxy server instance
   # ingress {
   #   from_port   = 22
   #   to_port     = 22
