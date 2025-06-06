@@ -42,6 +42,9 @@ spec:
             - name: grpc
               containerPort: {{ .Values.service.ports.grpc }}
               protocol: UDP
+            - name: wireguard # make it explicit
+              containerPort: {{ .Values.service.ports.wireguard }}
+              protocol: UDP
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           {{- if .Values.token }}
@@ -56,6 +59,19 @@ spec:
                   name: {{ .Values.existingTokenSecret }}
                   key: {{ .Values.existingTokenSecretKey }}
           {{- end }}
+        # used to keep nlb happy to do health checks at port 80.
+        # Alternatively, we could add this command to the Dockerfile
+        - name: tcp-healthcheck
+          image: alpine/socat:latest
+          imagePullPolicy: IfNotPresent
+          command:
+            - socat
+            - "TCP-LISTEN:80,reuseaddr,fork"
+            - "SYSTEM:true"
+          ports:
+            - name: health
+              containerPort: 80
+              protocol: TCP
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
