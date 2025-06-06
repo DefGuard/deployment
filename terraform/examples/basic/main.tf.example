@@ -7,7 +7,7 @@ locals {
   ############################ Core configuration ###########################
 
   # The URL for the Defguard Core. This is the URL under which the Defguard Core should be accessible.
-  core_url = "https://defguard.example.com"
+  core_url = "http://defguard.example.com:8000"
 
   # The gRPC port for the Defguard Core. This is the port that the core will use to communicate with Defguard Gateways.
   core_grpc_port = 50055
@@ -17,7 +17,7 @@ locals {
 
   # Whether to allow insecure cookies for the Defguard Core web UI. Set to true if you
   # are using HTTP to access the Defguard Core web UI.
-  core_cookie_insecure = false
+  core_cookie_insecure = true
 
   # The initial password for the "admin" user. Use it to login to the Defguard Core web UI for the first time.
   default_admin_password = "pass123"
@@ -36,7 +36,7 @@ locals {
   ########################### Proxy configuration ###########################
 
   # The URL for the Defguard Proxy. This is the URL under which the Defguard Proxy should be accessible.
-  proxy_url = "https://proxy.example.com"
+  proxy_url = "http://proxy.example.com:8000"
 
   # The gRPC port for the Defguard Proxy. This is the port that the proxy will use to communicate with the Defguard Core.
   proxy_grpc_port = 50051
