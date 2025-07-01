@@ -4,9 +4,9 @@ dependencies:
   version: 12.12.10
 - name: defguard-proxy
   repository: https://defguard.github.io/deployment
-  version: 0.5.4
+  version: 0.5.5
 - name: defguard-gateway
   repository: https://defguard.github.io/deployment
-  version: 0.1.4
-digest: sha256:b4b8a37122ec45f7df3a29d5a88ae360fc58202bf1f542f6a9046a188e87b1f7
-generated: "2025-05-16T10:32:10.376428+02:00"
+  version: 0.1.5
+digest: sha256:8f45c8927578bf320b4d59e126addc43e56371e9141709f04b3607c63785af8a
+generated: "2025-07-01T10:29:56.917989+02:00"
