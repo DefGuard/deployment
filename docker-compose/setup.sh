@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # shellcheck shell=bash
 
-# This is a script that sets up an entire defguard instance (including core,
+# This is a script that sets up an entire Defguard instance (including core,
 # gateway, enrollment proxy and reverse proxy). It's goal is to prepare
 # a working instance by running a single command.
 
@@ -261,7 +261,7 @@ print_header() {
 _EOF_
   	echo -e "${C_END}"
 	echo
-	echo "defguard docker-compose deployment setup script v${VERSION}"
+	echo "Defguard docker-compose deployment setup script v${VERSION}"
 	echo -e "Copyright (C) 2023-2024 ${C_BOLD}teonite${C_END} <${C_BG_GREY}${C_YELLOW}https://teonite.com${C_END}>"
 	echo
 }
@@ -278,7 +278,7 @@ print_usage() {
 	echo
 	echo -e "\t--help                         this help message"
 	echo -e "\t--non-interactive              run in non-interactive mode - !REQUIRES SETTING all options/env vars"
-	echo -e "\t--domain <domain>              domain where defguard web UI will be available"
+	echo -e "\t--domain <domain>              domain where Defguard web UI will be available"
 	echo -e "\t--enrollment-domain <domain>   domain where enrollment service will be available"
 	echo -e "\t--use-https                    configure reverse proxy to use HTTPS"
 	echo -e "\t--volume <directory>           Docker volumes directory - default: ${VOLUME_DIR}"
@@ -491,7 +491,7 @@ load_configuration_from_input() {
   echo -ne "${C_ITALICS}${C_LBLUE}"
   cat << _EOF_
 
-Please provide the values to configure your defguard instance. If you've
+Please provide the values to configure your Defguard instance. If you've
 already configured some options by setting environment variables or through
 CLI options, those will be used as defaults.
 
@@ -504,7 +504,7 @@ echo -ne "${C_GREY}"
 cat << _EOF_
 
 Choose domains that will be used to expose your instance through Caddy
-reverse proxy. defguard uses a separate domain for the Web UI, and for
+reverse proxy. Defguard uses a separate domain for the Web UI, and for
 the optional enrollment/desktop client configuration/password reset
 service.
 
@@ -530,7 +530,7 @@ _EOF_
 
   while [ X${domain} = "X" ]; do
     echo -ne "${C_YELLOW}${TXT_INPUT}${C_END} "
-	  read -p "Enter defguard domain [default: ${CFG_DOMAIN}]: " domain
+	  read -p "Enter Defguard domain [default: ${CFG_DOMAIN}]: " domain
 	  if [ "$domain" ]; then
 		  CFG_DOMAIN="$domain"
 	  fi
@@ -644,7 +644,7 @@ validate_required_variables() {
 }
 
 generate_external_urls() {
-	# prepare full defguard URL
+	# prepare full Defguard URL
 	if [ $CFG_USE_HTTPS ]; then
 		CFG_DEFGUARD_URL="https://${CFG_DOMAIN}"
 	else
@@ -664,7 +664,7 @@ generate_external_urls() {
 
 print_config() {
   echo
-	echo " ${TXT_BEGIN} Setting up your defguard instance with following config:"
+	echo " ${TXT_BEGIN} Setting up your Defguard instance with following config:"
   echo
 	echo -e "   ${TXT_SUB} data volume: ${C_BOLD}${VOLUME_DIR}${C_END}"
   echo
@@ -716,7 +716,7 @@ generate_certs() {
 	#	TODO: allow configuring CA parameters
 	openssl req -x509 -new -nodes -key ${SSL_DIR}/defguard-ca.key -sha256 -days 1825 -out ${SSL_DIR}/defguard-ca.pem -passin pass:"${PASSPHRASE}" -subj "/C=PL/ST=Zachodniopomorskie/L=Szczecin/O=Example/OU=IT Department/CN=${CFG_DOMAIN}" 2>&1 >> ${LOG_FILE}
 
-	# generate CA-signed certificate for defguard gRPC
+	# generate CA-signed certificate for Defguard gRPC
 	openssl genrsa -out ${SSL_DIR}/defguard-grpc.key 2048 2>&1 >> ${LOG_FILE}
 
 	openssl req -new -key ${SSL_DIR}/defguard-grpc.key -out ${SSL_DIR}/defguard-grpc.csr -subj "/C=PL/ST=Zachodniopomorskie/L=Szczecin/O=Example/OU=IT Department/CN=${CFG_DOMAIN}" 2>&1 >> ${LOG_FILE}
@@ -733,7 +733,7 @@ EOF
 	openssl x509 -req -in ${SSL_DIR}/defguard-grpc.csr -CA ${SSL_DIR}/defguard-ca.pem -CAkey ${SSL_DIR}/defguard-ca.key -passin pass:"${PASSPHRASE}" -CAcreateserial \
 		-out ${SSL_DIR}/defguard-grpc.crt -days 1000 -sha256 -extfile ${SSL_DIR}/defguard-grpc.ext 2>&1 >> ${LOG_FILE}
 
-	# generate CA-signed certificate for defguard proxy gRPC
+	# generate CA-signed certificate for Defguard proxy gRPC
   openssl genrsa -out ${SSL_DIR}/defguard-proxy-grpc.key 2048 2>&1 >> ${LOG_FILE}
 
   openssl req -new -key ${SSL_DIR}/defguard-proxy-grpc.key -out ${SSL_DIR}/defguard-proxy-grpc.csr -subj "/C=PL/ST=Zachodniopomorskie/L=Szczecin/O=Example/OU=IT Department/CN=${CFG_DOMAIN}" 2>&1 >> ${LOG_FILE}
@@ -910,9 +910,9 @@ enable_vpn_gateway() {
 
 print_instance_summary() {
 	echo
-	echo -e "${C_LGREEN} ${TXT_CHECK} defguard setup finished successfully${C_END}. The Docker image version used for the setup was: ${IMAGE_TYPE_NAME}"
+	echo -e "${C_LGREEN} ${TXT_CHECK} Defguard setup finished successfully${C_END}. The Docker image version used for the setup was: ${IMAGE_TYPE_NAME}"
 	echo
-	echo "If your DNS configuration is correct your defguard instance should be available at:"
+	echo "If your DNS configuration is correct your Defguard instance should be available at:"
 	echo
 	echo -e "\t${TXT_SUB} Web UI: ${C_BOLD}${CFG_DEFGUARD_URL}${C_END}"
 	if [ "$CFG_ENABLE_ENROLLMENT" ]; then

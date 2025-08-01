@@ -37,7 +37,7 @@ jobs:
       - name: Sleep for 10 seconds
         working-directory: temp
         run: sleep 10s
-      - name: Test defguard is available
+      - name: Test Defguard is available
         working-directory: temp
         run: curl -f http://id.localhost/api/v1/health
       - name: Stop compose stack

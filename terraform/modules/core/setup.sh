@@ -57,10 +57,10 @@ DEFGUARD_DB_USER="${db_username}"
 DEFGUARD_DB_PASSWORD="${db_password}"
 EOF
 
-log "Enabling defguard service..."
+log "Enabling Defguard service..."
 systemctl enable defguard
 
-log "Starting defguard service..."
+log "Starting Defguard service..."
 systemctl start defguard
 
 %{ for network in vpn_networks ~}
