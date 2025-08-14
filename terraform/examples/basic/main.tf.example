@@ -24,7 +24,7 @@ locals {
 
   # The deb package version of the Defguard Core that will be installed on the instance.
   # Must be a valid, released version of Defguard Core.
-  core_package_version = "1.4.0"
+  core_package_version = "1.4.1"
 
   # The architecture of the Defguard Core server instance.
   # Supported values: "x86_64", "aarch64"
