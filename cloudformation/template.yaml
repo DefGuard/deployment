@@ -1,0 +1,1287 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Full Defguard stack with Core, Proxy, Gateway, and a Database.
+Parameters:
+  CoreUrl:
+    Type: String
+    Description: The URL for the DefGuard Core (e.g., https://core.example.com)
+  CoreGrpcPort:
+    Type: Number
+    Default: 50055
+    Description: The gRPC port for the DefGuard Core
+  CoreHttpPort:
+    Type: Number
+    Default: 8000
+    Description: The HTTP port for the DefGuard Core web UI
+  CoreCookieInsecure:
+    Type: String
+    Default: "false"
+    AllowedValues:
+      - "true"
+      - "false"
+    Description: Whether to allow insecure cookies for the DefGuard Core web UI
+  CoreDefaultAdminPassword:
+    Type: String
+    NoEcho: true
+    Description: The initial password for the admin user
+  CoreInstanceType:
+    Type: String
+    Default: t3.micro
+    Description: The instance type for the DefGuard Core server
+  ProxyUrl:
+    Type: String
+    Description: The URL for the DefGuard Proxy (e.g., https://proxy.example.com)
+  ProxyGrpcPort:
+    Type: Number
+    Default: 50051
+    Description: The gRPC port for the DefGuard Proxy
+  ProxyHttpPort:
+    Type: Number
+    Default: 8000
+    Description: The HTTP port for the DefGuard Proxy
+  ProxyInstanceType:
+    Type: String
+    Default: t3.micro
+    Description: The instance type for the DefGuard Proxy server
+  GatewayInstanceType:
+    Type: String
+    Default: t3.micro
+    Description: The instance type for the DefGuard Gateway server
+  DbName:
+    Type: String
+    Default: defguard
+    Description: The name of the database
+  DbUsername:
+    Type: String
+    Default: defguard
+    Description: The username for the database
+  DbPassword:
+    Type: String
+    NoEcho: true
+    Description: The password for the database user
+  DbPort:
+    Type: Number
+    Default: 5432
+    Description: The port on which the database will listen
+  DbStorage:
+    Type: Number
+    Default: 20
+    Description: The amount of storage allocated for the database in GB
+  DbInstanceClass:
+    Type: String
+    Default: db.t3.micro
+    Description: The instance class for the database
+  VpcName:
+    Type: String
+    Default: defguard-vpc
+    Description: The name of the VPC
+  VpcCidr:
+    Type: String
+    Default: 10.0.0.0/16
+    Description: The CIDR block for the VPC
+  VpnNetworkName:
+    Type: String
+    Default: vpn1
+    Description: The name of the VPN network
+  VpnNetworkAddress:
+    Type: String
+    Default: 10.10.10.1/24
+    Description: The CIDR address of the VPN network
+  VpnNetworkPort:
+    Type: Number
+    Default: 51820
+    Description: The UDP port for the Gateway to accept VPN connections
+  VpnNetworkNat:
+    Type: String
+    Default: "true"
+    AllowedValues:
+      - "true"
+      - "false"
+    Description: Whether to enable NAT for the VPN network. This may allow VPN clients to access the internet through the Gateway.
+  CoreLogLevel:
+    Type: String
+    Default: info
+    AllowedValues:
+      - trace
+      - debug
+      - info
+      - warn
+      - error
+    Description: Log level for DefGuard Core component
+  ProxyLogLevel:
+    Type: String
+    Default: info
+    AllowedValues:
+      - trace
+      - debug
+      - info
+      - warn
+      - error
+    Description: Log level for DefGuard Proxy component
+  GatewayLogLevel:
+    Type: String
+    Default: info
+    AllowedValues:
+      - trace
+      - debug
+      - info
+      - warn
+      - error
+    Description: Log level for DefGuard Gateway component
+Mappings:
+  AmiMap:
+    us-east-1:
+      core: ami-02e437205d7ba75cf
+      gateway: ami-0d11c7aae3451b5bd
+      proxy: ami-0b04c56e7efc7b34f
+    eu-west-1:
+      core: ami-07160d98be2bfb083
+      gateway: ami-044aaceefcb03660b
+      proxy: ami-0a5115994f0fa1a9d
+    eu-central-1:
+      core: ami-0fd7ec62b9da9313d
+      gateway: ami-0e41b2f5e53fbbb63
+      proxy: ami-0d68d4630a896f20e
+Resources:
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VpcCidr
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      Tags:
+        - Key: Name
+          Value: !Ref VpcName
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub ${VpcName}-igw
+  VPCGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref InternetGateway
+  PublicSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.0.1.0/24
+      AvailabilityZone: !Select
+        - 0
+        - !GetAZs ""
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub ${VpcName}-public-subnet-1
+  PrivateSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.0.2.0/24
+      AvailabilityZone: !Select
+        - 0
+        - !GetAZs ""
+      Tags:
+        - Key: Name
+          Value: !Sub ${VpcName}-private-subnet-1
+  PrivateSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.0.3.0/24
+      AvailabilityZone: !Select
+        - 1
+        - !GetAZs ""
+      Tags:
+        - Key: Name
+          Value: !Sub ${VpcName}-private-subnet-2
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub ${VpcName}-public-rt
+  PublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: VPCGatewayAttachment
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+  PublicSubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet
+      RouteTableId: !Ref PublicRouteTable
+  NATGatewayEIP:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key: Name
+          Value: !Sub ${VpcName}-nat-eip
+  NATGateway:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt NATGatewayEIP.AllocationId
+      SubnetId: !Ref PublicSubnet
+      Tags:
+        - Key: Name
+          Value: !Sub ${VpcName}-nat-gateway
+  PrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub ${VpcName}-private-rt
+  PrivateRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NATGateway
+  PrivateSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnet1
+      RouteTableId: !Ref PrivateRouteTable
+  PrivateSubnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnet2
+      RouteTableId: !Ref PrivateRouteTable
+  DBSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupName: defguard-db-subnet-group
+      DBSubnetGroupDescription: Subnet group for DefGuard database
+      SubnetIds:
+        - !Ref PrivateSubnet1
+        - !Ref PrivateSubnet2
+      Tags:
+        - Key: Name
+          Value: defguard-db-subnet-group
+  DBParameterGroup:
+    Type: AWS::RDS::DBParameterGroup
+    Properties:
+      DBParameterGroupName: defguard-db-parameter-group
+      Description: Parameter group for DefGuard database
+      Family: postgres17
+      Parameters:
+        rds.force_ssl: "0"
+      Tags:
+        - Key: Name
+          Value: defguard-db-parameter-group
+  DatabaseSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: defguard-db-sg
+      GroupDescription: Access to the database
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: !Ref DbPort
+          ToPort: !Ref DbPort
+          SourceSecurityGroupId: !Ref CoreSecurityGroup
+      Tags:
+        - Key: Name
+          Value: defguard-db-sg
+  LambdaSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: defguard-lambda-sg
+      GroupDescription: Lambda function access
+      VpcId: !Ref VPC
+      SecurityGroupEgress:
+        - IpProtocol: "-1"
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: defguard-lambda-sg
+  Database:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      DBName: !Ref DbName
+      DBInstanceIdentifier: defguard-core-db
+      DBInstanceClass: !Ref DbInstanceClass
+      Engine: postgres
+      MasterUsername: !Ref DbUsername
+      MasterUserPassword: !Ref DbPassword
+      Port: !Ref DbPort
+      AllocatedStorage: !Ref DbStorage
+      DBSubnetGroupName: !Ref DBSubnetGroup
+      VPCSecurityGroups:
+        - !Ref DatabaseSecurityGroup
+      DBParameterGroupName: !Ref DBParameterGroup
+      DeletionProtection: false
+      BackupRetentionPeriod: 0
+      Tags:
+        - Key: Name
+          Value: defguard-core-db
+  CoreSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: defguard-core-sg
+      GroupDescription: Core access
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: !Ref CoreHttpPort
+          ToPort: !Ref CoreHttpPort
+          SourceSecurityGroupId: !Ref GatewaySecurityGroup
+          Description: HTTP access from gateways
+        - IpProtocol: tcp
+          FromPort: !Ref CoreGrpcPort
+          ToPort: !Ref CoreGrpcPort
+          SourceSecurityGroupId: !Ref GatewaySecurityGroup
+          Description: gRPC communication with gateways
+        - IpProtocol: tcp
+          FromPort: !Ref CoreHttpPort
+          ToPort: !Ref CoreHttpPort
+          SourceSecurityGroupId: !Ref LambdaSecurityGroup
+          Description: HTTP access from Lambda function
+      SecurityGroupEgress:
+        - IpProtocol: "-1"
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: defguard-core-sg
+  ProxySecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: defguard-proxy-sg
+      GroupDescription: Proxy access
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: !Ref ProxyHttpPort
+          ToPort: !Ref ProxyHttpPort
+          CidrIp: 0.0.0.0/0
+          Description: HTTP access to proxy
+        - IpProtocol: tcp
+          FromPort: !Ref ProxyGrpcPort
+          ToPort: !Ref ProxyGrpcPort
+          SourceSecurityGroupId: !Ref CoreSecurityGroup
+          Description: Internal communication with core
+      SecurityGroupEgress:
+        - IpProtocol: "-1"
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: defguard-proxy-sg
+  GatewaySecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: defguard-gateway-sg
+      GroupDescription: Gateway access
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: udp
+          FromPort: !Ref VpnNetworkPort
+          ToPort: !Ref VpnNetworkPort
+          CidrIp: 0.0.0.0/0
+          Description: VPN traffic from clients
+      SecurityGroupEgress:
+        - IpProtocol: "-1"
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: defguard-gateway-sg
+  CoreNetworkInterface:
+    Type: AWS::EC2::NetworkInterface
+    Properties:
+      SubnetId: !Ref PublicSubnet
+      GroupSet:
+        - !Ref CoreSecurityGroup
+      Tags:
+        - Key: Name
+          Value: defguard-core-network-interface
+  ProxyNetworkInterface:
+    Type: AWS::EC2::NetworkInterface
+    Properties:
+      SubnetId: !Ref PublicSubnet
+      GroupSet:
+        - !Ref ProxySecurityGroup
+      Tags:
+        - Key: Name
+          Value: defguard-proxy-network-interface
+  GatewayNetworkInterface:
+    Type: AWS::EC2::NetworkInterface
+    Properties:
+      SubnetId: !Ref PublicSubnet
+      GroupSet:
+        - !Ref GatewaySecurityGroup
+      Tags:
+        - Key: Name
+          Value: defguard-gateway-network-interface
+  CoreElasticIP:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key: Name
+          Value: defguard-core-eip
+  ProxyElasticIP:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key: Name
+          Value: defguard-proxy-eip
+  GatewayElasticIP:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key: Name
+          Value: defguard-gateway-eip
+  CoreEIPAssociation:
+    Type: AWS::EC2::EIPAssociation
+    Properties:
+      NetworkInterfaceId: !Ref CoreNetworkInterface
+      AllocationId: !GetAtt CoreElasticIP.AllocationId
+  ProxyEIPAssociation:
+    Type: AWS::EC2::EIPAssociation
+    Properties:
+      NetworkInterfaceId: !Ref ProxyNetworkInterface
+      AllocationId: !GetAtt ProxyElasticIP.AllocationId
+  GatewayEIPAssociation:
+    Type: AWS::EC2::EIPAssociation
+    Properties:
+      NetworkInterfaceId: !Ref GatewayNetworkInterface
+      AllocationId: !GetAtt GatewayElasticIP.AllocationId
+  CoreInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !FindInMap
+        - AmiMap
+        - !Ref AWS::Region
+        - core
+      InstanceType: !Ref CoreInstanceType
+      NetworkInterfaces:
+        - NetworkInterfaceId: !Ref CoreNetworkInterface
+          DeviceIndex: "0"
+      UserData:
+        Fn::Base64:
+          Fn::Sub: |
+            #!/bin/bash
+            set -e
+            LOG_FILE="/var/log/defguard.log"
+
+            log() {
+                echo "$(date '+%Y-%m-%d %H:%M:%S') $1"
+            }
+
+            generate_secret_inner() {
+                local length="$1"
+                openssl rand -base64 "$length" | tr -d "=+/" | tr -d '\n' | cut -c1-"$length"
+            }
+
+            (
+            log "Writing Core configuration to /etc/defguard/core.conf..."
+            mkdir -p /etc/defguard
+            tee /etc/defguard/core.conf <<EOF
+            ### Core configuration ###
+            DEFGUARD_AUTH_SECRET=$(generate_secret_inner 64)
+            DEFGUARD_GATEWAY_SECRET=${GeneratedGatewaySecret.GatewaySecret}
+            DEFGUARD_YUBIBRIDGE_SECRET=$(generate_secret_inner 64)
+            DEFGUARD_SECRET_KEY=$(generate_secret_inner 64)
+            DEFGUARD_URL=${CoreUrl}
+            DEFGUARD_AUTH_SESSION_LIFETIME=604800
+            DEFGUARD_ADMIN_GROUPNAME=admin
+            DEFGUARD_DEFAULT_ADMIN_PASSWORD=${CoreDefaultAdminPassword}
+            DEFGUARD_GRPC_PORT=${CoreGrpcPort}
+            DEFGUARD_HTTP_PORT=${CoreHttpPort}
+            DEFGUARD_COOKIE_INSECURE=${CoreCookieInsecure}
+            DEFGUARD_LOG_LEVEL=${CoreLogLevel}
+
+            ### Proxy configuration ###
+            DEFGUARD_PROXY_URL=http://${ProxyNetworkInterface.PrimaryPrivateIpAddress}:${ProxyGrpcPort}
+            DEFGUARD_ENROLLMENT_URL=${ProxyUrl}
+
+            ### DB configuration ###
+            DEFGUARD_DB_HOST="${Database.Endpoint.Address}"
+            DEFGUARD_DB_PORT=${DbPort}
+            DEFGUARD_DB_NAME="${DbName}"
+            DEFGUARD_DB_USER="${DbUsername}"
+            DEFGUARD_DB_PASSWORD="${DbPassword}"
+            EOF
+
+            log "Enabling defguard service..."
+            systemctl enable defguard
+
+            log "Starting defguard service..."
+            systemctl start defguard
+
+            log "Creating VPN location with address ${VpnNetworkAddress} and endpoint ${GatewayElasticIP} and port ${VpnNetworkPort}..."
+            export $(grep -v '^#' /etc/defguard/core.conf | xargs) && /usr/bin/defguard --secret-key ${GeneratedGatewaySecret.GatewaySecret} init-vpn-location --name ${VpnNetworkName} --address ${VpnNetworkAddress} --endpoint ${GatewayElasticIP} --port ${VpnNetworkPort} --id 1 --allowed-ips ${VpnNetworkAddress} --allowed-ips ${VpcCidr} >> "$LOG_FILE" 2>&1
+
+            log "Created VPN location ${VpnNetworkName} with address ${VpnNetworkAddress} and endpoint ${GatewayElasticIP} and port ${VpnNetworkPort}"
+
+            log "Setup completed."
+            ) 2>&1 | tee -a "$LOG_FILE"
+      Tags:
+        - Key: Name
+          Value: defguard-core-instance
+    DependsOn:
+      - Database
+      - GeneratedGatewaySecret
+  ProxyInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !FindInMap
+        - AmiMap
+        - !Ref AWS::Region
+        - proxy
+      InstanceType: !Ref ProxyInstanceType
+      NetworkInterfaces:
+        - NetworkInterfaceId: !Ref ProxyNetworkInterface
+          DeviceIndex: "0"
+      UserData:
+        Fn::Base64:
+          Fn::Sub: |
+            #!/bin/bash
+            set -e
+            LOG_FILE="/var/log/defguard.log"
+
+            log() {
+                echo "$(date '+%Y-%m-%d %H:%M:%S') $1"
+            }
+
+            (
+            log "Writing proxy configuration to /etc/defguard/proxy.toml..."
+            mkdir -p /etc/defguard
+            tee /etc/defguard/proxy.toml <<EOF
+            # port the API server will listen on
+            http_port = ${ProxyHttpPort}
+            # port the gRPC server will listen on
+            grpc_port = ${ProxyGrpcPort}
+
+            log_level = "${ProxyLogLevel}"
+            rate_limit_per_second = 0
+            rate_limit_burst = 0
+            url = "${ProxyUrl}"
+
+            EOF
+
+            log "Enabling defguard-proxy service..."
+            systemctl enable defguard-proxy
+
+            log "Starting defguard-proxy service..."
+            systemctl start defguard-proxy
+
+            log "Setup completed."
+            ) 2>&1 | tee -a "$LOG_FILE"
+      Tags:
+        - Key: Name
+          Value: defguard-proxy-instance
+  GatewayInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !FindInMap
+        - AmiMap
+        - !Ref AWS::Region
+        - gateway
+      InstanceType: !Ref GatewayInstanceType
+      NetworkInterfaces:
+        - NetworkInterfaceId: !Ref GatewayNetworkInterface
+          DeviceIndex: "0"
+      UserData:
+        Fn::Base64:
+          Fn::Sub:
+          - |
+            #!/bin/bash
+            set -e
+            LOG_FILE="/var/log/defguard.log"
+
+            log() {
+                echo "$(date '+%Y-%m-%d %H:%M:%S') $1"
+            }
+
+            base64url_encode() {
+                echo -n "$1" | openssl base64 -e -A | tr '+/' '-_' | tr -d '='
+            }
+
+            (
+            log "Generating gateway token..."
+            NETWORK_ID="1"
+            SECRET="${GeneratedGatewaySecret.GatewaySecret}"
+            ISSUER="DefGuard"
+
+            HEADER='{"alg":"HS256","typ":"JWT"}'
+            NOW=$(date +%s)
+            EXPIRATION=$(($NOW + 315360000))
+            PAYLOAD=$(cat <<EOF
+            {
+              "iss": "$ISSUER",
+              "sub": "DEFGUARD-NETWORK-$NETWORK_ID",
+              "client_id": "$NETWORK_ID",
+              "exp": $EXPIRATION,
+              "nbf": $NOW
+            }
+            EOF
+            )
+            HEADER_B64=$(base64url_encode "$HEADER")
+            PAYLOAD_B64=$(base64url_encode "$PAYLOAD")
+            SIGNING_INPUT="$HEADER_B64.$PAYLOAD_B64"
+            SIGNATURE=$(echo -n "$SIGNING_INPUT" | openssl dgst -sha256 -hmac "$SECRET" -binary | openssl base64 -e -A | tr '+/' '-_' | tr -d '=')
+
+            GATEWAY_TOKEN="$SIGNING_INPUT.$SIGNATURE"
+
+            log "Writing gateway configuration to /etc/defguard/gateway.toml..."
+            mkdir -p /etc/defguard
+            tee /etc/defguard/gateway.toml <<EOF
+            # This is an example config file for defguard VPN gateway
+            # To use it fill in actual values for your deployment below
+
+            # Required: secret token generated by defguard
+            # NOTE: must replace default with actual value
+            token = "$GATEWAY_TOKEN"
+            # Required: defguard server gRPC endpoint URL
+            # NOTE: must replace default with actual value
+            grpc_url = "http://${CorePrivateIP}:${CoreGrpcPort}"
+            # Optional: gateway name which will be displayed in defguard web UI
+            name = "defguard-gateway-1"
+            # Required: use userspace WireGuard implementation (e.g. wireguard-go)
+            userspace = false
+            # Optional: path to TLS cert file
+            # grpc_ca = cert.pem
+            # Required: how often should interface stat updates be sent to defguard server (in seconds)
+            stats_period = 60
+            # Required: name of WireGuard interface
+            ifname = "wg0"
+            # Optional: write PID to this file
+            # pidfile = defguard-gateway.pid
+            # Required: enable logging to syslog
+            use_syslog = false
+            # Required: which syslog facility to use
+            syslog_facility = "LOG_USER"
+            # Required: which socket to use for logging
+            syslog_socket = "/var/run/log"
+
+            # Optional: Command which will be run before bringing interface up
+            # Example: Allow all traffic through WireGuard interface:
+            #pre_up = "/path/to/iptables -A INPUT -i wg0 -j ACCEPT
+            # example with multiple commands - add them to a shell script
+            #pre_up = "/path/to/shell /path/to/script"
+
+            # Optional: Command which will be run after bringing interface up
+            # Example: Add a default route after WireGuard interface is up:
+            #post_up = "/path/to/ip route add default via 192.168.1.1 dev wg0"
+
+            # Optional: Command which will be run before bringing interface down
+            # Example: Remove WireGuard-related firewall rules before interface is taken down:
+            #pre_down = "/path/to/iptables -D INPUT -i wg0 -j ACCEPT"
+
+            # Optional: Command which will be run after bringing interface down
+            # Example: Remove the default route after WireGuard interface is down:
+            #post_down = "/pat/to/ip route del default via 192.168.1.1 dev wg0"
+
+            # A HTTP port that will expose the REST HTTP gateway health status
+            # STATUS CODES:
+            # 200 - Gateway is working and is connected to CORE
+            # 503 - gateway works but is not connected to CORE
+            #health_port = 55003
+
+            # Optional: Enable automatic masquerading of traffic by the firewall
+            masquerade = ${VpnNetworkNat}
+
+            # Optional: Set the priority of the Defguard forward chain
+            #fw_priority = 0
+            EOF
+
+            if [ "${VpnNetworkNat}" = "true" ]; then
+              log "Enabling IP forwarding for NAT (IPv4)..."
+              sysctl -w net.ipv4.ip_forward=1
+              grep -q -e '^net.ipv4.ip_forward' /etc/sysctl.conf || echo "net.ipv4.ip_forward = 1" | tee -a /etc/sysctl.conf
+
+              log "Enabling IP forwarding for NAT (IPv6)..."
+              sysctl -w net.ipv6.conf.all.forwarding=1
+              grep -q -e '^net.ipv6.conf.all.forwarding' /etc/sysctl.conf || echo "net.ipv6.conf.all.forwarding = 1" | tee -a /etc/sysctl.conf
+            fi
+
+            log "Setting log level in defguard-gateway service..."
+            if grep -q '^Environment="RUST_LOG=' /lib/systemd/system/defguard-gateway.service; then
+              sed -i "s|^Environment=\"RUST_LOG=.*\"|Environment=\"RUST_LOG=${GatewayLogLevel}\"|" /lib/systemd/system/defguard-gateway.service
+            else
+              sed -i "/^\[Service\]/a Environment=\"RUST_LOG=${GatewayLogLevel}\"" /lib/systemd/system/defguard-gateway.service
+            fi
+
+            log "Reloading systemd daemon to apply changes..."
+            systemctl daemon-reload
+
+            log "Enabling defguard-gateway service..."
+            systemctl enable defguard-gateway
+
+            log "Starting defguard-gateway service..."
+            systemctl start defguard-gateway
+            log "testing secret string generation..."
+
+            log "Setup completed."
+            ) 2>&1 | tee -a "$LOG_FILE"
+          - { CorePrivateIP: !GetAtt CoreNetworkInterface.PrimaryPrivateIpAddress }
+      Tags:
+        - Key: Name
+          Value: defguard-gateway-instance
+    DependsOn:
+      - CoreInstance
+      - GeneratedGatewaySecret
+
+  # Lambda function to call DefGuard API for device creation
+  DefGuardApiFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub ${AWS::StackName}-defguard-device-setup
+      Runtime: python3.9
+      Handler: index.handler
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref LambdaSecurityGroup
+        SubnetIds:
+          - !Ref PrivateSubnet1
+      Code:
+        ZipFile: |
+          import json
+          import urllib.request
+          import urllib.parse
+          import urllib.error
+          import time
+          
+          def send_response(event, context, response_status, response_data=None, physical_resource_id=None):
+              if response_data is None:
+                  response_data = {}
+              
+              # Use existing ID for updates/deletes, let CloudFormation generate one for creates
+              if physical_resource_id is None and event['RequestType'] != 'Create':
+                  physical_resource_id = event.get('PhysicalResourceId', 'DefGuardDeviceSetup')
+              elif physical_resource_id is None:
+                  physical_resource_id = 'DefGuardDeviceSetup'
+              
+              response_url = event['ResponseURL']
+              
+              response_body = {
+                  'Status': response_status,
+                  'Reason': f'See CloudWatch Log Stream: {context.log_stream_name}',
+                  'PhysicalResourceId': physical_resource_id,
+                  'StackId': event['StackId'],
+                  'RequestId': event['RequestId'],
+                  'LogicalResourceId': event['LogicalResourceId'],
+                  'Data': response_data
+              }
+              
+              json_response_body = json.dumps(response_body).encode('utf-8')
+              
+              print(f"Sending response to {response_url}")
+              print(f"Response body: {json.dumps(response_body, indent=2)}")
+              
+              try:
+                  request = urllib.request.Request(
+                      response_url,
+                      data=json_response_body,
+                      headers={
+                          'Content-Type': '',
+                          'Content-Length': str(len(json_response_body))
+                      },
+                      method='PUT'
+                  )
+                  
+                  response = urllib.request.urlopen(request, timeout=30)
+                  print(f"Response sent successfully. Status: {response.status}")
+                  return True
+                  
+              except Exception as e:
+                  print(f"Failed to send response: {str(e)}")
+                  return False
+          
+          def handler(event, context):
+              print(f"Event: {json.dumps(event, indent=2)}")
+              
+              try:
+                  if event['RequestType'] == 'Create':
+                      core_ip = event['ResourceProperties']['CoreIP']
+                      core_port = event['ResourceProperties']['CorePort']
+                      admin_password = event['ResourceProperties']['AdminPassword']
+                      
+                      max_retries = 5
+                      for attempt in range(max_retries):
+                          try:
+                              print(f"Attempt {attempt + 1}/{max_retries} to create device")
+                              token = create_user_device(core_ip, core_port, admin_password)
+                              
+                              response_data = {
+                                  'Token': token,
+                                  'Message': 'Device created successfully'
+                              }
+                              
+                              print(f"Sending SUCCESS response with token: {token}")
+                              return send_response(event, context, 'SUCCESS', response_data)
+                              
+                          except Exception as e:
+                              print(f"Attempt {attempt + 1} failed: {str(e)}")
+                              if attempt < max_retries - 1:
+                                  print(f"Waiting 30 seconds before retry...")
+                                  time.sleep(30)
+                              else:
+                                  raise e
+                      
+                  elif event['RequestType'] in ['Update', 'Delete']:
+                      response_data = {'Message': f'{event["RequestType"]} operation completed'}
+                      print(f"Sending SUCCESS response for {event['RequestType']}")
+                      return send_response(event, context, 'SUCCESS', response_data, event.get('PhysicalResourceId'))
+                      
+              except Exception as e:
+                  error_msg = str(e)
+                  print(f"Error occurred: {error_msg}")
+                  response_data = {'Error': error_msg}
+                  return send_response(event, context, 'FAILED', response_data)
+          
+          def create_user_device(core_ip, core_port, admin_password):
+              base_url = f"http://{core_ip}:{core_port}"
+              
+              print("Authenticating as admin...")
+              auth_data = json.dumps({
+                  "username": "admin",
+                  "password": admin_password
+              }).encode('utf-8')
+              
+              auth_request = urllib.request.Request(
+                  f"{base_url}/api/v1/auth",
+                  data=auth_data,
+                  headers={
+                      'Content-Type': 'application/json',
+                      'User-Agent': 'DefGuard-CloudFormation-Setup/1.0'
+                  },
+                  method='POST'
+              )
+              
+              try:
+                  auth_response = urllib.request.urlopen(auth_request)
+                  if auth_response.status != 200:
+                      raise Exception(f"Authentication failed: {auth_response.status}")
+              except urllib.error.HTTPError as e:
+                  raise Exception(f"Authentication failed: {e.code} - {e.read().decode()}")
+              
+              session_cookie = None
+              for header_name, header_value in auth_response.headers.items():
+                  if header_name.lower() == 'set-cookie' and 'defguard_session=' in header_value:
+                      session_cookie = header_value.split('defguard_session=')[1].split(';')[0]
+                      break
+              
+              if not session_cookie:
+                  raise Exception("No session cookie received from authentication")
+              
+              print(f"Authentication successful, session cookie: {session_cookie[:20]}...")
+              
+              print("Creating enrollment token...")
+              token_data = json.dumps({
+                  "email": "",
+                  "send_enrollment_notification": False,
+                  "username": "admin"
+              }).encode('utf-8')
+              
+              token_request = urllib.request.Request(
+                  f"{base_url}/api/v1/user/admin/start_desktop",
+                  data=token_data,
+                  headers={
+                      'Content-Type': 'application/json',
+                      'User-Agent': 'DefGuard-CloudFormation-Setup/1.0',
+                      'Cookie': f'defguard_session={session_cookie}'
+                  },
+                  method='POST'
+              )
+              
+              try:
+                  token_response = urllib.request.urlopen(token_request)
+                  response_data = json.loads(token_response.read().decode('utf-8'))
+                  enrollment_token = response_data.get('enrollment_token', 'TOKEN_NOT_FOUND')
+                  enrollment_url = response_data.get('enrollment_url', 'URL_NOT_FOUND')
+                  print(f"Enrollment token created successfully: {enrollment_token}")
+                  print(f"Enrollment URL: {enrollment_url}")
+                  return enrollment_token
+              except urllib.error.HTTPError as e:
+                  error_msg = e.read().decode()
+                  print(f"Token creation failed: {e.code} - {error_msg}")
+                  return f"API_CALL_FAILED_{e.code}_{error_msg[:50]}"
+      Role: !GetAtt DefGuardApiRole.Arn
+      Timeout: 300
+    DependsOn:
+      - NATGateway
+
+  DefGuardApiRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
+
+  # Role for the cleanup Lambda function
+  CleanupLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: EC2CleanupPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ec2:DeleteNatGateway
+                  - ec2:ReleaseAddress
+                  - ec2:DescribeNatGateways
+                  - ec2:DescribeAddresses
+                Resource: '*'
+        - PolicyName: LambdaCleanupPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - lambda:DeleteFunction
+                  - lambda:GetFunction
+                Resource: '*'
+
+  # Lambda function to cleanup NAT gateway after device setup
+  CleanupNATFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub ${AWS::StackName}-cleanup-nat
+      Runtime: python3.9
+      Handler: index.handler
+      Code:
+        ZipFile: |
+          import json
+          import boto3
+          import urllib.request
+          import urllib.parse
+          import time
+          
+          def send_response(event, context, response_status, response_data=None, physical_resource_id=None):
+              if response_data is None:
+                  response_data = {}
+              
+              if physical_resource_id is None:
+                  physical_resource_id = event.get('PhysicalResourceId', 'NATCleanup')
+              
+              response_url = event['ResponseURL']
+              
+              response_body = {
+                  'Status': response_status,
+                  'Reason': f'See CloudWatch Log Stream: {context.log_stream_name}',
+                  'PhysicalResourceId': physical_resource_id,
+                  'StackId': event['StackId'],
+                  'RequestId': event['RequestId'],
+                  'LogicalResourceId': event['LogicalResourceId'],
+                  'Data': response_data
+              }
+              
+              json_response_body = json.dumps(response_body).encode('utf-8')
+              
+              print(f"Sending response to {response_url}")
+              print(f"Response body: {json.dumps(response_body, indent=2)}")
+              
+              try:
+                  request = urllib.request.Request(
+                      response_url,
+                      data=json_response_body,
+                      headers={
+                          'Content-Type': '',
+                          'Content-Length': str(len(json_response_body))
+                      },
+                      method='PUT'
+                  )
+                  
+                  response = urllib.request.urlopen(request, timeout=30)
+                  print(f"Response sent successfully. Status: {response.status}")
+                  return True
+                  
+              except Exception as e:
+                  print(f"Failed to send response: {str(e)}")
+                  return False
+          
+          def handler(event, context):
+              print(f"Event: {json.dumps(event, indent=2)}")
+              
+              try:
+                  if event['RequestType'] == 'Create':
+                      nat_gateway_id = event['ResourceProperties']['NATGatewayId']
+                      eip_allocation_id = event['ResourceProperties']['EIPAllocationId']
+                      lambda_function_name = event['ResourceProperties']['LambdaFunctionName']
+                      
+                      ec2 = boto3.client('ec2')
+                      lambda_client = boto3.client('lambda')
+                      
+                      print(f"Deleting NAT Gateway: {nat_gateway_id}")
+                      
+                      ec2.delete_nat_gateway(NatGatewayId=nat_gateway_id)
+                      
+                      print("Waiting for NAT Gateway to be deleted...")
+                      waiter = ec2.get_waiter('nat_gateway_deleted')
+                      waiter.wait(NatGatewayIds=[nat_gateway_id], WaiterConfig={'Delay': 15, 'MaxAttempts': 40})
+                      
+                      print(f"Releasing Elastic IP: {eip_allocation_id}")
+                      
+                      ec2.release_address(AllocationId=eip_allocation_id)
+                      
+                      print(f"Deleting Lambda function: {lambda_function_name}")
+                      
+                      try:
+                          lambda_client.delete_function(FunctionName=lambda_function_name)
+                          print("Lambda function deleted successfully")
+                      except lambda_client.exceptions.ResourceNotFoundException:
+                          print("Lambda function not found, may have been already deleted")
+                      
+                      response_data = {
+                          'Message': 'NAT Gateway, EIP, and Lambda function successfully cleaned up',
+                          'DeletedNATGateway': nat_gateway_id,
+                          'ReleasedEIP': eip_allocation_id,
+                          'DeletedLambdaFunction': lambda_function_name
+                      }
+                      
+                      print("Cleanup completed successfully")
+                      return send_response(event, context, 'SUCCESS', response_data)
+                      
+                  elif event['RequestType'] in ['Update', 'Delete']:
+                      response_data = {'Message': f'{event["RequestType"]} operation completed'}
+                      print(f"Sending SUCCESS response for {event['RequestType']}")
+                      return send_response(event, context, 'SUCCESS', response_data, event.get('PhysicalResourceId'))
+                      
+              except Exception as e:
+                  error_msg = str(e)
+                  print(f"Error occurred: {error_msg}")
+                  response_data = {'Error': error_msg}
+                  return send_response(event, context, 'FAILED', response_data)
+      Role: !GetAtt CleanupLambdaRole.Arn
+      Timeout: 600
+
+  # Role for the Gateway Secret Generator Lambda function
+  GatewaySecretGeneratorRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+
+  # Lambda function to generate Gateway Secret
+  GatewaySecretGenerator:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub ${AWS::StackName}-gateway-secret-generator
+      Runtime: python3.9
+      Handler: index.handler
+      Code:
+        ZipFile: |
+          import json
+          import random
+          import string
+          import urllib.request
+          import urllib.parse
+          
+          def send_response(event, context, response_status, response_data=None, physical_resource_id=None):
+              if response_data is None:
+                  response_data = {}
+              
+              if physical_resource_id is None:
+                  physical_resource_id = event.get('PhysicalResourceId', 'GatewaySecretGenerator')
+              
+              response_url = event['ResponseURL']
+              
+              response_body = {
+                  'Status': response_status,
+                  'Reason': f'See CloudWatch Log Stream: {context.log_stream_name}',
+                  'PhysicalResourceId': physical_resource_id,
+                  'StackId': event['StackId'],
+                  'RequestId': event['RequestId'],
+                  'LogicalResourceId': event['LogicalResourceId'],
+                  'Data': response_data
+              }
+              
+              json_response_body = json.dumps(response_body).encode('utf-8')
+              
+              print(f"Sending response to {response_url}")
+              print(f"Response body: {json.dumps(response_body, indent=2)}")
+              
+              try:
+                  request = urllib.request.Request(
+                      response_url,
+                      data=json_response_body,
+                      headers={
+                          'Content-Type': '',
+                          'Content-Length': str(len(json_response_body))
+                      },
+                      method='PUT'
+                  )
+                  
+                  response = urllib.request.urlopen(request, timeout=30)
+                  print(f"Response sent successfully. Status: {response.status}")
+                  return True
+                  
+              except Exception as e:
+                  print(f"Failed to send response: {str(e)}")
+                  return False
+          
+          def generate_secret(length=64):
+              """Generate a cryptographically secure random string of specified length."""
+              # Use alphanumeric characters (letters and digits)
+              alphabet = string.ascii_letters + string.digits
+              return ''.join(random.choice(alphabet) for _ in range(length))
+          
+          def handler(event, context):
+              print(f"Event: {json.dumps(event, indent=2)}")
+              
+              try:
+                  if event['RequestType'] == 'Create':
+                      # Generate a new 64-character secret
+                      gateway_secret = generate_secret(64)
+                      
+                      response_data = {
+                          'GatewaySecret': gateway_secret,
+                          'Message': 'Gateway secret generated successfully'
+                      }
+                      
+                      print(f"Generated gateway secret: {gateway_secret[:10]}...{gateway_secret[-10:]}")
+                      return send_response(event, context, 'SUCCESS', response_data)
+                      
+                  elif event['RequestType'] == 'Update':
+                      # For updates, keep the existing secret if available, otherwise generate new
+                      existing_secret = event.get('PhysicalResourceId', '')
+                      if len(existing_secret) == 64:
+                          response_data = {
+                              'GatewaySecret': existing_secret,
+                              'Message': 'Using existing gateway secret'
+                          }
+                      else:
+                          gateway_secret = generate_secret(64)
+                          response_data = {
+                              'GatewaySecret': gateway_secret,
+                              'Message': 'Generated new gateway secret for update'
+                          }
+                      
+                      return send_response(event, context, 'SUCCESS', response_data, event.get('PhysicalResourceId'))
+                      
+                  elif event['RequestType'] == 'Delete':
+                      response_data = {'Message': 'Delete operation completed'}
+                      return send_response(event, context, 'SUCCESS', response_data, event.get('PhysicalResourceId'))
+                      
+              except Exception as e:
+                  error_msg = str(e)
+                  print(f"Error occurred: {error_msg}")
+                  response_data = {'Error': error_msg}
+                  return send_response(event, context, 'FAILED', response_data)
+      Role: !GetAtt GatewaySecretGeneratorRole.Arn
+      Timeout: 30
+
+  # Custom resource to generate Gateway Secret
+  GeneratedGatewaySecret:
+    Type: AWS::CloudFormation::CustomResource
+    Properties:
+      ServiceToken: !GetAtt GatewaySecretGenerator.Arn
+
+  DeviceSetup:
+    Type: AWS::CloudFormation::CustomResource
+    Properties:
+      ServiceToken: !GetAtt DefGuardApiFunction.Arn
+      CoreIP: !GetAtt CoreNetworkInterface.PrimaryPrivateIpAddress
+      CorePort: !Ref CoreHttpPort
+      AdminPassword: !Ref CoreDefaultAdminPassword
+    DependsOn:
+      - CoreInstance
+
+  # Cleanup NAT Gateway after device setup is complete
+  NATCleanup:
+    Type: AWS::CloudFormation::CustomResource
+    Properties:
+      ServiceToken: !GetAtt CleanupNATFunction.Arn
+      NATGatewayId: !Ref NATGateway
+      EIPAllocationId: !GetAtt NATGatewayEIP.AllocationId
+      LambdaFunctionName: !Ref DefGuardApiFunction
+    DependsOn:
+      - DeviceSetup
+Outputs:
+  DefguardCorePrivateAddress:
+    Description: The IP address of the DefGuard Core instance in the internal network
+    Value: !GetAtt CoreNetworkInterface.PrimaryPrivateIpAddress
+    Export:
+      Name: !Sub ${AWS::StackName}-core-private-ip
+  DefguardCorePublicAddress:
+    Description: The public IP address of the DefGuard Core instance
+    Value: !Ref CoreElasticIP
+    Export:
+      Name: !Sub ${AWS::StackName}-core-public-ip
+  DefguardProxyPublicAddress:
+    Description: The public IP address of the DefGuard Proxy instance
+    Value: !Ref ProxyElasticIP
+    Export:
+      Name: !Sub ${AWS::StackName}-proxy-public-ip
+  DefguardProxyPrivateAddress:
+    Description: The private IP address of the DefGuard Proxy instance
+    Value: !GetAtt ProxyNetworkInterface.PrimaryPrivateIpAddress
+    Export:
+      Name: !Sub ${AWS::StackName}-proxy-private-ip
+  DefguardGatewayPublicAddress:
+    Description: The public IP address of the DefGuard Gateway instance
+    Value: !Ref GatewayElasticIP
+    Export:
+      Name: !Sub ${AWS::StackName}-gateway-public-ip
+  DefguardGatewayPrivateAddress:
+    Description: The private IP address of the DefGuard Gateway instance
+    Value: !GetAtt GatewayNetworkInterface.PrimaryPrivateIpAddress
+    Export:
+      Name: !Sub ${AWS::StackName}-gateway-private-ip
+  DatabaseEndpoint:
+    Description: The endpoint of the RDS database
+    Value: !GetAtt Database.Endpoint.Address
+    Export:
+      Name: !Sub ${AWS::StackName}-database-endpoint
+  VPCId:
+    Description: The ID of the VPC
+    Value: !Ref VPC
+    Export:
+      Name: !Sub ${AWS::StackName}-vpc-id
+  PublicSubnetId:
+    Description: The ID of the public subnet
+    Value: !Ref PublicSubnet
+    Export:
+      Name: !Sub ${AWS::StackName}-public-subnet-id
+  UserDeviceEnrollmentToken:
+    Description: Enrollment token for user device
+    Value: !GetAtt DeviceSetup.Token
+    Export:
+      Name: !Sub ${AWS::StackName}-enrollment-token
+  DeviceCreationMessage:
+    Description: Status message from device creation
+    Value: !GetAtt DeviceSetup.Message
+  NATGatewayCleanupMessage:
+    Description: Status message from NAT Gateway cleanup
+    Value: !GetAtt NATCleanup.Message
+    Export:
+      Name: !Sub ${AWS::StackName}-nat-cleanup-status
+  GeneratedGatewaySecretInfo:
+    Description: Information about the auto-generated Gateway Secret
+    Value: !Sub "Gateway secret has been automatically generated (64 characters). Message: ${GeneratedGatewaySecret.Message}"
+    Export:
+      Name: !Sub ${AWS::StackName}-gateway-secret-info
