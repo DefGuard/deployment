@@ -1,4 +1,4 @@
 output "instance_id" {
-  description = "The ID of the Core instance"
+  description = "ID of Defguard Core instance"
   value       = aws_instance.defguard_core.id
 }
