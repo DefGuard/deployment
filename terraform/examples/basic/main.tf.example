@@ -144,7 +144,7 @@ terraform {
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = "~> 5.0"
+      version = "~> 6.0"
     }
   }
 }
@@ -536,31 +536,31 @@ resource "aws_security_group" "defguard_db_sg" {
 ###########################################################################
 
 output "defguard_core_private_address" {
-  description = "The IP address of the Defguard Core instance in the internal network"
+  description = "IP address of Defguard Core instance in the internal network"
   value       = aws_network_interface.defguard_core_network_interface.private_ip
 }
 
 output "defguard_core_public_address" {
-  description = "The public IP address of the Defguard Core instance"
+  description = "Public IP address of Defguard Core instance"
   value       = aws_eip.defguard_core_endpoint.public_ip
 }
 
 output "defguard_proxy_public_address" {
-  description = "The public IP address of the Defguard Proxy instance"
+  description = "Public IP address of Defguard Proxy instance"
   value       = aws_eip.defguard_proxy_endpoint.public_ip
 }
 
 output "defguard_proxy_private_address" {
-  description = "The private IP address of the Defguard Proxy instance"
+  description = "Private IP address of Defguard Proxy instance"
   value       = aws_network_interface.defguard_proxy_network_interface.private_ip
 }
 
 output "defguard_gateway_public_addresses" {
-  description = "The public IP addresses of the Defguard Gateway instances"
+  description = "Public IP addresses of Defguard Gateway instances"
   value       = [for gw in aws_eip.defguard_gateway_endpoint : gw.public_ip]
 }
 
 output "defguard_gateway_private_addresses" {
-  description = "The private IP addresses of the Defguard Gateway instances"
+  description = "Private IP addresses of Defguard Gateway instances"
   value       = [for gw in aws_network_interface.defguard_gateway_network_interface : gw.private_ip]
 }

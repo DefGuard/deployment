@@ -24,13 +24,11 @@ resource "aws_instance" "defguard_core" {
   })
   user_data_replace_on_change = true
 
-  network_interface {
+  primary_network_interface {
     network_interface_id = var.network_interface_id
-    device_index         = 0
   }
 
   tags = {
     Name = "defguard-core-instance"
   }
 }
-
