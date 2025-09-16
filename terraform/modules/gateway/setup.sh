@@ -114,6 +114,8 @@ masquerade = ${nat}
 
 # Optional: Set the priority of the Defguard forward chain
 #fw_priority = 0
+
+log_level = "${log_level}"
 EOF
 
 %{ if nat ~}
@@ -126,12 +128,6 @@ EOF
   grep -q -e '^net.ipv6.conf.all.forwarding' /etc/sysctl.conf || echo "net.ipv6.conf.all.forwarding = 1" | tee -a /etc/sysctl.conf
 %{ endif ~}
 
-log "Setting log level in defguard-gateway service..."
-if grep -q '^Environment="RUST_LOG=' /lib/systemd/system/defguard-gateway.service; then
-  sed -i "s|^Environment=\"RUST_LOG=.*\"|Environment=\"RUST_LOG=${log_level}\"|" /lib/systemd/system/defguard-gateway.service
-else
-  sed -i "/^\[Service\]/a Environment=\"RUST_LOG=${log_level}\"" /lib/systemd/system/defguard-gateway.service
-fi
 log "Reloading systemd daemon to apply changes..."
 systemctl daemon-reload
 
