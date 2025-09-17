@@ -131,6 +131,10 @@ Parameters:
     Type: String
     Description: (Optional) Custom AMI ID for DefGuard Core instance. If not provided, a default AMI will be used based on the region.
     Default: ""
+  SshKeyName:
+    Type: String
+    Description: (Optional) EC2 Key Pair name for SSH access to instances. If not provided, SSH access will not be available. Requires a manual setup of SSH security group rules afterwards.
+    Default: ""
 Mappings:
   AmiMap:
     us-east-1:
@@ -151,6 +155,7 @@ Mappings:
       proxy: ami-054f2138de45e4fa3
 Conditions:
   UseCustomCoreAmi: !Not [!Equals [!Ref DefguardCoreAmiId, ""]]
+  UseSshKey: !Not [!Equals [!Ref SshKeyName, ""]]
 Resources:
   VPC:
     Type: AWS::EC2::VPC
@@ -462,6 +467,7 @@ Resources:
           - !Ref AWS::Region
           - core
       InstanceType: !Ref CoreInstanceType
+      KeyName: !If [UseSshKey, !Ref SshKeyName, !Ref "AWS::NoValue"]
       NetworkInterfaces:
         - NetworkInterfaceId: !Ref CoreNetworkInterface
           DeviceIndex: "0"
@@ -538,6 +544,7 @@ Resources:
         - !Ref AWS::Region
         - proxy
       InstanceType: !Ref ProxyInstanceType
+      KeyName: !If [UseSshKey, !Ref SshKeyName, !Ref "AWS::NoValue"]
       NetworkInterfaces:
         - NetworkInterfaceId: !Ref ProxyNetworkInterface
           DeviceIndex: "0"
@@ -587,6 +594,7 @@ Resources:
         - !Ref AWS::Region
         - gateway
       InstanceType: !Ref GatewayInstanceType
+      KeyName: !If [UseSshKey, !Ref SshKeyName, !Ref "AWS::NoValue"]
       NetworkInterfaces:
         - NetworkInterfaceId: !Ref GatewayNetworkInterface
           DeviceIndex: "0"
