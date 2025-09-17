@@ -127,20 +127,30 @@ Parameters:
       - warn
       - error
     Description: Log level for DefGuard Gateway component
+  DefguardCoreAmiId:
+    Type: String
+    Description: (Optional) Custom AMI ID for DefGuard Core instance. If not provided, a default AMI will be used based on the region.
+    Default: ""
 Mappings:
   AmiMap:
     us-east-1:
-      core: ami-02e437205d7ba75cf
-      gateway: ami-0d11c7aae3451b5bd
-      proxy: ami-0b04c56e7efc7b34f
+      core: ami-089e02a9b43e74615
+      gateway: ami-0c4e69a7ec072b9f2
+      proxy: ami-0982c662705636118
+    ap-northeast-1:
+      core: ami-0b23deed1fe05afcf
+      gateway: ami-0828c1579c1403d8e
+      proxy: ami-0834d78855a917373
     eu-west-1:
-      core: ami-07160d98be2bfb083
-      gateway: ami-044aaceefcb03660b
-      proxy: ami-0a5115994f0fa1a9d
+      core: ami-08fcb3326e7623c56
+      gateway: ami-03dfb32f005da88fe
+      proxy: ami-07185fbadd8252932
     eu-central-1:
-      core: ami-0fd7ec62b9da9313d
-      gateway: ami-0e41b2f5e53fbbb63
-      proxy: ami-0d68d4630a896f20e
+      core: ami-03f4200a7365b9b62
+      gateway: ami-0512e8796cc644cd3
+      proxy: ami-054f2138de45e4fa3
+Conditions:
+  UseCustomCoreAmi: !Not [!Equals [!Ref DefguardCoreAmiId, ""]]
 Resources:
   VPC:
     Type: AWS::EC2::VPC
@@ -162,7 +172,7 @@ Resources:
     Properties:
       VpcId: !Ref VPC
       InternetGatewayId: !Ref InternetGateway
-  PublicSubnet:
+  DefguardPublicSubnet:
     Type: AWS::EC2::Subnet
     Properties:
       VpcId: !Ref VPC
@@ -173,8 +183,8 @@ Resources:
       MapPublicIpOnLaunch: true
       Tags:
         - Key: Name
-          Value: !Sub ${VpcName}-public-subnet-1
-  PrivateSubnet1:
+          Value: !Sub ${VpcName}-defguard-public-subnet-1
+  DefguardPrivateSubnet1:
     Type: AWS::EC2::Subnet
     Properties:
       VpcId: !Ref VPC
@@ -184,8 +194,8 @@ Resources:
         - !GetAZs ""
       Tags:
         - Key: Name
-          Value: !Sub ${VpcName}-private-subnet-1
-  PrivateSubnet2:
+          Value: !Sub ${VpcName}-defguard-private-subnet-1
+  DefguardPrivateSubnet2:
     Type: AWS::EC2::Subnet
     Properties:
       VpcId: !Ref VPC
@@ -195,7 +205,7 @@ Resources:
         - !GetAZs ""
       Tags:
         - Key: Name
-          Value: !Sub ${VpcName}-private-subnet-2
+          Value: !Sub ${VpcName}-defguard-private-subnet-2
   PublicRouteTable:
     Type: AWS::EC2::RouteTable
     Properties:
@@ -210,10 +220,10 @@ Resources:
       RouteTableId: !Ref PublicRouteTable
       DestinationCidrBlock: 0.0.0.0/0
       GatewayId: !Ref InternetGateway
-  PublicSubnetRouteTableAssociation:
+  DefguardPublicSubnetRouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
-      SubnetId: !Ref PublicSubnet
+      SubnetId: !Ref DefguardPublicSubnet
       RouteTableId: !Ref PublicRouteTable
   NATGatewayEIP:
     Type: AWS::EC2::EIP
@@ -226,7 +236,7 @@ Resources:
     Type: AWS::EC2::NatGateway
     Properties:
       AllocationId: !GetAtt NATGatewayEIP.AllocationId
-      SubnetId: !Ref PublicSubnet
+      SubnetId: !Ref DefguardPublicSubnet
       Tags:
         - Key: Name
           Value: !Sub ${VpcName}-nat-gateway
@@ -243,15 +253,15 @@ Resources:
       RouteTableId: !Ref PrivateRouteTable
       DestinationCidrBlock: 0.0.0.0/0
       NatGatewayId: !Ref NATGateway
-  PrivateSubnet1RouteTableAssociation:
+  DefguardPrivateSubnet1RouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
-      SubnetId: !Ref PrivateSubnet1
+      SubnetId: !Ref DefguardPrivateSubnet1
       RouteTableId: !Ref PrivateRouteTable
-  PrivateSubnet2RouteTableAssociation:
+  DefguardPrivateSubnet2RouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
-      SubnetId: !Ref PrivateSubnet2
+      SubnetId: !Ref DefguardPrivateSubnet2
       RouteTableId: !Ref PrivateRouteTable
   DBSubnetGroup:
     Type: AWS::RDS::DBSubnetGroup
@@ -259,8 +269,8 @@ Resources:
       DBSubnetGroupName: defguard-db-subnet-group
       DBSubnetGroupDescription: Subnet group for DefGuard database
       SubnetIds:
-        - !Ref PrivateSubnet1
-        - !Ref PrivateSubnet2
+        - !Ref DefguardPrivateSubnet1
+        - !Ref DefguardPrivateSubnet2
       Tags:
         - Key: Name
           Value: defguard-db-subnet-group
@@ -393,7 +403,7 @@ Resources:
   CoreNetworkInterface:
     Type: AWS::EC2::NetworkInterface
     Properties:
-      SubnetId: !Ref PublicSubnet
+      SubnetId: !Ref DefguardPrivateSubnet1
       GroupSet:
         - !Ref CoreSecurityGroup
       Tags:
@@ -402,7 +412,7 @@ Resources:
   ProxyNetworkInterface:
     Type: AWS::EC2::NetworkInterface
     Properties:
-      SubnetId: !Ref PublicSubnet
+      SubnetId: !Ref DefguardPublicSubnet
       GroupSet:
         - !Ref ProxySecurityGroup
       Tags:
@@ -411,19 +421,12 @@ Resources:
   GatewayNetworkInterface:
     Type: AWS::EC2::NetworkInterface
     Properties:
-      SubnetId: !Ref PublicSubnet
+      SubnetId: !Ref DefguardPublicSubnet
       GroupSet:
         - !Ref GatewaySecurityGroup
       Tags:
         - Key: Name
           Value: defguard-gateway-network-interface
-  CoreElasticIP:
-    Type: AWS::EC2::EIP
-    Properties:
-      Domain: vpc
-      Tags:
-        - Key: Name
-          Value: defguard-core-eip
   ProxyElasticIP:
     Type: AWS::EC2::EIP
     Properties:
@@ -438,11 +441,6 @@ Resources:
       Tags:
         - Key: Name
           Value: defguard-gateway-eip
-  CoreEIPAssociation:
-    Type: AWS::EC2::EIPAssociation
-    Properties:
-      NetworkInterfaceId: !Ref CoreNetworkInterface
-      AllocationId: !GetAtt CoreElasticIP.AllocationId
   ProxyEIPAssociation:
     Type: AWS::EC2::EIPAssociation
     Properties:
@@ -456,10 +454,13 @@ Resources:
   CoreInstance:
     Type: AWS::EC2::Instance
     Properties:
-      ImageId: !FindInMap
-        - AmiMap
-        - !Ref AWS::Region
-        - core
+      ImageId: !If
+        - UseCustomCoreAmi
+        - !Ref DefguardCoreAmiId
+        - !FindInMap
+          - AmiMap
+          - !Ref AWS::Region
+          - core
       InstanceType: !Ref CoreInstanceType
       NetworkInterfaces:
         - NetworkInterfaceId: !Ref CoreNetworkInterface
@@ -691,6 +692,8 @@ Resources:
 
             # Optional: Set the priority of the Defguard forward chain
             #fw_priority = 0
+
+            log_level = "${GatewayLogLevel}"
             EOF
 
             if [ "${VpnNetworkNat}" = "true" ]; then
@@ -701,13 +704,6 @@ Resources:
               log "Enabling IP forwarding for NAT (IPv6)..."
               sysctl -w net.ipv6.conf.all.forwarding=1
               grep -q -e '^net.ipv6.conf.all.forwarding' /etc/sysctl.conf || echo "net.ipv6.conf.all.forwarding = 1" | tee -a /etc/sysctl.conf
-            fi
-
-            log "Setting log level in defguard-gateway service..."
-            if grep -q '^Environment="RUST_LOG=' /lib/systemd/system/defguard-gateway.service; then
-              sed -i "s|^Environment=\"RUST_LOG=.*\"|Environment=\"RUST_LOG=${GatewayLogLevel}\"|" /lib/systemd/system/defguard-gateway.service
-            else
-              sed -i "/^\[Service\]/a Environment=\"RUST_LOG=${GatewayLogLevel}\"" /lib/systemd/system/defguard-gateway.service
             fi
 
             log "Reloading systemd daemon to apply changes..."
@@ -731,7 +727,7 @@ Resources:
       - GeneratedGatewaySecret
 
   # Lambda function to call DefGuard API for device creation
-  DefGuardApiFunction:
+  DefGuardFirstDeviceFunction:
     Type: AWS::Lambda::Function
     Properties:
       FunctionName: !Sub ${AWS::StackName}-defguard-device-setup
@@ -741,7 +737,7 @@ Resources:
         SecurityGroupIds:
           - !Ref LambdaSecurityGroup
         SubnetIds:
-          - !Ref PrivateSubnet1
+          - !Ref DefguardPrivateSubnet1
       Code:
         ZipFile: |
           import json
@@ -908,7 +904,23 @@ Resources:
       Role: !GetAtt DefGuardApiRole.Arn
       Timeout: 300
     DependsOn:
+      - CoreInstance
+      - CoreNetworkInterface
       - NATGateway
+      - LambdaSecurityGroup
+      - DefguardPrivateSubnet1
+      - PrivateRouteTable
+      - PrivateRoute
+      - DefguardPrivateSubnet1RouteTableAssociation
+      - DefguardPrivateSubnet2
+      - DefguardPrivateSubnet2RouteTableAssociation
+      - InternetGateway
+      - VPCGatewayAttachment
+      - VPC
+      - PublicRouteTable
+      - PublicRoute
+      - DefguardPublicSubnet
+      - DefguardPublicSubnetRouteTableAssociation
 
   DefGuardApiRole:
     Type: AWS::IAM::Role
@@ -923,154 +935,6 @@ Resources:
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
         - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
-
-  # Role for the cleanup Lambda function
-  CleanupLambdaRole:
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: lambda.amazonaws.com
-            Action: sts:AssumeRole
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
-      Policies:
-        - PolicyName: EC2CleanupPolicy
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Effect: Allow
-                Action:
-                  - ec2:DeleteNatGateway
-                  - ec2:ReleaseAddress
-                  - ec2:DescribeNatGateways
-                  - ec2:DescribeAddresses
-                Resource: '*'
-        - PolicyName: LambdaCleanupPolicy
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Effect: Allow
-                Action:
-                  - lambda:DeleteFunction
-                  - lambda:GetFunction
-                Resource: '*'
-
-  # Lambda function to cleanup NAT gateway after device setup
-  CleanupNATFunction:
-    Type: AWS::Lambda::Function
-    Properties:
-      FunctionName: !Sub ${AWS::StackName}-cleanup-nat
-      Runtime: python3.9
-      Handler: index.handler
-      Code:
-        ZipFile: |
-          import json
-          import boto3
-          import urllib.request
-          import urllib.parse
-          import time
-          
-          def send_response(event, context, response_status, response_data=None, physical_resource_id=None):
-              if response_data is None:
-                  response_data = {}
-              
-              if physical_resource_id is None:
-                  physical_resource_id = event.get('PhysicalResourceId', 'NATCleanup')
-              
-              response_url = event['ResponseURL']
-              
-              response_body = {
-                  'Status': response_status,
-                  'Reason': f'See CloudWatch Log Stream: {context.log_stream_name}',
-                  'PhysicalResourceId': physical_resource_id,
-                  'StackId': event['StackId'],
-                  'RequestId': event['RequestId'],
-                  'LogicalResourceId': event['LogicalResourceId'],
-                  'Data': response_data
-              }
-              
-              json_response_body = json.dumps(response_body).encode('utf-8')
-              
-              print(f"Sending response to {response_url}")
-              print(f"Response body: {json.dumps(response_body, indent=2)}")
-              
-              try:
-                  request = urllib.request.Request(
-                      response_url,
-                      data=json_response_body,
-                      headers={
-                          'Content-Type': '',
-                          'Content-Length': str(len(json_response_body))
-                      },
-                      method='PUT'
-                  )
-                  
-                  response = urllib.request.urlopen(request, timeout=30)
-                  print(f"Response sent successfully. Status: {response.status}")
-                  return True
-                  
-              except Exception as e:
-                  print(f"Failed to send response: {str(e)}")
-                  return False
-          
-          def handler(event, context):
-              print(f"Event: {json.dumps(event, indent=2)}")
-              
-              try:
-                  if event['RequestType'] == 'Create':
-                      nat_gateway_id = event['ResourceProperties']['NATGatewayId']
-                      eip_allocation_id = event['ResourceProperties']['EIPAllocationId']
-                      lambda_function_name = event['ResourceProperties']['LambdaFunctionName']
-                      
-                      ec2 = boto3.client('ec2')
-                      lambda_client = boto3.client('lambda')
-                      
-                      print(f"Deleting NAT Gateway: {nat_gateway_id}")
-                      
-                      ec2.delete_nat_gateway(NatGatewayId=nat_gateway_id)
-                      
-                      print("Waiting for NAT Gateway to be deleted...")
-                      waiter = ec2.get_waiter('nat_gateway_deleted')
-                      waiter.wait(NatGatewayIds=[nat_gateway_id], WaiterConfig={'Delay': 15, 'MaxAttempts': 40})
-                      
-                      print(f"Releasing Elastic IP: {eip_allocation_id}")
-                      
-                      ec2.release_address(AllocationId=eip_allocation_id)
-                      
-                      print(f"Deleting Lambda function: {lambda_function_name}")
-                      
-                      try:
-                          lambda_client.delete_function(FunctionName=lambda_function_name)
-                          print("Lambda function deleted successfully")
-                      except lambda_client.exceptions.ResourceNotFoundException:
-                          print("Lambda function not found, may have been already deleted")
-                      
-                      response_data = {
-                          'Message': 'NAT Gateway, EIP, and Lambda function successfully cleaned up',
-                          'DeletedNATGateway': nat_gateway_id,
-                          'ReleasedEIP': eip_allocation_id,
-                          'DeletedLambdaFunction': lambda_function_name
-                      }
-                      
-                      print("Cleanup completed successfully")
-                      return send_response(event, context, 'SUCCESS', response_data)
-                      
-                  elif event['RequestType'] in ['Update', 'Delete']:
-                      response_data = {'Message': f'{event["RequestType"]} operation completed'}
-                      print(f"Sending SUCCESS response for {event['RequestType']}")
-                      return send_response(event, context, 'SUCCESS', response_data, event.get('PhysicalResourceId'))
-                      
-              except Exception as e:
-                  error_msg = str(e)
-                  print(f"Error occurred: {error_msg}")
-                  response_data = {'Error': error_msg}
-                  return send_response(event, context, 'FAILED', response_data)
-      Role: !GetAtt CleanupLambdaRole.Arn
-      Timeout: 600
 
   # Role for the Gateway Secret Generator Lambda function
   GatewaySecretGeneratorRole:
@@ -1096,8 +960,7 @@ Resources:
       Code:
         ZipFile: |
           import json
-          import random
-          import string
+          import secrets
           import urllib.request
           import urllib.parse
           
@@ -1123,7 +986,8 @@ Resources:
               json_response_body = json.dumps(response_body).encode('utf-8')
               
               print(f"Sending response to {response_url}")
-              print(f"Response body: {json.dumps(response_body, indent=2)}")
+              # Don't log the full response body as it may contain sensitive data
+              print("Response sent to CloudFormation")
               
               try:
                   request = urllib.request.Request(
@@ -1145,13 +1009,10 @@ Resources:
                   return False
           
           def generate_secret(length=64):
-              """Generate a cryptographically secure random string of specified length."""
-              # Use alphanumeric characters (letters and digits)
-              alphabet = string.ascii_letters + string.digits
-              return ''.join(random.choice(alphabet) for _ in range(length))
+              return secrets.token_urlsafe(length)[:length]
           
           def handler(event, context):
-              print(f"Event: {json.dumps(event, indent=2)}")
+              print(f"Event RequestType: {event.get('RequestType', 'Unknown')}")
               
               try:
                   if event['RequestType'] == 'Create':
@@ -1163,7 +1024,7 @@ Resources:
                           'Message': 'Gateway secret generated successfully'
                       }
                       
-                      print(f"Generated gateway secret: {gateway_secret[:10]}...{gateway_secret[-10:]}")
+                      print(f"Generated gateway secret.")
                       return send_response(event, context, 'SUCCESS', response_data)
                       
                   elif event['RequestType'] == 'Update':
@@ -1174,17 +1035,20 @@ Resources:
                               'GatewaySecret': existing_secret,
                               'Message': 'Using existing gateway secret'
                           }
+                          print("Reusing existing gateway secret")
                       else:
                           gateway_secret = generate_secret(64)
                           response_data = {
                               'GatewaySecret': gateway_secret,
                               'Message': 'Generated new gateway secret for update'
                           }
+                          print(f"Generated new gateway secret for update: {gateway_secret[:8]}...{gateway_secret[-8:]} (length: {len(gateway_secret)})")
                       
                       return send_response(event, context, 'SUCCESS', response_data, event.get('PhysicalResourceId'))
                       
                   elif event['RequestType'] == 'Delete':
                       response_data = {'Message': 'Delete operation completed'}
+                      print("Gateway secret generator delete operation completed")
                       return send_response(event, context, 'SUCCESS', response_data, event.get('PhysicalResourceId'))
                       
               except Exception as e:
@@ -1204,34 +1068,22 @@ Resources:
   DeviceSetup:
     Type: AWS::CloudFormation::CustomResource
     Properties:
-      ServiceToken: !GetAtt DefGuardApiFunction.Arn
+      ServiceToken: !GetAtt DefGuardFirstDeviceFunction.Arn
       CoreIP: !GetAtt CoreNetworkInterface.PrimaryPrivateIpAddress
       CorePort: !Ref CoreHttpPort
       AdminPassword: !Ref CoreDefaultAdminPassword
     DependsOn:
       - CoreInstance
 
-  # Cleanup NAT Gateway after device setup is complete
-  NATCleanup:
-    Type: AWS::CloudFormation::CustomResource
-    Properties:
-      ServiceToken: !GetAtt CleanupNATFunction.Arn
-      NATGatewayId: !Ref NATGateway
-      EIPAllocationId: !GetAtt NATGatewayEIP.AllocationId
-      LambdaFunctionName: !Ref DefGuardApiFunction
-    DependsOn:
-      - DeviceSetup
+###########################################################################
+############################# Template outputs ############################
+###########################################################################
 Outputs:
   DefguardCorePrivateAddress:
     Description: The IP address of the DefGuard Core instance in the internal network
     Value: !GetAtt CoreNetworkInterface.PrimaryPrivateIpAddress
     Export:
       Name: !Sub ${AWS::StackName}-core-private-ip
-  DefguardCorePublicAddress:
-    Description: The public IP address of the DefGuard Core instance
-    Value: !Ref CoreElasticIP
-    Export:
-      Name: !Sub ${AWS::StackName}-core-public-ip
   DefguardProxyPublicAddress:
     Description: The public IP address of the DefGuard Proxy instance
     Value: !Ref ProxyElasticIP
@@ -1262,26 +1114,13 @@ Outputs:
     Value: !Ref VPC
     Export:
       Name: !Sub ${AWS::StackName}-vpc-id
-  PublicSubnetId:
-    Description: The ID of the public subnet
-    Value: !Ref PublicSubnet
+  DefguardPublicSubnetId:
+    Description: The ID of the Defguard public subnet
+    Value: !Ref DefguardPublicSubnet
     Export:
-      Name: !Sub ${AWS::StackName}-public-subnet-id
+      Name: !Sub ${AWS::StackName}-defguard-public-subnet-id
   UserDeviceEnrollmentToken:
     Description: Enrollment token for user device
     Value: !GetAtt DeviceSetup.Token
     Export:
       Name: !Sub ${AWS::StackName}-enrollment-token
-  DeviceCreationMessage:
-    Description: Status message from device creation
-    Value: !GetAtt DeviceSetup.Message
-  NATGatewayCleanupMessage:
-    Description: Status message from NAT Gateway cleanup
-    Value: !GetAtt NATCleanup.Message
-    Export:
-      Name: !Sub ${AWS::StackName}-nat-cleanup-status
-  GeneratedGatewaySecretInfo:
-    Description: Information about the auto-generated Gateway Secret
-    Value: !Sub "Gateway secret has been automatically generated (64 characters). Message: ${GeneratedGatewaySecret.Message}"
-    Export:
-      Name: !Sub ${AWS::StackName}-gateway-secret-info
