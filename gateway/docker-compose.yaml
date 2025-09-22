@@ -10,13 +10,13 @@ services:
       - DEFGUARD_TOKEN
       - DEFGUARD_STATS_PERIOD
       - RUST_LOG=debug
-      # SSL setup guide: https://defguard.gitbook.io/defguard/features/setting-up-your-instance/docker-compose#ssl-setup
+      # SSL setup guide: https://docs.defguard.net/deployment-strategies/grpc-ssl-communication#custom-ssl-ca-and-certificates
       # - DEFGUARD_GRPC_CA: /ssl/defguard-ca.pem
     ports:
       # wireguard endpoint
       - "50051:50051/udp"
     #volumes:
-      # SSL setup guide: https://defguard.gitbook.io/defguard/features/setting-up-your-instance/docker-compose#ssl-setup
+      # SSL setup guide: https://docs.defguard.net/deployment-strategies/grpc-ssl-communication#custom-ssl-ca-and-certificates
       #- ./.volumes/ssl:/ssl
     cap_add:
       - NET_ADMIN
