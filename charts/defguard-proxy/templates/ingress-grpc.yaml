@@ -17,6 +17,9 @@ metadata:
   name: {{ $fullName }}-grpc
   labels:
     {{- include "defguard-proxy.labels" . | nindent 4 }}
+    {{- with .Values.ingress.grpc.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
   {{- with .Values.ingress.grpc.annotations }}
   annotations:
     {{- toYaml . | nindent 4 }}
@@ -44,9 +47,9 @@ spec:
               service:
                 name: {{ $fullName }}-grpc
                 port:
-                  number: {{ .Values.service.ports.grpc }}
+                  number: {{ .Values.service.grpc.port }}
               {{- else }}
               serviceName: {{ $fullName }}-grpc
-              servicePort: {{ .Values.service.ports.grpc }}
+              servicePort: {{ .Values.service.grpc.port }}
               {{- end }}
 {{- end }}

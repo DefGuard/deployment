@@ -40,7 +40,7 @@ spec:
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
             - name: grpc
-              containerPort: {{ .Values.service.ports.grpc }}
+              containerPort: {{ .Values.service.grpc.port }}
               protocol: UDP
           resources:
             {{- toYaml .Values.resources | nindent 12 }}

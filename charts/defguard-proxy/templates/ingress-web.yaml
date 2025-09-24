@@ -17,6 +17,9 @@ metadata:
   name: {{ $fullName }}-web
   labels:
     {{- include "defguard-proxy.labels" . | nindent 4 }}
+    {{- with .Values.ingress.web.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
   {{- with .Values.ingress.web.annotations }}
   annotations:
     {{- toYaml . | nindent 4 }}
@@ -44,9 +47,9 @@ spec:
               service:
                 name: {{ $fullName }}-web
                 port:
-                  number: {{ .Values.service.ports.http }}
+                  number: {{ .Values.service.web.port }}
               {{- else }}
               serviceName: {{ $fullName }}-web
-              servicePort: {{ .Values.service.ports.http }}
+              servicePort: {{ .Values.service.web.port }}
               {{- end }}
 {{- end }}

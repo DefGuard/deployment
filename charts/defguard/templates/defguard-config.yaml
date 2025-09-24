@@ -13,7 +13,7 @@ data:
   DEFGUARD_DB_PORT: {{ .Values.postgresql.port | quote}}
   DEFGUARD_DB_NAME: {{ .Values.postgresql.auth.database }}
   DEFGUARD_DB_USER: {{ .Values.postgresql.auth.username }}
-  DEFGUARD_GRPC_PORT: {{ .Values.service.ports.grpc | quote }}
+  DEFGUARD_GRPC_PORT: {{ .Values.service.grpc.port | quote }}
   DEFGUARD_ENROLLMENT_URL: {{ index .Values "defguard-proxy" "publicUrl" }}
   {{- if .Values.proxyUrl }}
   DEFGUARD_PROXY_URL: {{ .Values.proxyUrl }}

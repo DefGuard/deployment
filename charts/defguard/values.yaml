@@ -30,12 +30,14 @@ ingress:
     className: ""
     enabled: true
     host: defguard-grpc.local
+    labels: {}
     tls: false
   web:
     annotations: {}
     className: ""
     enabled: true
     host: defguard.local
+    labels: {}
     tls: false
 # defguard-core existing JWT secret
 existingJwtSecret: ""
@@ -68,10 +70,17 @@ replicaCount: 1
 resources: {}
 # defguard-core service configuration
 service:
-  ports:
-    grpc: 50055
-    http: 80
-  type: ClusterIP
+  grpc:
+    annotations:
+      traefik.ingress.kubernetes.io/service.serversscheme: h2c
+    labels: {}
+    port: 50055
+    type: ClusterIP
+  web:
+    annotations: {}
+    labels: {}
+    port:: 80
+    type: ClusterIP
 # defguard-core serviceaccount configuration
 serviceAccount:
   annotations: {}
@@ -125,12 +134,14 @@ defguard-proxy:
       className: ""
       enabled: true
       host: enrollment-grpc.local
+      labels: {}
       tls: false
     web:
       annotations: {}
       className: ""
       enabled: true
       host: enrollment.local
+      labels: {}
       tls: false
   # defguard-proxy pod affinity
   affinity: {}
@@ -152,10 +163,17 @@ defguard-proxy:
   resources: {}
   # defguard-proxy service configuration
   service:
-    ports:
-      http: 8080
-      grpc: 50051
-    type: ClusterIP
+    grpc:
+      annotations:
+        traefik.ingress.kubernetes.io/service.serversscheme: h2c
+      labels: {}
+      port: 50051
+      type: ClusterIP
+    web:
+      annotations: {}
+      labels: {}
+      port: 8080
+      type: ClusterIP
   # defguard-proxy service account configuration
   serviceAccount:
     annotations: {}
@@ -201,6 +219,7 @@ defguard-gateway:
       className: ""
       enabled: true
       host: defguard-gateway-grpc.local
+      labels: {}
       tls: false
   # defguard-gateway pod affinity configuration
   affinity: {}
@@ -224,9 +243,12 @@ defguard-gateway:
   additionalEnvFromConfigMap: ""
   # defguard-gateway service configuration
   service:
-    ports:
-      grpc: 50051
-    type: ClusterIP
+    grpc:
+      annotations:
+        traefik.ingress.kubernetes.io/service.serversscheme: h2c
+      labels: {}
+      port: 50051
+      type: ClusterIP
   # defguard-gateway serviceaccount configuration
   serviceAccount:
     annotations: {}

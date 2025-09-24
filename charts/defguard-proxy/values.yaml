@@ -26,12 +26,14 @@ ingress:
     className: ""
     enabled: true
     host: enrollment-grpc.local
+    labels: {}
     tls: false
   web:
     annotations: {}
     className: ""
     enabled: true
     host: enrollment.local
+    labels: {}
     tls: false
 # defguard-proxy pod affinity
 affinity: {}
@@ -53,10 +55,17 @@ replicaCount: 1
 resources: {}
 # defguard-proxy service configuration
 service:
-  ports:
-    http: 8080
-    grpc: 50051
-  type: ClusterIP
+  grpc:
+    annotations:
+      traefik.ingress.kubernetes.io/service.serversscheme: h2c
+    labels: {}
+    port: 50051
+    type: ClusterIP
+  web:
+    annotations: {}
+    labels: {}
+    port: 8080
+    type: ClusterIP
 # defguard-proxy service account configuration
 serviceAccount:
   annotations: {}
