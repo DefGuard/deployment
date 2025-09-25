@@ -20,11 +20,3 @@ data:
   {{- end }}
   DEFGUARD_URL: {{ .Values.publicUrl }}
   DEFGUARD_WEBAUTHN_RP_ID: {{ .Values.ingress.web.host }}
-  {{- if .Values.ldap.enabled }}
-  DEFGUARD_LDAP_ADMIN_GROUP: {{ .Values.ldap.admin_group | quote }}
-  DEFGUARD_LDAP_BIND_PASSWORD: {{ .Values.ldap.bind_password | quote }}
-  DEFGUARD_LDAP_BIND_USERNAME: {{ .Values.ldap.bind_username | quote }}
-  DEFGUARD_LDAP_GROUP_SEARCH_BASE: {{ .Values.ldap.group_search_base | quote }}
-  DEFGUARD_LDAP_USER_SEARCH_BASE: {{ .Values.ldap.user_search_base | quote }}
-  DEFGUARD_LDAP_URL: {{ .Values.ldap.url | quote }}
-  {{- end }}

@@ -41,15 +41,6 @@ ingress:
     tls: false
 # defguard-core existing JWT secret
 existingJwtSecret: ""
-# defguard-core ldap config
-ldap:
-  admin_group: ""
-  bind_password: ""
-  bind_username: ""
-  enabled: false
-  group_search_base: ""
-  url: ""
-  user_search_base: ""
 # defguard-core pod affinity configuration
 affinity: {}
 # defguard-core node selector cnfiguration
