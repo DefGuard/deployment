@@ -5,7 +5,6 @@ metadata:
   labels:
     {{- include "defguard-proxy.labels" . | nindent 4 }}
 data:
-  DEFGUARD_PROXY_HTTP_PORT: {{ .Values.service.ports.http | quote }}
-  DEFGUARD_PROXY_GRPC_PORT: {{ .Values.service.ports.grpc | quote }}
+  DEFGUARD_PROXY_HTTP_PORT: {{ .Values.service.web.port | quote }}
+  DEFGUARD_PROXY_GRPC_PORT: {{ .Values.service.grpc.port | quote }}
   DEFGUARD_PROXY_URL: {{ .Values.publicUrl | quote }}
-  

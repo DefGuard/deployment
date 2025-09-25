@@ -13,18 +13,10 @@ data:
   DEFGUARD_DB_PORT: {{ .Values.postgresql.port | quote}}
   DEFGUARD_DB_NAME: {{ .Values.postgresql.auth.database }}
   DEFGUARD_DB_USER: {{ .Values.postgresql.auth.username }}
-  DEFGUARD_GRPC_PORT: {{ .Values.service.ports.grpc | quote }}
+  DEFGUARD_GRPC_PORT: {{ .Values.service.grpc.port | quote }}
   DEFGUARD_ENROLLMENT_URL: {{ index .Values "defguard-proxy" "publicUrl" }}
   {{- if .Values.proxyUrl }}
   DEFGUARD_PROXY_URL: {{ .Values.proxyUrl }}
   {{- end }}
   DEFGUARD_URL: {{ .Values.publicUrl }}
   DEFGUARD_WEBAUTHN_RP_ID: {{ .Values.ingress.web.host }}
-  {{- if .Values.ldap.enabled }}
-  DEFGUARD_LDAP_ADMIN_GROUP: {{ .Values.ldap.admin_group | quote }}
-  DEFGUARD_LDAP_BIND_PASSWORD: {{ .Values.ldap.bind_password | quote }}
-  DEFGUARD_LDAP_BIND_USERNAME: {{ .Values.ldap.bind_username | quote }}
-  DEFGUARD_LDAP_GROUP_SEARCH_BASE: {{ .Values.ldap.group_search_base | quote }}
-  DEFGUARD_LDAP_USER_SEARCH_BASE: {{ .Values.ldap.user_search_base | quote }}
-  DEFGUARD_LDAP_URL: {{ .Values.ldap.url | quote }}
-  {{- end }}

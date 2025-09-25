@@ -1,7 +1,7 @@
 apiVersion: v2
 name: defguard-proxy
-description: Defguard proxy is a public-facing proxy for core defguard service
+description: Defguard proxy is a public-facing proxy for core Defguard service
 
 type: application
-version: 0.6.0
-appVersion: 1.5.0
+version: 0.7.0
+appVersion: 1.5.1

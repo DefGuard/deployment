@@ -32,6 +32,7 @@ ingress:
     className: ""
     enabled: true
     host: defguard-gateway-grpc.local
+    labels: {}
     tls: false
 # defguard-gateway pod affinity configuration
 affinity: {}
@@ -55,9 +56,12 @@ securityContext: {}
 additionalEnvFromConfigMap: ""
 # defguard-gateway service configuration
 service:
-  ports:
-    grpc: 50051
-  type: ClusterIP
+  grpc:
+    annotations:
+      traefik.ingress.kubernetes.io/service.serversscheme: h2c
+    labels: {}
+    port: 50051
+    type: ClusterIP
 # defguard-gateway serviceaccount configuration
 serviceAccount:
   annotations: {}
