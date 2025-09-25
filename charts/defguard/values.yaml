@@ -12,18 +12,18 @@ autoscaling:
 cookie:
   domain: ""
   insecure: false
-# defguard full name override
+# Defguard full name override
 fullnameOverride: ""
-# defguard name override
+# Defguard name override
 nameOverride: ""
-# defguard-core container image configuration
+# Defguard-core container image configuration
 image:
   pullPolicy: IfNotPresent
   repository: ghcr.io/defguard/defguard
   tag: "" # overrides .Chart.AppVersion
-# defguard-core container image pull secrets
+# Defguard-core container image pull secrets
 imagePullSecrets: []
-# defguard-core ingress configuration
+# Defguard-core ingress configuration
 ingress:
   grpc:
     annotations: {}

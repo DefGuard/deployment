@@ -15,7 +15,7 @@ entries:
   - apiVersion: v2
     appVersion: 1.2.0
     created: "2025-01-22T13:08:49.18194+01:00"
-    description: Defguard proxy is a public-facing proxy for core defguard service
+    description: Defguard proxy is a public-facing proxy for core Defguard service
     digest: 4da4f264bea0fc94741abf1d31be308a8824f80f65a7edef2d7beb3f2ee3c0bb
     name: defguard-proxy
     type: application
