@@ -39,9 +39,9 @@ spec:
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
-            - name: grpc
-              containerPort: {{ .Values.service.grpc.port }}
-              protocol: TCP
+            - name: wireguard
+              containerPort: {{ .Values.service.wireguard.port }}
+              protocol: UDP
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           {{- if .Values.token }}
