@@ -41,7 +41,7 @@ spec:
           ports:
             - name: grpc
               containerPort: {{ .Values.service.grpc.port }}
-              protocol: UDP
+              protocol: TCP
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           {{- if .Values.token }}

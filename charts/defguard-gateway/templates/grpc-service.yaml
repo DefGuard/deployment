@@ -16,7 +16,7 @@ spec:
   ports:
     - port: {{ .Values.service.grpc.port }}
       targetPort: grpc
-      protocol: UDP
+      protocol: TCP
       name: grpc
   selector:
     {{- include "defguard-gateway.selectorLabels" . | nindent 4 }}
