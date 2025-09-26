@@ -8,4 +8,4 @@ data:
   DEFGUARD_USERSPACE: {{ .Values.userspace | quote }}
   DEFGUARD_GRPC_URL: {{ .Values.grpcUrl | quote }}
   DEFGUARD_STATS_PERIOD: {{ .Values.statsPeriod | quote }}
-  RUST_LOG: {{ .Values.logLevel | quote }}
+  DEFGUARD_LOG_LEVEL: {{ .Values.logLevel | quote }}
