@@ -2,21 +2,21 @@ apiVersion: v1
 kind: Service
 metadata:
   annotations:
-    {{- with .Values.service.grpc.annotations }}
+    {{- with .Values.service.wireguard.annotations }}
     {{- toYaml . | nindent 4 }}
     {{- end }}
-  name: {{ include "defguard-gateway.fullname" . }}-grpc
+  name: {{ include "defguard-gateway.fullname" . }}-wireguard
   labels:
     {{- include "defguard-gateway.labels" . | nindent 4 }}
-    {{- with .Values.service.grpc.labels }}
+    {{- with .Values.service.wireguard.labels }}
     {{- toYaml . | nindent 4 }}
     {{- end }}
 spec:
-  type: {{ .Values.service.grpc.type }}
+  type: {{ .Values.service.wireguard.type }}
   ports:
-    - port: {{ .Values.service.grpc.port }}
-      targetPort: grpc
+    - port: {{ .Values.service.wireguard.port }}
+      targetPort: wireguard
       protocol: UDP
-      name: grpc
+      name: wireguard
   selector:
     {{- include "defguard-gateway.selectorLabels" . | nindent 4 }}
