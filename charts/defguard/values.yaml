@@ -70,7 +70,7 @@ service:
   web:
     annotations: {}
     labels: {}
-    port:: 80
+    port: 80
     type: ClusterIP
 # defguard-core serviceaccount configuration
 serviceAccount:
