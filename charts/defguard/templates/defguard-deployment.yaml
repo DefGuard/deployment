@@ -70,10 +70,10 @@ spec:
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
             - name: http
-              containerPort: 8000
+              containerPort: {{ .Values.service.web.port }}
               protocol: TCP
             - name: grpc
-              containerPort: 50055
+              containerPort: {{ .Values.service.grpc.port }}
               protocol: TCP
           livenessProbe:
             httpGet:

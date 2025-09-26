@@ -45,7 +45,7 @@ spec:
               containerPort: {{ .Values.service.web.port }}
               protocol: TCP
             - name: grpc
-              containerPort: {{ .Values.service.web.port }}
+              containerPort: {{ .Values.service.grpc.port }}
               protocol: TCP
           livenessProbe:
             httpGet:
