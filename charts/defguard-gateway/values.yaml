@@ -45,6 +45,20 @@ podSecurityContext: {}
 securityContext: {}
 # defguard-gateway pod additional ENV from configmap
 additionalEnvFromConfigMap: ""
+# defguard-gateway health check configuration
+healthCheck:
+  enabled: false
+  port: 35053
+  livenessProbe:
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+  readinessProbe:
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
 # defguard-gateway service configuration
 service:
   wireguard:

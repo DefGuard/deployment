@@ -44,6 +44,24 @@ spec:
               protocol: UDP
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
+          {{- if .Values.healthCheck.enabled }}
+          livenessProbe:
+            httpGet:
+              path: /
+              port: {{ .Values.healthCheck.port }}
+            initialDelaySeconds: {{ .Values.healthCheck.livenessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.healthCheck.livenessProbe.periodSeconds }}
+            timeoutSeconds: {{ .Values.healthCheck.livenessProbe.timeoutSeconds }}
+            failureThreshold: {{ .Values.healthCheck.livenessProbe.failureThreshold }}
+          readinessProbe:
+            httpGet:
+              path: /
+              port: {{ .Values.healthCheck.port }}
+            initialDelaySeconds: {{ .Values.healthCheck.readinessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.healthCheck.readinessProbe.periodSeconds }}
+            timeoutSeconds: {{ .Values.healthCheck.readinessProbe.timeoutSeconds }}
+            failureThreshold: {{ .Values.healthCheck.readinessProbe.failureThreshold }}
+          {{- end }}
           {{- if .Values.token }}
           env:
             - name: DEFGUARD_TOKEN
@@ -55,6 +73,11 @@ spec:
                 secretKeyRef:
                   name: {{ .Values.existingTokenSecret }}
                   key: {{ .Values.existingTokenSecretKey }}
+          {{- end }}
+          {{- if .Values.healthCheck.enabled }}
+          env:
+            - name: HEALTH_PORT
+              value: {{ .Values.healthCheck.port }}
           {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
