@@ -13,11 +13,11 @@ dependencies:
     repository: https://charts.bitnami.com/bitnami
   - name: defguard-proxy
     condition: defguard-proxy.enabled
-    version: 0.7.0
+    version: 0.7.1
     repository: https://defguard.github.io/deployment
     # repository: "file://../defguard-proxy"
   - name: defguard-gateway
     condition: defguard-gateway.enabled
-    version: 0.3.0
+    version: 0.4.0
     repository: https://defguard.github.io/deployment
     # repository: "file://../defguard-gateway"
