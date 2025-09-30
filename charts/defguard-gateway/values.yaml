@@ -25,15 +25,6 @@ image:
   tag: "" # overrides .Chart.AppVersion
 # defguard-gateway container image pull secrets
 imagePullSecrets: []
-# defguard-gateway container ingress configuration
-ingress:
-  grpc:
-    annotations: {}
-    className: ""
-    enabled: true
-    host: defguard-gateway-grpc.local
-    labels: {}
-    tls: false
 # defguard-gateway pod affinity configuration
 affinity: {}
 # defguard-gateway node selector configuration
@@ -54,13 +45,26 @@ podSecurityContext: {}
 securityContext: {}
 # defguard-gateway pod additional ENV from configmap
 additionalEnvFromConfigMap: ""
+# defguard-gateway health check configuration
+healthCheck:
+  enabled: false
+  port: 35053
+  livenessProbe:
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+  readinessProbe:
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
 # defguard-gateway service configuration
 service:
-  grpc:
-    annotations:
-      traefik.ingress.kubernetes.io/service.serversscheme: h2c
+  wireguard:
+    annotations: {}
     labels: {}
-    port: 50051
+    port: 32140
     type: ClusterIP
 # defguard-gateway serviceaccount configuration
 serviceAccount:
