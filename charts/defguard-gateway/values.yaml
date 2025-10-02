@@ -42,7 +42,14 @@ resources: {}
 # defguard-gateway pod security context
 podSecurityContext: {}
 # defguard-gateway container security context
-securityContext: {}
+# elevated priveleges are required for managing network interfaces
+securityContext:
+  allowPrivilegeEscalation: true
+  privileged: true
+  capabilities:
+    add:
+      - NET_ADMIN
+      - SYS_MODULE
 # defguard-gateway pod additional ENV from configmap
 additionalEnvFromConfigMap: ""
 # defguard-gateway health check configuration
