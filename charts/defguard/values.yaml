@@ -1,6 +1,6 @@
 ---
 # this should be a URL based on defguard-proxy.ingress.grpc.host
-proxyUrl: "http://defguard-proxy-grpc.local"
+proxyUrl: ""
 # this should be a URL based on ingress.web.host
 publicUrl: "http://defguard.local"
 # defguard-core pod autoscaling configuration
