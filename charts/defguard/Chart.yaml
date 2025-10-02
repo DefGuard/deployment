@@ -18,6 +18,6 @@ dependencies:
     # repository: "file://../defguard-proxy"
   - name: defguard-gateway
     condition: defguard-gateway.enabled
-    version: 0.4.0
+    version: 0.4.1
     repository: https://defguard.github.io/deployment
     # repository: "file://../defguard-gateway"
