@@ -3,22 +3,22 @@ Description: Full Defguard stack with Core, Proxy, Gateway, and a Database.
 Parameters:
   CoreUrl:
     Type: String
-    Description: The URL for the DefGuard Core (e.g., https://core.example.com)
+    Description: The URL for the Defguard Core (e.g., https://core.example.com)
   CoreGrpcPort:
     Type: Number
     Default: 50055
-    Description: The gRPC port for the DefGuard Core
+    Description: The gRPC port for the Defguard Core
   CoreHttpPort:
     Type: Number
     Default: 8000
-    Description: The HTTP port for the DefGuard Core web UI
+    Description: The HTTP port for the Defguard Core web UI
   CoreCookieInsecure:
     Type: String
     Default: "false"
     AllowedValues:
       - "true"
       - "false"
-    Description: Whether to allow insecure cookies for the DefGuard Core web UI
+    Description: Whether to allow insecure cookies for the Defguard Core web UI
   CoreDefaultAdminPassword:
     Type: String
     NoEcho: true
@@ -26,26 +26,26 @@ Parameters:
   CoreInstanceType:
     Type: String
     Default: t3.micro
-    Description: The instance type for the DefGuard Core server
+    Description: The instance type for the Defguard Core server
   ProxyUrl:
     Type: String
-    Description: The URL for the DefGuard Proxy (e.g., https://proxy.example.com)
+    Description: The URL for the Defguard Proxy (e.g., https://proxy.example.com)
   ProxyGrpcPort:
     Type: Number
     Default: 50051
-    Description: The gRPC port for the DefGuard Proxy
+    Description: The gRPC port for the Defguard Proxy
   ProxyHttpPort:
     Type: Number
     Default: 8000
-    Description: The HTTP port for the DefGuard Proxy
+    Description: The HTTP port for the Defguard Proxy
   ProxyInstanceType:
     Type: String
     Default: t3.micro
-    Description: The instance type for the DefGuard Proxy server
+    Description: The instance type for the Defguard Proxy server
   GatewayInstanceType:
     Type: String
     Default: t3.micro
-    Description: The instance type for the DefGuard Gateway server
+    Description: The instance type for the Defguard Gateway server
   DbName:
     Type: String
     Default: defguard
@@ -106,7 +106,7 @@ Parameters:
       - info
       - warn
       - error
-    Description: Log level for DefGuard Core component
+    Description: Log level for Defguard Core component
   ProxyLogLevel:
     Type: String
     Default: info
@@ -116,7 +116,7 @@ Parameters:
       - info
       - warn
       - error
-    Description: Log level for DefGuard Proxy component
+    Description: Log level for Defguard Proxy component
   GatewayLogLevel:
     Type: String
     Default: info
@@ -126,35 +126,34 @@ Parameters:
       - info
       - warn
       - error
-    Description: Log level for DefGuard Gateway component
+    Description: Log level for Defguard Gateway component
   DefguardCoreAmiId:
     Type: String
-    Description: (Optional) Custom AMI ID for DefGuard Core instance. If not provided, a default AMI will be used based on the region.
-    Default: ""
+    Description: (Optional) Custom AMI ID for Defguard Core instance. If not provided, a default AMI will be used based on the region.
+    Default: "ami-089e02a9b43e74615"
   SshKeyName:
     Type: String
     Description: (Optional) EC2 Key Pair name for SSH access to instances. If not provided, SSH access will not be available. Requires a manual setup of SSH security group rules afterwards.
     Default: ""
+  DefguardProxyVersion:
+    Type: String
+    Default: "1.5.0"
+    Description: Version of Defguard Proxy package to install
+  DefguardGatewayVersion:
+    Type: String
+    Default: "1.5.0"
+    Description: Version of Defguard Gateway package to install
 Mappings:
   AmiMap:
     us-east-1:
-      core: ami-089e02a9b43e74615
-      gateway: ami-0c4e69a7ec072b9f2
-      proxy: ami-0982c662705636118
+      debian: ami-0702a3ce7f850fb87
     ap-northeast-1:
-      core: ami-0b23deed1fe05afcf
-      gateway: ami-0828c1579c1403d8e
-      proxy: ami-0834d78855a917373
+      debian: ami-023c12e6d24e0a6df
     eu-west-1:
-      core: ami-08fcb3326e7623c56
-      gateway: ami-03dfb32f005da88fe
-      proxy: ami-07185fbadd8252932
+      debian: ami-04034bfd5da1fa2ed
     eu-central-1:
-      core: ami-03f4200a7365b9b62
-      gateway: ami-0512e8796cc644cd3
-      proxy: ami-054f2138de45e4fa3
+      debian: ami-0aeb8600ead64c406
 Conditions:
-  UseCustomCoreAmi: !Not [!Equals [!Ref DefguardCoreAmiId, ""]]
   UseSshKey: !Not [!Equals [!Ref SshKeyName, ""]]
 Resources:
   VPC:
@@ -272,7 +271,7 @@ Resources:
     Type: AWS::RDS::DBSubnetGroup
     Properties:
       DBSubnetGroupName: defguard-db-subnet-group
-      DBSubnetGroupDescription: Subnet group for DefGuard database
+      DBSubnetGroupDescription: Subnet group for Defguard database
       SubnetIds:
         - !Ref DefguardPrivateSubnet1
         - !Ref DefguardPrivateSubnet2
@@ -283,7 +282,7 @@ Resources:
     Type: AWS::RDS::DBParameterGroup
     Properties:
       DBParameterGroupName: defguard-db-parameter-group
-      Description: Parameter group for DefGuard database
+      Description: Parameter group for Defguard database
       Family: postgres17
       Parameters:
         rds.force_ssl: "0"
@@ -459,13 +458,7 @@ Resources:
   CoreInstance:
     Type: AWS::EC2::Instance
     Properties:
-      ImageId: !If
-        - UseCustomCoreAmi
-        - !Ref DefguardCoreAmiId
-        - !FindInMap
-          - AmiMap
-          - !Ref AWS::Region
-          - core
+      ImageId: !Ref DefguardCoreAmiId
       InstanceType: !Ref CoreInstanceType
       KeyName: !If [UseSshKey, !Ref SshKeyName, !Ref "AWS::NoValue"]
       NetworkInterfaces:
@@ -542,7 +535,7 @@ Resources:
       ImageId: !FindInMap
         - AmiMap
         - !Ref AWS::Region
-        - proxy
+        - debian
       InstanceType: !Ref ProxyInstanceType
       KeyName: !If [UseSshKey, !Ref SshKeyName, !Ref "AWS::NoValue"]
       NetworkInterfaces:
@@ -560,6 +553,18 @@ Resources:
             }
 
             (
+            log "Updating apt repositories..."
+            apt update
+
+            log "Installing curl..."
+            apt install -y curl
+
+            log "Downloading defguard-proxy package..."
+            curl -fsSL -o /tmp/defguard-proxy.deb https://github.com/Defguard/proxy/releases/download/v${DefguardProxyVersion}/defguard-proxy-${DefguardProxyVersion}-x86_64-unknown-linux-gnu.deb
+
+            log "Installing defguard-proxy package..."
+            dpkg -i /tmp/defguard-proxy.deb
+
             log "Writing proxy configuration to /etc/defguard/proxy.toml..."
             mkdir -p /etc/defguard
             tee /etc/defguard/proxy.toml <<EOF
@@ -592,7 +597,7 @@ Resources:
       ImageId: !FindInMap
         - AmiMap
         - !Ref AWS::Region
-        - gateway
+        - debian
       InstanceType: !Ref GatewayInstanceType
       KeyName: !If [UseSshKey, !Ref SshKeyName, !Ref "AWS::NoValue"]
       NetworkInterfaces:
@@ -615,10 +620,22 @@ Resources:
             }
 
             (
+            log "Updating apt repositories..."
+            apt update
+
+            log "Installing curl..."
+            apt install -y curl
+
+            log "Downloading defguard-gateway package..."
+            curl -fsSL -o /tmp/defguard-gateway.deb https://github.com/Defguard/gateway/releases/download/v${DefguardGatewayVersion}/defguard-gateway_${DefguardGatewayVersion}_x86_64-unknown-linux-gnu.deb
+
+            log "Installing defguard-gateway package..."
+            dpkg -i /tmp/defguard-gateway.deb
+
             log "Generating gateway token..."
             NETWORK_ID="1"
             SECRET="${GeneratedGatewaySecret.GatewaySecret}"
-            ISSUER="DefGuard"
+            ISSUER="Defguard"
 
             HEADER='{"alg":"HS256","typ":"JWT"}'
             NOW=$(date +%s)
@@ -734,8 +751,8 @@ Resources:
       - CoreInstance
       - GeneratedGatewaySecret
 
-  # Lambda function to call DefGuard API for device creation
-  DefGuardFirstDeviceFunction:
+  # Lambda function to call Defguard API for device creation
+  DefguardFirstDeviceFunction:
     Type: AWS::Lambda::Function
     Properties:
       FunctionName: !Sub ${AWS::StackName}-defguard-device-setup
@@ -760,9 +777,9 @@ Resources:
               
               # Use existing ID for updates/deletes, let CloudFormation generate one for creates
               if physical_resource_id is None and event['RequestType'] != 'Create':
-                  physical_resource_id = event.get('PhysicalResourceId', 'DefGuardDeviceSetup')
+                  physical_resource_id = event.get('PhysicalResourceId', 'DefguardDeviceSetup')
               elif physical_resource_id is None:
-                  physical_resource_id = 'DefGuardDeviceSetup'
+                  physical_resource_id = 'DefguardDeviceSetup'
               
               response_url = event['ResponseURL']
               
@@ -856,7 +873,7 @@ Resources:
                   data=auth_data,
                   headers={
                       'Content-Type': 'application/json',
-                      'User-Agent': 'DefGuard-CloudFormation-Setup/1.0'
+                      'User-Agent': 'Defguard-CloudFormation-Setup/1.0'
                   },
                   method='POST'
               )
@@ -891,7 +908,7 @@ Resources:
                   data=token_data,
                   headers={
                       'Content-Type': 'application/json',
-                      'User-Agent': 'DefGuard-CloudFormation-Setup/1.0',
+                      'User-Agent': 'Defguard-CloudFormation-Setup/1.0',
                       'Cookie': f'defguard_session={session_cookie}'
                   },
                   method='POST'
@@ -909,7 +926,7 @@ Resources:
                   error_msg = e.read().decode()
                   print(f"Token creation failed: {e.code} - {error_msg}")
                   return f"API_CALL_FAILED_{e.code}_{error_msg[:50]}"
-      Role: !GetAtt DefGuardApiRole.Arn
+      Role: !GetAtt DefguardApiRole.Arn
       Timeout: 300
     DependsOn:
       - CoreInstance
@@ -930,7 +947,7 @@ Resources:
       - DefguardPublicSubnet
       - DefguardPublicSubnetRouteTableAssociation
 
-  DefGuardApiRole:
+  DefguardApiRole:
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
@@ -1076,7 +1093,7 @@ Resources:
   DeviceSetup:
     Type: AWS::CloudFormation::CustomResource
     Properties:
-      ServiceToken: !GetAtt DefGuardFirstDeviceFunction.Arn
+      ServiceToken: !GetAtt DefguardFirstDeviceFunction.Arn
       CoreIP: !GetAtt CoreNetworkInterface.PrimaryPrivateIpAddress
       CorePort: !Ref CoreHttpPort
       AdminPassword: !Ref CoreDefaultAdminPassword
@@ -1088,27 +1105,27 @@ Resources:
 ###########################################################################
 Outputs:
   DefguardCorePrivateAddress:
-    Description: The IP address of the DefGuard Core instance in the internal network
+    Description: The IP address of the Defguard Core instance in the internal network
     Value: !GetAtt CoreNetworkInterface.PrimaryPrivateIpAddress
     Export:
       Name: !Sub ${AWS::StackName}-core-private-ip
   DefguardProxyPublicAddress:
-    Description: The public IP address of the DefGuard Proxy instance
+    Description: The public IP address of the Defguard Proxy instance
     Value: !Ref ProxyElasticIP
     Export:
       Name: !Sub ${AWS::StackName}-proxy-public-ip
   DefguardProxyPrivateAddress:
-    Description: The private IP address of the DefGuard Proxy instance
+    Description: The private IP address of the Defguard Proxy instance
     Value: !GetAtt ProxyNetworkInterface.PrimaryPrivateIpAddress
     Export:
       Name: !Sub ${AWS::StackName}-proxy-private-ip
   DefguardGatewayPublicAddress:
-    Description: The public IP address of the DefGuard Gateway instance
+    Description: The public IP address of the Defguard Gateway instance
     Value: !Ref GatewayElasticIP
     Export:
       Name: !Sub ${AWS::StackName}-gateway-public-ip
   DefguardGatewayPrivateAddress:
-    Description: The private IP address of the DefGuard Gateway instance
+    Description: The private IP address of the Defguard Gateway instance
     Value: !GetAtt GatewayNetworkInterface.PrimaryPrivateIpAddress
     Export:
       Name: !Sub ${AWS::StackName}-gateway-private-ip
