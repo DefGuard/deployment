@@ -93,6 +93,9 @@ postgresql:
     existingSecret: postgres-password
     existingSecretPasswordKey: "" # set if using external postgresql ~ enabled: false
     username: defguard
+  image:
+    repository: bitnami/postgresql
+    tag: latest # IMPORTANT: set to a specific tag to avoid issues with major version upgrades
 
 #
 # sub-chart defguard-proxy
