@@ -1,0 +1,49 @@
+name: Lint Helm Charts
+
+on:
+  pull_request:
+    paths:
+      - 'charts/**'
+
+  push:
+    branches:
+      - main
+
+jobs:
+  release:
+    runs-on: [self-hosted, Linux, X64]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.14.0
+
+      - name: Lint Helm charts
+        run: |
+          for chart in charts/*/; do
+            if [ -f "$chart/Chart.yaml" ]; then
+              echo "Validating $chart"
+              helm lint "$chart"
+              helm template "$chart" --debug
+            fi
+          done
+
+      - name: Setup kubeconform
+        uses: alexellis/arkade-get@master
+        with:
+          kubeconform: latest
+
+      - name: Validate Kubernetes manifests
+        run: |
+          for chart in charts/*/; do
+            if [ -f "$chart/Chart.yaml" ]; then
+              echo "Validating Kubernetes manifests for $chart"
+              helm template "$chart" | kubeconform -strict -ignore-missing-schemas
+            fi
+          done
