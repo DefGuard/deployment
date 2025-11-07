@@ -127,32 +127,14 @@ Parameters:
       - warn
       - error
     Description: Log level for Defguard Gateway component
-  DefguardCoreAmiId:
+  DefguardAmiId:
     Type: String
-    Description: (Optional) Custom AMI ID for Defguard Core instance. If not provided, a default AMI will be used based on the region.
-    Default: "ami-089e02a9b43e74615"
+    Description: AMI ID for Defguard.
+    Default: "ami-01465cbd3f45f7cef"
   SshKeyName:
     Type: String
     Description: (Optional) EC2 Key Pair name for SSH access to instances. If not provided, SSH access will not be available. Requires a manual setup of SSH security group rules afterwards.
     Default: ""
-  DefguardProxyVersion:
-    Type: String
-    Default: "1.5.0"
-    Description: Version of Defguard Proxy package to install
-  DefguardGatewayVersion:
-    Type: String
-    Default: "1.5.0"
-    Description: Version of Defguard Gateway package to install
-Mappings:
-  AmiMap:
-    us-east-1:
-      debian: ami-0702a3ce7f850fb87
-    ap-northeast-1:
-      debian: ami-023c12e6d24e0a6df
-    eu-west-1:
-      debian: ami-04034bfd5da1fa2ed
-    eu-central-1:
-      debian: ami-0aeb8600ead64c406
 Conditions:
   UseSshKey: !Not [!Equals [!Ref SshKeyName, ""]]
 Resources:
@@ -458,7 +440,7 @@ Resources:
   CoreInstance:
     Type: AWS::EC2::Instance
     Properties:
-      ImageId: !Ref DefguardCoreAmiId
+      ImageId: !Ref DefguardAmiId
       InstanceType: !Ref CoreInstanceType
       KeyName: !If [UseSshKey, !Ref SshKeyName, !Ref "AWS::NoValue"]
       NetworkInterfaces:
@@ -532,10 +514,7 @@ Resources:
   ProxyInstance:
     Type: AWS::EC2::Instance
     Properties:
-      ImageId: !FindInMap
-        - AmiMap
-        - !Ref AWS::Region
-        - debian
+      ImageId: !Ref DefguardAmiId
       InstanceType: !Ref ProxyInstanceType
       KeyName: !If [UseSshKey, !Ref SshKeyName, !Ref "AWS::NoValue"]
       NetworkInterfaces:
@@ -553,18 +532,6 @@ Resources:
             }
 
             (
-            log "Updating apt repositories..."
-            apt update
-
-            log "Installing curl..."
-            apt install -y curl
-
-            log "Downloading defguard-proxy package..."
-            curl -fsSL -o /tmp/defguard-proxy.deb https://github.com/Defguard/proxy/releases/download/v${DefguardProxyVersion}/defguard-proxy-${DefguardProxyVersion}-x86_64-unknown-linux-gnu.deb
-
-            log "Installing defguard-proxy package..."
-            dpkg -i /tmp/defguard-proxy.deb
-
             log "Writing proxy configuration to /etc/defguard/proxy.toml..."
             mkdir -p /etc/defguard
             tee /etc/defguard/proxy.toml <<EOF
@@ -594,10 +561,7 @@ Resources:
   GatewayInstance:
     Type: AWS::EC2::Instance
     Properties:
-      ImageId: !FindInMap
-        - AmiMap
-        - !Ref AWS::Region
-        - debian
+      ImageId: !Ref DefguardAmiId
       InstanceType: !Ref GatewayInstanceType
       KeyName: !If [UseSshKey, !Ref SshKeyName, !Ref "AWS::NoValue"]
       NetworkInterfaces:
@@ -620,22 +584,10 @@ Resources:
             }
 
             (
-            log "Updating apt repositories..."
-            apt update
-
-            log "Installing curl..."
-            apt install -y curl
-
-            log "Downloading defguard-gateway package..."
-            curl -fsSL -o /tmp/defguard-gateway.deb https://github.com/Defguard/gateway/releases/download/v${DefguardGatewayVersion}/defguard-gateway_${DefguardGatewayVersion}_x86_64-unknown-linux-gnu.deb
-
-            log "Installing defguard-gateway package..."
-            dpkg -i /tmp/defguard-gateway.deb
-
             log "Generating gateway token..."
             NETWORK_ID="1"
             SECRET="${GeneratedGatewaySecret.GatewaySecret}"
-            ISSUER="Defguard"
+            ISSUER="DefGuard"
 
             HEADER='{"alg":"HS256","typ":"JWT"}'
             NOW=$(date +%s)
