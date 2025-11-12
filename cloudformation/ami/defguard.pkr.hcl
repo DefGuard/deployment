@@ -52,7 +52,7 @@ build {
   ]
 
   provisioner "shell" {
-    script = "./defguard-install.sh"
+    script = "./cloudformation/ami/defguard-install.sh"
     environment_vars = [
       "CORE_VERSION=${var.core_version}",
       "PROXY_VERSION=${var.proxy_version}",
