@@ -87,19 +87,19 @@ Parameters:
   PublicSubnet1Cidr:
     Type: String
     Default: 10.0.1.0/24
-    Description: The CIDR block for the first public subnet. WARNING - Must be within the VPC CIDR range.
+    Description: The CIDR block for the first public subnet. Must be within the VPC CIDR range.
   PublicSubnet2Cidr:
     Type: String
     Default: 10.0.4.0/24
-    Description: The CIDR block for the second public subnet. WARNING - Must be within the VPC CIDR range.
+    Description: The CIDR block for the second public subnet. Must be within the VPC CIDR range.
   PrivateSubnet1Cidr:
     Type: String
     Default: 10.0.2.0/24
-    Description: The CIDR block for the first private subnet. WARNING - Must be within the VPC CIDR range.
+    Description: The CIDR block for the first private subnet. Must be within the VPC CIDR range.
   PrivateSubnet2Cidr:
     Type: String
     Default: 10.0.3.0/24
-    Description: The CIDR block for the second private subnet. WARNING - Must be within the VPC CIDR range.
+    Description: The CIDR block for the second private subnet. Must be within the VPC CIDR range.
   VpnNetworkName:
     Type: String
     Default: vpn1
