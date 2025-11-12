@@ -1,6 +1,12 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Description: Full Defguard stack with Core, Proxy, Gateway, and a Database.
 Parameters:
+  StackPrefix:
+    Type: String
+    Default: defguard
+    Description: Prefix for all resource names, if you want to allow multiple Defguard deployments in the same region
+    AllowedPattern: ^[a-z0-9-]+$
+    ConstraintDescription: Must contain only lowercase letters, numbers, and hyphens
   CoreUrl:
     Type: String
     Description: The URL for the Defguard Core (e.g., https://core.example.com)
@@ -18,11 +24,11 @@ Parameters:
     AllowedValues:
       - "true"
       - "false"
-    Description: Whether to allow insecure cookies for the Defguard Core web UI
+    Description: Whether to allow insecure cookies for the Defguard Core web UI. Set to "true" only if accessing the web UI over HTTP (not recommended for production).
   CoreDefaultAdminPassword:
     Type: String
     NoEcho: true
-    Description: The initial password for the admin user
+    Description: The initial password for the Defguard dashboard admin user
   CoreInstanceType:
     Type: String
     Default: t3.micro
@@ -78,14 +84,30 @@ Parameters:
     Type: String
     Default: 10.0.0.0/16
     Description: The CIDR block for the VPC
+  PublicSubnet1Cidr:
+    Type: String
+    Default: 10.0.1.0/24
+    Description: The CIDR block for the first public subnet. WARNING - Must be within the VPC CIDR range.
+  PublicSubnet2Cidr:
+    Type: String
+    Default: 10.0.4.0/24
+    Description: The CIDR block for the second public subnet. WARNING - Must be within the VPC CIDR range.
+  PrivateSubnet1Cidr:
+    Type: String
+    Default: 10.0.2.0/24
+    Description: The CIDR block for the first private subnet. WARNING - Must be within the VPC CIDR range.
+  PrivateSubnet2Cidr:
+    Type: String
+    Default: 10.0.3.0/24
+    Description: The CIDR block for the second private subnet. WARNING - Must be within the VPC CIDR range.
   VpnNetworkName:
     Type: String
     Default: vpn1
-    Description: The name of the VPN network
+    Description: The name of the VPN network (location)
   VpnNetworkAddress:
     Type: String
     Default: 10.10.10.1/24
-    Description: The CIDR address of the VPN network
+    Description: The CIDR address of the VPN network (location).
   VpnNetworkPort:
     Type: Number
     Default: 51820
@@ -135,8 +157,13 @@ Parameters:
     Type: String
     Description: (Optional) EC2 Key Pair name for SSH access to instances. If not provided, SSH access will not be available. Requires a manual setup of SSH security group rules afterwards.
     Default: ""
+  SSLCertificateArn:
+    Type: String
+    Description: (Optional) ARN of the SSL certificate for HTTPS termination on the reverse proxies. If not provided, only HTTP will be used.
+    Default: ""
 Conditions:
   UseSshKey: !Not [!Equals [!Ref SshKeyName, ""]]
+  UseSSLCertificate: !Not [!Equals [!Ref SSLCertificateArn, ""]]
 Resources:
   VPC:
     Type: AWS::EC2::VPC
@@ -162,36 +189,49 @@ Resources:
     Type: AWS::EC2::Subnet
     Properties:
       VpcId: !Ref VPC
-      CidrBlock: 10.0.1.0/24
+      CidrBlock: !Ref PublicSubnet1Cidr
       AvailabilityZone: !Select
         - 0
         - !GetAZs ""
       MapPublicIpOnLaunch: true
       Tags:
         - Key: Name
-          Value: !Sub ${VpcName}-defguard-public-subnet-1
+          Value: !Sub ${VpcName}-public-subnet-1
+  
+  DefguardPublicSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Ref PublicSubnet2Cidr
+      AvailabilityZone: !Select
+        - 1
+        - !GetAZs ""
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub ${VpcName}-public-subnet-2
   DefguardPrivateSubnet1:
     Type: AWS::EC2::Subnet
     Properties:
       VpcId: !Ref VPC
-      CidrBlock: 10.0.2.0/24
+      CidrBlock: !Ref PrivateSubnet1Cidr
       AvailabilityZone: !Select
         - 0
         - !GetAZs ""
       Tags:
         - Key: Name
-          Value: !Sub ${VpcName}-defguard-private-subnet-1
+          Value: !Sub ${VpcName}-private-subnet-1
   DefguardPrivateSubnet2:
     Type: AWS::EC2::Subnet
     Properties:
       VpcId: !Ref VPC
-      CidrBlock: 10.0.3.0/24
+      CidrBlock: !Ref PrivateSubnet2Cidr
       AvailabilityZone: !Select
         - 1
         - !GetAZs ""
       Tags:
         - Key: Name
-          Value: !Sub ${VpcName}-defguard-private-subnet-2
+          Value: !Sub ${VpcName}-private-subnet-2
   PublicRouteTable:
     Type: AWS::EC2::RouteTable
     Properties:
@@ -210,6 +250,12 @@ Resources:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
       SubnetId: !Ref DefguardPublicSubnet
+      RouteTableId: !Ref PublicRouteTable
+  
+  DefguardPublicSubnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref DefguardPublicSubnet2
       RouteTableId: !Ref PublicRouteTable
   NATGatewayEIP:
     Type: AWS::EC2::EIP
@@ -252,29 +298,29 @@ Resources:
   DBSubnetGroup:
     Type: AWS::RDS::DBSubnetGroup
     Properties:
-      DBSubnetGroupName: defguard-db-subnet-group
+      DBSubnetGroupName: !Sub ${StackPrefix}-db-subnet-group
       DBSubnetGroupDescription: Subnet group for Defguard database
       SubnetIds:
         - !Ref DefguardPrivateSubnet1
         - !Ref DefguardPrivateSubnet2
       Tags:
         - Key: Name
-          Value: defguard-db-subnet-group
+          Value: !Sub ${StackPrefix}-db-subnet-group
   DBParameterGroup:
     Type: AWS::RDS::DBParameterGroup
     Properties:
-      DBParameterGroupName: defguard-db-parameter-group
+      DBParameterGroupName: !Sub ${StackPrefix}-db-parameter-group
       Description: Parameter group for Defguard database
       Family: postgres17
       Parameters:
         rds.force_ssl: "0"
       Tags:
         - Key: Name
-          Value: defguard-db-parameter-group
+          Value: !Sub ${StackPrefix}-db-parameter-group
   DatabaseSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupName: defguard-db-sg
+      GroupName: !Sub ${StackPrefix}-db-sg
       GroupDescription: Access to the database
       VpcId: !Ref VPC
       SecurityGroupIngress:
@@ -284,11 +330,11 @@ Resources:
           SourceSecurityGroupId: !Ref CoreSecurityGroup
       Tags:
         - Key: Name
-          Value: defguard-db-sg
+          Value: !Sub ${StackPrefix}-db-sg
   LambdaSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupName: defguard-lambda-sg
+      GroupName: !Sub ${StackPrefix}-lambda-sg
       GroupDescription: Lambda function access
       VpcId: !Ref VPC
       SecurityGroupEgress:
@@ -296,12 +342,12 @@ Resources:
           CidrIp: 0.0.0.0/0
       Tags:
         - Key: Name
-          Value: defguard-lambda-sg
+          Value: !Sub ${StackPrefix}-lambda-sg
   Database:
     Type: AWS::RDS::DBInstance
     Properties:
       DBName: !Ref DbName
-      DBInstanceIdentifier: defguard-core-db
+      DBInstanceIdentifier: !Sub ${StackPrefix}-core-db
       DBInstanceClass: !Ref DbInstanceClass
       Engine: postgres
       MasterUsername: !Ref DbUsername
@@ -316,19 +362,14 @@ Resources:
       BackupRetentionPeriod: 0
       Tags:
         - Key: Name
-          Value: defguard-core-db
+          Value: !Sub ${StackPrefix}-core-db
   CoreSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupName: defguard-core-sg
+      GroupName: !Sub ${StackPrefix}-core-sg
       GroupDescription: Core access
       VpcId: !Ref VPC
       SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: !Ref CoreHttpPort
-          ToPort: !Ref CoreHttpPort
-          SourceSecurityGroupId: !Ref GatewaySecurityGroup
-          Description: HTTP access from gateways
         - IpProtocol: tcp
           FromPort: !Ref CoreGrpcPort
           ToPort: !Ref CoreGrpcPort
@@ -339,24 +380,29 @@ Resources:
           ToPort: !Ref CoreHttpPort
           SourceSecurityGroupId: !Ref LambdaSecurityGroup
           Description: HTTP access from Lambda function
+        - IpProtocol: tcp
+          FromPort: !Ref CoreHttpPort
+          ToPort: !Ref CoreHttpPort
+          SourceSecurityGroupId: !Ref InternalProxyALBSecurityGroup
+          Description: HTTP access from internal reverse proxy ALB
       SecurityGroupEgress:
         - IpProtocol: "-1"
           CidrIp: 0.0.0.0/0
       Tags:
         - Key: Name
-          Value: defguard-core-sg
+          Value: !Sub ${StackPrefix}-core-sg
   ProxySecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupName: defguard-proxy-sg
+      GroupName: !Sub ${StackPrefix}-proxy-sg
       GroupDescription: Proxy access
       VpcId: !Ref VPC
       SecurityGroupIngress:
         - IpProtocol: tcp
           FromPort: !Ref ProxyHttpPort
           ToPort: !Ref ProxyHttpPort
-          CidrIp: 0.0.0.0/0
-          Description: HTTP access to proxy
+          SourceSecurityGroupId: !Ref PublicProxyALBSecurityGroup
+          Description: HTTP access from public reverse proxy ALB
         - IpProtocol: tcp
           FromPort: !Ref ProxyGrpcPort
           ToPort: !Ref ProxyGrpcPort
@@ -367,11 +413,11 @@ Resources:
           CidrIp: 0.0.0.0/0
       Tags:
         - Key: Name
-          Value: defguard-proxy-sg
+          Value: !Sub ${StackPrefix}-proxy-sg
   GatewaySecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupName: defguard-gateway-sg
+      GroupName: !Sub ${StackPrefix}-gateway-sg
       GroupDescription: Gateway access
       VpcId: !Ref VPC
       SecurityGroupIngress:
@@ -385,7 +431,57 @@ Resources:
           CidrIp: 0.0.0.0/0
       Tags:
         - Key: Name
-          Value: defguard-gateway-sg
+          Value: !Sub ${StackPrefix}-gateway-sg
+  
+  # Security group for the public reverse proxy (ALB)
+  PublicProxyALBSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub ${StackPrefix}-public-proxy-alb-sg
+      GroupDescription: Public reverse proxy ALB access
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+          Description: HTTP access from internet
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+          Description: HTTPS access from internet
+      SecurityGroupEgress:
+        - IpProtocol: "-1"
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: !Sub ${StackPrefix}-public-proxy-alb-sg
+  
+  # Security group for the internal reverse proxy (ALB)
+  InternalProxyALBSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub ${StackPrefix}-internal-proxy-alb-sg
+      GroupDescription: Internal reverse proxy ALB access
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          SourceSecurityGroupId: !Ref GatewaySecurityGroup
+          Description: HTTP access from gateways
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          SourceSecurityGroupId: !Ref GatewaySecurityGroup
+          Description: HTTPS access from gateways
+      SecurityGroupEgress:
+        - IpProtocol: "-1"
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: !Sub ${StackPrefix}-internal-proxy-alb-sg
   CoreNetworkInterface:
     Type: AWS::EC2::NetworkInterface
     Properties:
@@ -394,7 +490,7 @@ Resources:
         - !Ref CoreSecurityGroup
       Tags:
         - Key: Name
-          Value: defguard-core-network-interface
+          Value: !Sub ${StackPrefix}-core-network-interface
   ProxyNetworkInterface:
     Type: AWS::EC2::NetworkInterface
     Properties:
@@ -403,7 +499,7 @@ Resources:
         - !Ref ProxySecurityGroup
       Tags:
         - Key: Name
-          Value: defguard-proxy-network-interface
+          Value: !Sub ${StackPrefix}-proxy-network-interface
   GatewayNetworkInterface:
     Type: AWS::EC2::NetworkInterface
     Properties:
@@ -412,21 +508,21 @@ Resources:
         - !Ref GatewaySecurityGroup
       Tags:
         - Key: Name
-          Value: defguard-gateway-network-interface
+          Value: !Sub ${StackPrefix}-gateway-network-interface
   ProxyElasticIP:
     Type: AWS::EC2::EIP
     Properties:
       Domain: vpc
       Tags:
         - Key: Name
-          Value: defguard-proxy-eip
+          Value: !Sub ${StackPrefix}-proxy-eip
   GatewayElasticIP:
     Type: AWS::EC2::EIP
     Properties:
       Domain: vpc
       Tags:
         - Key: Name
-          Value: defguard-gateway-eip
+          Value: !Sub ${StackPrefix}-gateway-eip
   ProxyEIPAssociation:
     Type: AWS::EC2::EIPAssociation
     Properties:
@@ -437,6 +533,135 @@ Resources:
     Properties:
       NetworkInterfaceId: !Ref GatewayNetworkInterface
       AllocationId: !GetAtt GatewayElasticIP.AllocationId
+
+  # Public reverse proxy (ALB) for Defguard Proxy
+  PublicProxyALB:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: !Sub ${StackPrefix}-public-proxy-alb
+      Type: application
+      Scheme: internet-facing
+      IpAddressType: ipv4
+      Subnets:
+        - !Ref DefguardPublicSubnet
+        - !Ref DefguardPublicSubnet2
+      SecurityGroups:
+        - !Ref PublicProxyALBSecurityGroup
+      Tags:
+        - Key: Name
+          Value: !Sub ${StackPrefix}-public-proxy-alb
+
+  # Target group for the public reverse proxy
+  PublicProxyTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: !Sub ${StackPrefix}-public-proxy-tg
+      Port: !Ref ProxyHttpPort
+      Protocol: HTTP
+      VpcId: !Ref VPC
+      HealthCheckEnabled: true
+      HealthCheckPath: /api/v1/health
+      HealthCheckIntervalSeconds: 30
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 2
+      UnhealthyThresholdCount: 5
+      TargetType: ip
+      Targets:
+        - Id: !GetAtt ProxyNetworkInterface.PrimaryPrivateIpAddress
+          Port: !Ref ProxyHttpPort
+      Tags:
+        - Key: Name
+          Value: !Sub ${StackPrefix}-public-proxy-tg
+
+  # HTTP listener for public reverse proxy
+  PublicProxyHTTPListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref PublicProxyTargetGroup
+      LoadBalancerArn: !Ref PublicProxyALB
+      Port: 80
+      Protocol: HTTP
+
+  # HTTPS listener for public reverse proxy (only if SSL certificate is provided)
+  PublicProxyHTTPSListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Condition: UseSSLCertificate
+    Properties:
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref PublicProxyTargetGroup
+      LoadBalancerArn: !Ref PublicProxyALB
+      Port: 443
+      Protocol: HTTPS
+      Certificates:
+        - CertificateArn: !Ref SSLCertificateArn
+
+  # Internal reverse proxy (ALB) for Defguard Core
+  InternalProxyALB:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: !Sub ${StackPrefix}-internal-proxy-alb
+      Type: application
+      Scheme: internal
+      IpAddressType: ipv4
+      Subnets:
+        - !Ref DefguardPrivateSubnet1
+        - !Ref DefguardPrivateSubnet2
+      SecurityGroups:
+        - !Ref InternalProxyALBSecurityGroup
+      Tags:
+        - Key: Name
+          Value: !Sub ${StackPrefix}-internal-proxy-alb
+
+  # Target group for the internal reverse proxy (HTTP)
+  InternalProxyHTTPTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: !Sub ${StackPrefix}-internal-proxy-http-tg
+      Port: !Ref CoreHttpPort
+      Protocol: HTTP
+      VpcId: !Ref VPC
+      HealthCheckEnabled: true
+      HealthCheckPath: /api/v1/health
+      HealthCheckIntervalSeconds: 30
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 2
+      UnhealthyThresholdCount: 5
+      TargetType: ip
+      Targets:
+        - Id: !GetAtt CoreNetworkInterface.PrimaryPrivateIpAddress
+          Port: !Ref CoreHttpPort
+      Tags:
+        - Key: Name
+          Value: !Sub ${StackPrefix}-internal-proxy-http-tg
+
+  # HTTP listener for internal reverse proxy
+  InternalProxyHTTPListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref InternalProxyHTTPTargetGroup
+      LoadBalancerArn: !Ref InternalProxyALB
+      Port: 80
+      Protocol: HTTP
+
+  # HTTPS listener for internal reverse proxy (only if SSL certificate is provided)
+  InternalProxyHTTPSListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Condition: UseSSLCertificate
+    Properties:
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref InternalProxyHTTPTargetGroup
+      LoadBalancerArn: !Ref InternalProxyALB
+      Port: 443
+      Protocol: HTTPS
+      Certificates:
+        - CertificateArn: !Ref SSLCertificateArn
+
   CoreInstance:
     Type: AWS::EC2::Instance
     Properties:
@@ -507,7 +732,7 @@ Resources:
             ) 2>&1 | tee -a "$LOG_FILE"
       Tags:
         - Key: Name
-          Value: defguard-core-instance
+          Value: !Sub ${StackPrefix}-core-instance
     DependsOn:
       - Database
       - GeneratedGatewaySecret
@@ -557,7 +782,7 @@ Resources:
             ) 2>&1 | tee -a "$LOG_FILE"
       Tags:
         - Key: Name
-          Value: defguard-proxy-instance
+          Value: !Sub ${StackPrefix}-proxy-instance
   GatewayInstance:
     Type: AWS::EC2::Instance
     Properties:
@@ -698,7 +923,7 @@ Resources:
           - { CorePrivateIP: !GetAtt CoreNetworkInterface.PrimaryPrivateIpAddress }
       Tags:
         - Key: Name
-          Value: defguard-gateway-instance
+          Value: !Sub ${StackPrefix}-gateway-instance
     DependsOn:
       - CoreInstance
       - GeneratedGatewaySecret
@@ -707,7 +932,7 @@ Resources:
   DefguardFirstDeviceFunction:
     Type: AWS::Lambda::Function
     Properties:
-      FunctionName: !Sub ${AWS::StackName}-defguard-device-setup
+      FunctionName: !Sub ${StackPrefix}-defguard-device-setup
       Runtime: python3.9
       Handler: index.handler
       VpcConfig:
@@ -898,6 +1123,8 @@ Resources:
       - PublicRoute
       - DefguardPublicSubnet
       - DefguardPublicSubnetRouteTableAssociation
+      - DefguardPublicSubnet2
+      - DefguardPublicSubnet2RouteTableAssociation
 
   DefguardApiRole:
     Type: AWS::IAM::Role
@@ -931,7 +1158,7 @@ Resources:
   GatewaySecretGenerator:
     Type: AWS::Lambda::Function
     Properties:
-      FunctionName: !Sub ${AWS::StackName}-gateway-secret-generator
+      FunctionName: !Sub ${StackPrefix}-gateway-secret-generator
       Runtime: python3.9
       Handler: index.handler
       Code:
@@ -1091,13 +1318,49 @@ Outputs:
     Value: !Ref VPC
     Export:
       Name: !Sub ${AWS::StackName}-vpc-id
-  DefguardPublicSubnetId:
-    Description: The ID of the Defguard public subnet
+  PublicSubnetId:
+    Description: The ID of the public subnet
     Value: !Ref DefguardPublicSubnet
     Export:
-      Name: !Sub ${AWS::StackName}-defguard-public-subnet-id
-  UserDeviceEnrollmentToken:
-    Description: Enrollment token for user device
+      Name: !Sub ${AWS::StackName}-public-subnet-id
+  AdminFirstDeviceToken:
+    Description: Enrollment token for admin's first device. Use it to add the first device to Defguard and access the VPN.
     Value: !GetAtt DeviceSetup.Token
     Export:
-      Name: !Sub ${AWS::StackName}-enrollment-token
+      Name: !Sub ${AWS::StackName}-admin-first-device-token
+  
+  PublicProxyALBDNSName:
+    Description: DNS name of the public reverse proxy (ALB) for Defguard Proxy
+    Value: !GetAtt PublicProxyALB.DNSName
+    Export:
+      Name: !Sub ${AWS::StackName}-public-proxy-alb-dns-name
+  
+  PublicProxyALBHostedZoneID:
+    Description: Hosted Zone ID of the public reverse proxy (ALB) for Route53 alias records
+    Value: !GetAtt PublicProxyALB.CanonicalHostedZoneID
+    Export:
+      Name: !Sub ${AWS::StackName}-public-proxy-alb-hosted-zone-id
+  
+  PublicProxyURL:
+    Description: URL of the public reverse proxy for Defguard Proxy (uses ProxyUrl parameter)
+    Value: !Ref ProxyUrl
+    Export:
+      Name: !Sub ${AWS::StackName}-public-proxy-url
+  
+  InternalProxyALBDNSName:
+    Description: DNS name of the internal reverse proxy (ALB) for Defguard Core
+    Value: !GetAtt InternalProxyALB.DNSName
+    Export:
+      Name: !Sub ${AWS::StackName}-internal-proxy-alb-dns-name
+  
+  InternalProxyALBHostedZoneID:
+    Description: Hosted Zone ID of the internal reverse proxy (ALB) for Route53 alias records
+    Value: !GetAtt InternalProxyALB.CanonicalHostedZoneID
+    Export:
+      Name: !Sub ${AWS::StackName}-internal-proxy-alb-hosted-zone-id
+  
+  InternalProxyURL:
+    Description: URL of the internal reverse proxy for Defguard Core (uses CoreUrl parameter)
+    Value: !Ref CoreUrl
+    Export:
+      Name: !Sub ${AWS::StackName}-internal-proxy-url
