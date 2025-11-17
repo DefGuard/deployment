@@ -776,10 +776,7 @@ Resources:
             }
 
             (
-            log "Installing AWS CLI..."
-            apt-get update
-            apt-get install -y awscli
-            
+
             log "Generating gateway secret..."
             GATEWAY_SECRET=$(generate_secret_inner 64)
             
@@ -925,10 +922,7 @@ Resources:
             }
 
             (
-            log "Installing AWS CLI..."
-            apt-get update
-            apt-get install -y awscli
-            
+
             log "Writing proxy configuration to /etc/defguard/proxy.toml..."
             mkdir -p /etc/defguard
             tee /etc/defguard/proxy.toml <<EOF
@@ -995,10 +989,7 @@ Resources:
             }
 
             (
-            log "Installing AWS CLI..."
-            apt-get update
-            apt-get install -y awscli
-            
+
             log "Retrieving gRPC CA certificate from Secrets Manager..."
             mkdir -p /etc/defguard/ssl
             aws secretsmanager get-secret-value --secret-id "/${AWS::StackName}/grpc/ca-pem" --region ${AWS::Region} --query 'SecretString' --output text > /etc/defguard/ssl/defguard-ca.pem
