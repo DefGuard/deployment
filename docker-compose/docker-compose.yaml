@@ -90,6 +90,8 @@ services:
   #     DEFGUARD_GRPC_CA: /ssl/defguard-ca.pem  # [VPN]
   #     DEFGUARD_STATS_PERIOD: 30  # [VPN]
   #     DEFGUARD_TOKEN: ${DEFGUARD_TOKEN}  # [VPN]
+  ## This makes our rules run before Docker's rules to avoid conflicts
+  #     DEFGUARD_FW_PRIORITY: -1  # [VPN]
   #   volumes:  # [VPN]
   # SSL setup guide: https://docs.defguard.net/deployment-strategies/grpc-ssl-communication#custom-ssl-ca-and-certificates
   #     - ${VOLUME_DIR:-./.volumes}/ssl:/ssl  # [VPN]
