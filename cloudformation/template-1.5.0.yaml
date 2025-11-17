@@ -500,6 +500,18 @@ Resources:
       Tags:
         - Key: Name
           Value: !Sub ${StackPrefix}-proxy-network-interface
+  ProxyElasticIP:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key: Name
+          Value: !Sub ${StackPrefix}-proxy-eip
+  ProxyEIPAssociation:
+    Type: AWS::EC2::EIPAssociation
+    Properties:
+      NetworkInterfaceId: !Ref ProxyNetworkInterface
+      AllocationId: !GetAtt ProxyElasticIP.AllocationId
   GatewayNetworkInterface:
     Type: AWS::EC2::NetworkInterface
     Properties:
@@ -509,13 +521,6 @@ Resources:
       Tags:
         - Key: Name
           Value: !Sub ${StackPrefix}-gateway-network-interface
-  ProxyElasticIP:
-    Type: AWS::EC2::EIP
-    Properties:
-      Domain: vpc
-      Tags:
-        - Key: Name
-          Value: !Sub ${StackPrefix}-proxy-eip
   GatewayElasticIP:
     Type: AWS::EC2::EIP
     Properties:
@@ -523,11 +528,6 @@ Resources:
       Tags:
         - Key: Name
           Value: !Sub ${StackPrefix}-gateway-eip
-  ProxyEIPAssociation:
-    Type: AWS::EC2::EIPAssociation
-    Properties:
-      NetworkInterfaceId: !Ref ProxyNetworkInterface
-      AllocationId: !GetAtt ProxyElasticIP.AllocationId
   GatewayEIPAssociation:
     Type: AWS::EC2::EIPAssociation
     Properties:
@@ -662,12 +662,100 @@ Resources:
       Certificates:
         - CertificateArn: !Ref SSLCertificateArn
 
+  # IAM Role for Core Instance
+  CoreInstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: SecretsManagerAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - secretsmanager:CreateSecret
+                  - secretsmanager:PutSecretValue
+                  - secretsmanager:GetSecretValue
+                Resource:
+                  - !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:/${AWS::StackName}/grpc/*
+                  - !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:/${AWS::StackName}/gateway/*
+
+  CoreInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - !Ref CoreInstanceRole
+
+  # IAM Role for Proxy Instance
+  ProxyInstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: SecretsManagerReadAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource: !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:/${AWS::StackName}/grpc/*
+
+  ProxyInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - !Ref ProxyInstanceRole
+
+  # IAM Role for Gateway Instance
+  GatewayInstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: SecretsManagerReadAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource:
+                  - !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:/${AWS::StackName}/grpc/*
+                  - !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:/${AWS::StackName}/gateway/*
+
+  GatewayInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - !Ref GatewayInstanceRole
+
   CoreInstance:
     Type: AWS::EC2::Instance
     Properties:
       ImageId: !Ref DefguardAmiId
       InstanceType: !Ref CoreInstanceType
       KeyName: !If [UseSshKey, !Ref SshKeyName, !Ref "AWS::NoValue"]
+      IamInstanceProfile: !Ref CoreInstanceProfile
       NetworkInterfaces:
         - NetworkInterfaceId: !Ref CoreNetworkInterface
           DeviceIndex: "0"
@@ -688,12 +776,23 @@ Resources:
             }
 
             (
+            log "Installing AWS CLI..."
+            apt-get update
+            apt-get install -y awscli
+            
+            log "Generating gateway secret..."
+            GATEWAY_SECRET=$(generate_secret_inner 64)
+            
+            log "Storing gateway secret in Secrets Manager..."
+            aws secretsmanager create-secret --name "/${AWS::StackName}/gateway/secret" --secret-string "$GATEWAY_SECRET" --region ${AWS::Region} || \
+              aws secretsmanager put-secret-value --secret-id "/${AWS::StackName}/gateway/secret" --secret-string "$GATEWAY_SECRET" --region ${AWS::Region}
+            
             log "Writing Core configuration to /etc/defguard/core.conf..."
             mkdir -p /etc/defguard
             tee /etc/defguard/core.conf <<EOF
             ### Core configuration ###
             DEFGUARD_AUTH_SECRET=$(generate_secret_inner 64)
-            DEFGUARD_GATEWAY_SECRET=${GeneratedGatewaySecret.GatewaySecret}
+            DEFGUARD_GATEWAY_SECRET=$GATEWAY_SECRET
             DEFGUARD_YUBIBRIDGE_SECRET=$(generate_secret_inner 64)
             DEFGUARD_SECRET_KEY=$(generate_secret_inner 64)
             DEFGUARD_URL=${CoreUrl}
@@ -704,9 +803,14 @@ Resources:
             DEFGUARD_HTTP_PORT=${CoreHttpPort}
             DEFGUARD_COOKIE_INSECURE=${CoreCookieInsecure}
             DEFGUARD_LOG_LEVEL=${CoreLogLevel}
+            
+            ### gRPC SSL configuration ###
+            DEFGUARD_PROXY_GRPC_CA=/etc/defguard/ssl/defguard-ca.pem
+            DEFGUARD_GRPC_CERT=/etc/defguard/ssl/defguard-grpc.crt
+            DEFGUARD_GRPC_KEY=/etc/defguard/ssl/defguard-grpc.key
 
             ### Proxy configuration ###
-            DEFGUARD_PROXY_URL=http://${ProxyNetworkInterface.PrimaryPrivateIpAddress}:${ProxyGrpcPort}
+            DEFGUARD_PROXY_URL=https://${ProxyNetworkInterface.PrimaryPrivateIpAddress}:${ProxyGrpcPort}
             DEFGUARD_ENROLLMENT_URL=${ProxyUrl}
 
             ### DB configuration ###
@@ -717,6 +821,70 @@ Resources:
             DEFGUARD_DB_PASSWORD="${DbPassword}"
             EOF
 
+            log "Generating gRPC SSL certificates..."
+
+            mkdir -p /etc/defguard/ssl
+            cd /etc/defguard/ssl
+            
+            # Extract domain from CoreUrl
+            DOMAIN=$(echo "${CoreUrl}" | sed 's|https\?://||' | cut -d'/' -f1)
+            PASSPHRASE=$(generate_secret_inner 64)
+
+            openssl genrsa -des3 -out defguard-ca.key -passout pass:"${!PASSPHRASE}" 2048 2>&1
+            openssl req -x509 -new -nodes -key defguard-ca.key -sha256 -days 1825 -out defguard-ca.pem -passin pass:"${!PASSPHRASE}" -subj "/CN=${!DOMAIN}" 2>&1
+            openssl genrsa -out defguard-grpc.key 2048 2>&1
+            openssl req -new -key defguard-grpc.key -out defguard-grpc.csr -subj "/CN=${!DOMAIN}" 2>&1
+            cat >defguard-grpc.ext <<EOF
+            authorityKeyIdentifier=keyid,issuer
+            basicConstraints=CA:FALSE
+            keyUsage = digitalSignature, nonRepudiation, keyEncipherment, dataEncipherment
+            subjectAltName = @alt_names
+            [alt_names]
+            IP.1 = ${CoreNetworkInterface.PrimaryPrivateIpAddress}
+            DNS.1= localhost
+            EOF
+
+            openssl x509 -req -in defguard-grpc.csr -CA defguard-ca.pem -CAkey defguard-ca.key -passin pass:"${!PASSPHRASE}" -CAcreateserial \
+            -out defguard-grpc.crt -days 1000 -sha256 -extfile defguard-grpc.ext 2>&1
+            
+            openssl genrsa -out defguard-proxy-grpc.key 2048 2>&1
+
+            openssl req -new -key defguard-proxy-grpc.key -out defguard-proxy-grpc.csr -subj "/CN=${!DOMAIN}" 2>&1
+            cat >defguard-proxy-grpc.ext <<EOF
+            authorityKeyIdentifier=keyid,issuer
+            basicConstraints=CA:FALSE
+            keyUsage = digitalSignature, nonRepudiation, keyEncipherment, dataEncipherment
+            subjectAltName = @alt_names
+            [alt_names]
+            IP.1 = ${ProxyNetworkInterface.PrimaryPrivateIpAddress}
+            DNS.1 = localhost
+            EOF
+            openssl x509 -req -in defguard-proxy-grpc.csr -CA defguard-ca.pem -CAkey defguard-ca.key -passin pass:"${!PASSPHRASE}" -CAcreateserial \
+              -out defguard-proxy-grpc.crt -days 1000 -sha256 -extfile defguard-proxy-grpc.ext 2>&1
+
+            # Set permissions
+            chmod 644 /etc/defguard/ssl/*.key
+            chmod 644 /etc/defguard/ssl/*.pem /etc/defguard/ssl/*.crt
+            
+            # Store certificates in Secrets Manager for other instances
+            log "Storing certificates in Secrets Manager..."
+            aws secretsmanager create-secret --name "/${AWS::StackName}/grpc/ca-pem" --secret-string file://defguard-ca.pem --region ${AWS::Region} || \
+              aws secretsmanager put-secret-value --secret-id "/${AWS::StackName}/grpc/ca-pem" --secret-string file://defguard-ca.pem --region ${AWS::Region}
+            
+            aws secretsmanager create-secret --name "/${AWS::StackName}/grpc/ca-passphrase" --secret-string "${!PASSPHRASE}" --region ${AWS::Region} || \
+              aws secretsmanager put-secret-value --secret-id "/${AWS::StackName}/grpc/ca-passphrase" --secret-string "${!PASSPHRASE}" --region ${AWS::Region}
+            
+            aws secretsmanager create-secret --name "/${AWS::StackName}/grpc/proxy-key" --secret-string file://defguard-proxy-grpc.key --region ${AWS::Region} || \
+              aws secretsmanager put-secret-value --secret-id "/${AWS::StackName}/grpc/proxy-key" --secret-string file://defguard-proxy-grpc.key --region ${AWS::Region}
+            
+            aws secretsmanager create-secret --name "/${AWS::StackName}/grpc/proxy-crt" --secret-string file://defguard-proxy-grpc.crt --region ${AWS::Region} || \
+              aws secretsmanager put-secret-value --secret-id "/${AWS::StackName}/grpc/proxy-crt" --secret-string file://defguard-proxy-grpc.crt --region ${AWS::Region}
+            
+            # Clean up temporary files
+            rm -f defguard-grpc.csr defguard-grpc.ext defguard-proxy-grpc.csr defguard-proxy-grpc.ext defguard-ca.key defguard-ca.srl
+            
+            log "gRPC SSL certificates generated and stored"
+
             log "Enabling defguard service..."
             systemctl enable defguard
 
@@ -724,7 +892,7 @@ Resources:
             systemctl start defguard
 
             log "Creating VPN location with address ${VpnNetworkAddress} and endpoint ${GatewayElasticIP} and port ${VpnNetworkPort}..."
-            export $(grep -v '^#' /etc/defguard/core.conf | xargs) && /usr/bin/defguard --secret-key ${GeneratedGatewaySecret.GatewaySecret} init-vpn-location --name ${VpnNetworkName} --address ${VpnNetworkAddress} --endpoint ${GatewayElasticIP} --port ${VpnNetworkPort} --id 1 --allowed-ips ${VpnNetworkAddress} --allowed-ips ${VpcCidr} >> "$LOG_FILE" 2>&1
+            export $(grep -v '^#' /etc/defguard/core.conf | xargs) && /usr/bin/defguard --secret-key "$GATEWAY_SECRET" init-vpn-location --name ${VpnNetworkName} --address ${VpnNetworkAddress} --endpoint ${GatewayElasticIP} --port ${VpnNetworkPort} --id 1 --allowed-ips ${VpnNetworkAddress} --allowed-ips ${VpcCidr} >> "$LOG_FILE" 2>&1
 
             log "Created VPN location ${VpnNetworkName} with address ${VpnNetworkAddress} and endpoint ${GatewayElasticIP} and port ${VpnNetworkPort}"
 
@@ -735,13 +903,13 @@ Resources:
           Value: !Sub ${StackPrefix}-core-instance
     DependsOn:
       - Database
-      - GeneratedGatewaySecret
   ProxyInstance:
     Type: AWS::EC2::Instance
     Properties:
       ImageId: !Ref DefguardAmiId
       InstanceType: !Ref ProxyInstanceType
       KeyName: !If [UseSshKey, !Ref SshKeyName, !Ref "AWS::NoValue"]
+      IamInstanceProfile: !Ref ProxyInstanceProfile
       NetworkInterfaces:
         - NetworkInterfaceId: !Ref ProxyNetworkInterface
           DeviceIndex: "0"
@@ -757,6 +925,10 @@ Resources:
             }
 
             (
+            log "Installing AWS CLI..."
+            apt-get update
+            apt-get install -y awscli
+            
             log "Writing proxy configuration to /etc/defguard/proxy.toml..."
             mkdir -p /etc/defguard
             tee /etc/defguard/proxy.toml <<EOF
@@ -770,7 +942,18 @@ Resources:
             rate_limit_burst = 0
             url = "${ProxyUrl}"
 
+            # gRPC SSL configuration
+            grpc_cert = "/etc/defguard/ssl/defguard-proxy-grpc.crt"
+            grpc_key = "/etc/defguard/ssl/defguard-proxy-grpc.key"
+
             EOF
+
+            log "Retrieving gRPC SSL certificates from Secrets Manager..."
+            mkdir -p /etc/defguard/ssl
+            aws secretsmanager get-secret-value --secret-id "/${AWS::StackName}/grpc/proxy-key" --region ${AWS::Region} --query 'SecretString' --output text > /etc/defguard/ssl/defguard-proxy-grpc.key
+            aws secretsmanager get-secret-value --secret-id "/${AWS::StackName}/grpc/proxy-crt" --region ${AWS::Region} --query 'SecretString' --output text > /etc/defguard/ssl/defguard-proxy-grpc.crt
+            chmod 644 /etc/defguard/ssl/*.key /etc/defguard/ssl/*.crt
+            log "gRPC SSL certificates retrieved and configured"
 
             log "Enabling defguard-proxy service..."
             systemctl enable defguard-proxy
@@ -783,12 +966,15 @@ Resources:
       Tags:
         - Key: Name
           Value: !Sub ${StackPrefix}-proxy-instance
+    DependsOn:
+      - CoreInstance
   GatewayInstance:
     Type: AWS::EC2::Instance
     Properties:
       ImageId: !Ref DefguardAmiId
       InstanceType: !Ref GatewayInstanceType
       KeyName: !If [UseSshKey, !Ref SshKeyName, !Ref "AWS::NoValue"]
+      IamInstanceProfile: !Ref GatewayInstanceProfile
       NetworkInterfaces:
         - NetworkInterfaceId: !Ref GatewayNetworkInterface
           DeviceIndex: "0"
@@ -809,9 +995,22 @@ Resources:
             }
 
             (
+            log "Installing AWS CLI..."
+            apt-get update
+            apt-get install -y awscli
+            
+            log "Retrieving gRPC CA certificate from Secrets Manager..."
+            mkdir -p /etc/defguard/ssl
+            aws secretsmanager get-secret-value --secret-id "/${AWS::StackName}/grpc/ca-pem" --region ${AWS::Region} --query 'SecretString' --output text > /etc/defguard/ssl/defguard-ca.pem
+            chmod 644 /etc/defguard/ssl/defguard-ca.pem
+            log "gRPC CA certificate retrieved"
+            
+            log "Retrieving gateway secret from Secrets Manager..."
+            SECRET=$(aws secretsmanager get-secret-value --secret-id "/${AWS::StackName}/gateway/secret" --region ${AWS::Region} --query 'SecretString' --output text)
+            log "Gateway secret retrieved"
+            
             log "Generating gateway token..."
             NETWORK_ID="1"
-            SECRET="${GeneratedGatewaySecret.GatewaySecret}"
             ISSUER="DefGuard"
 
             HEADER='{"alg":"HS256","typ":"JWT"}'
@@ -845,13 +1044,13 @@ Resources:
             token = "$GATEWAY_TOKEN"
             # Required: defguard server gRPC endpoint URL
             # NOTE: must replace default with actual value
-            grpc_url = "http://${CorePrivateIP}:${CoreGrpcPort}"
+            grpc_url = "https://${CorePrivateIP}:${CoreGrpcPort}"
             # Optional: gateway name which will be displayed in defguard web UI
             name = "defguard-gateway-1"
             # Required: use userspace WireGuard implementation (e.g. wireguard-go)
             userspace = false
             # Optional: path to TLS cert file
-            # grpc_ca = cert.pem
+            grpc_ca = "/etc/defguard/ssl/defguard-ca.pem"
             # Required: how often should interface stat updates be sent to defguard server (in seconds)
             stats_period = 60
             # Required: name of WireGuard interface
@@ -926,7 +1125,6 @@ Resources:
           Value: !Sub ${StackPrefix}-gateway-instance
     DependsOn:
       - CoreInstance
-      - GeneratedGatewaySecret
 
   # Lambda function to call Defguard API for device creation
   DefguardFirstDeviceFunction:
@@ -1140,135 +1338,6 @@ Resources:
         - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
         - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
 
-  # Role for the Gateway Secret Generator Lambda function
-  GatewaySecretGeneratorRole:
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: lambda.amazonaws.com
-            Action: sts:AssumeRole
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
-
-  # Lambda function to generate Gateway Secret
-  GatewaySecretGenerator:
-    Type: AWS::Lambda::Function
-    Properties:
-      FunctionName: !Sub ${StackPrefix}-gateway-secret-generator
-      Runtime: python3.9
-      Handler: index.handler
-      Code:
-        ZipFile: |
-          import json
-          import secrets
-          import urllib.request
-          import urllib.parse
-          
-          def send_response(event, context, response_status, response_data=None, physical_resource_id=None):
-              if response_data is None:
-                  response_data = {}
-              
-              if physical_resource_id is None:
-                  physical_resource_id = event.get('PhysicalResourceId', 'GatewaySecretGenerator')
-              
-              response_url = event['ResponseURL']
-              
-              response_body = {
-                  'Status': response_status,
-                  'Reason': f'See CloudWatch Log Stream: {context.log_stream_name}',
-                  'PhysicalResourceId': physical_resource_id,
-                  'StackId': event['StackId'],
-                  'RequestId': event['RequestId'],
-                  'LogicalResourceId': event['LogicalResourceId'],
-                  'Data': response_data
-              }
-              
-              json_response_body = json.dumps(response_body).encode('utf-8')
-              
-              print(f"Sending response to {response_url}")
-              # Don't log the full response body as it may contain sensitive data
-              print("Response sent to CloudFormation")
-              
-              try:
-                  request = urllib.request.Request(
-                      response_url,
-                      data=json_response_body,
-                      headers={
-                          'Content-Type': '',
-                          'Content-Length': str(len(json_response_body))
-                      },
-                      method='PUT'
-                  )
-                  
-                  response = urllib.request.urlopen(request, timeout=30)
-                  print(f"Response sent successfully. Status: {response.status}")
-                  return True
-                  
-              except Exception as e:
-                  print(f"Failed to send response: {str(e)}")
-                  return False
-          
-          def generate_secret(length=64):
-              return secrets.token_urlsafe(length)[:length]
-          
-          def handler(event, context):
-              print(f"Event RequestType: {event.get('RequestType', 'Unknown')}")
-              
-              try:
-                  if event['RequestType'] == 'Create':
-                      # Generate a new 64-character secret
-                      gateway_secret = generate_secret(64)
-                      
-                      response_data = {
-                          'GatewaySecret': gateway_secret,
-                          'Message': 'Gateway secret generated successfully'
-                      }
-                      
-                      print(f"Generated gateway secret.")
-                      return send_response(event, context, 'SUCCESS', response_data)
-                      
-                  elif event['RequestType'] == 'Update':
-                      # For updates, keep the existing secret if available, otherwise generate new
-                      existing_secret = event.get('PhysicalResourceId', '')
-                      if len(existing_secret) == 64:
-                          response_data = {
-                              'GatewaySecret': existing_secret,
-                              'Message': 'Using existing gateway secret'
-                          }
-                          print("Reusing existing gateway secret")
-                      else:
-                          gateway_secret = generate_secret(64)
-                          response_data = {
-                              'GatewaySecret': gateway_secret,
-                              'Message': 'Generated new gateway secret for update'
-                          }
-                          print(f"Generated new gateway secret for update: {gateway_secret[:8]}...{gateway_secret[-8:]} (length: {len(gateway_secret)})")
-                      
-                      return send_response(event, context, 'SUCCESS', response_data, event.get('PhysicalResourceId'))
-                      
-                  elif event['RequestType'] == 'Delete':
-                      response_data = {'Message': 'Delete operation completed'}
-                      print("Gateway secret generator delete operation completed")
-                      return send_response(event, context, 'SUCCESS', response_data, event.get('PhysicalResourceId'))
-                      
-              except Exception as e:
-                  error_msg = str(e)
-                  print(f"Error occurred: {error_msg}")
-                  response_data = {'Error': error_msg}
-                  return send_response(event, context, 'FAILED', response_data)
-      Role: !GetAtt GatewaySecretGeneratorRole.Arn
-      Timeout: 30
-
-  # Custom resource to generate Gateway Secret
-  GeneratedGatewaySecret:
-    Type: AWS::CloudFormation::CustomResource
-    Properties:
-      ServiceToken: !GetAtt GatewaySecretGenerator.Arn
-
   DeviceSetup:
     Type: AWS::CloudFormation::CustomResource
     Properties:
@@ -1288,16 +1357,16 @@ Outputs:
     Value: !GetAtt CoreNetworkInterface.PrimaryPrivateIpAddress
     Export:
       Name: !Sub ${AWS::StackName}-core-private-ip
-  DefguardProxyPublicAddress:
-    Description: The public IP address of the Defguard Proxy instance
-    Value: !Ref ProxyElasticIP
-    Export:
-      Name: !Sub ${AWS::StackName}-proxy-public-ip
   DefguardProxyPrivateAddress:
     Description: The private IP address of the Defguard Proxy instance
     Value: !GetAtt ProxyNetworkInterface.PrimaryPrivateIpAddress
     Export:
       Name: !Sub ${AWS::StackName}-proxy-private-ip
+  DefguardProxyPublicAddress:
+    Description: The public IP address of the Defguard Proxy instance
+    Value: !Ref ProxyElasticIP
+    Export:
+      Name: !Sub ${AWS::StackName}-proxy-public-ip
   DefguardGatewayPublicAddress:
     Description: The public IP address of the Defguard Gateway instance
     Value: !Ref GatewayElasticIP
