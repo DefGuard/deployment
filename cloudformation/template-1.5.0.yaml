@@ -152,7 +152,7 @@ Parameters:
   DefguardAmiId:
     Type: String
     Description: AMI ID for Defguard.
-    Default: "ami-0b167c47edd2594e7"
+    Default: "ami-030fa11d061f26d50"
   SshKeyName:
     Type: String
     Description: (Optional) EC2 Key Pair name for SSH access to instances. If not provided, SSH access will not be available. Requires a manual setup of SSH security group rules afterwards.
