@@ -5,7 +5,7 @@ echo "Updating apt repositories..."
 sudo apt update
 
 echo "Installing dependencies..."
-sudo apt install -y ca-certificates curl
+sudo apt install -y ca-certificates curl awscli
 
 echo "Adding Defguard GPG key..."
 sudo install -m 0755 -d /etc/apt/keyrings
