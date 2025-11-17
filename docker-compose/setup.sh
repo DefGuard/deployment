@@ -714,12 +714,12 @@ generate_certs() {
 	openssl genrsa -des3 -out ${SSL_DIR}/defguard-ca.key -passout pass:"${PASSPHRASE}" 2048 2>&1 >> ${LOG_FILE}
 	# generate Root Certificate
 	#	TODO: allow configuring CA parameters
-	openssl req -x509 -new -nodes -key ${SSL_DIR}/defguard-ca.key -sha256 -days 1825 -out ${SSL_DIR}/defguard-ca.pem -passin pass:"${PASSPHRASE}" -subj "/C=PL/ST=Zachodniopomorskie/L=Szczecin/O=Example/OU=IT Department/CN=${CFG_DOMAIN}" 2>&1 >> ${LOG_FILE}
+	openssl req -x509 -new -nodes -key ${SSL_DIR}/defguard-ca.key -sha256 -days 1825 -out ${SSL_DIR}/defguard-ca.pem -passin pass:"${PASSPHRASE}" -subj "/CN=${CFG_DOMAIN}" 2>&1 >> ${LOG_FILE}
 
 	# generate CA-signed certificate for Defguard gRPC
 	openssl genrsa -out ${SSL_DIR}/defguard-grpc.key 2048 2>&1 >> ${LOG_FILE}
 
-	openssl req -new -key ${SSL_DIR}/defguard-grpc.key -out ${SSL_DIR}/defguard-grpc.csr -subj "/C=PL/ST=Zachodniopomorskie/L=Szczecin/O=Example/OU=IT Department/CN=${CFG_DOMAIN}" 2>&1 >> ${LOG_FILE}
+	openssl req -new -key ${SSL_DIR}/defguard-grpc.key -out ${SSL_DIR}/defguard-grpc.csr -subj "/CN=${CFG_DOMAIN}" 2>&1 >> ${LOG_FILE}
 	cat >${SSL_DIR}/defguard-grpc.ext <<EOF
 authorityKeyIdentifier=keyid,issuer
 basicConstraints=CA:FALSE
@@ -736,7 +736,7 @@ EOF
 	# generate CA-signed certificate for Defguard proxy gRPC
   openssl genrsa -out ${SSL_DIR}/defguard-proxy-grpc.key 2048 2>&1 >> ${LOG_FILE}
 
-  openssl req -new -key ${SSL_DIR}/defguard-proxy-grpc.key -out ${SSL_DIR}/defguard-proxy-grpc.csr -subj "/C=PL/ST=Zachodniopomorskie/L=Szczecin/O=Example/OU=IT Department/CN=${CFG_DOMAIN}" 2>&1 >> ${LOG_FILE}
+  openssl req -new -key ${SSL_DIR}/defguard-proxy-grpc.key -out ${SSL_DIR}/defguard-proxy-grpc.csr -subj "/CN=${CFG_DOMAIN}" 2>&1 >> ${LOG_FILE}
   cat >${SSL_DIR}/defguard-proxy-grpc.ext <<EOF
 authorityKeyIdentifier=keyid,issuer
 basicConstraints=CA:FALSE
