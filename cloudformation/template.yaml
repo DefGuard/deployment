@@ -359,7 +359,7 @@ Resources:
         - !Ref DatabaseSecurityGroup
       DBParameterGroupName: !Ref DBParameterGroup
       DeletionProtection: false
-      BackupRetentionPeriod: 0
+      BackupRetentionPeriod: 7
       Tags:
         - Key: Name
           Value: !Sub ${StackPrefix}-core-db
