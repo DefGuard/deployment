@@ -30,7 +30,7 @@ variable "instance_type" {
 }
 
 source "amazon-ebs" "defguard" {
-  ami_name      = "defguard-C-${var.core_version}-PX-${var.gateway_version}-GW-${var.proxy_version}-amd64"
+  ami_name      = "defguard-C-${var.core_version}-PX-${var.gateway_version}-GW-${var.proxy_version}-amd64-{{timestamp}}"
   instance_type = var.instance_type
   region        = var.region
   source_ami_filter {

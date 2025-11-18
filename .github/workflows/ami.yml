@@ -17,7 +17,7 @@ jobs:
           TAG="${GITHUB_REF#refs/tags/}"
           CORE_VERSION=$(echo $TAG | sed 's/.*c-\([^_]*\).*/\1/')
           PROXY_VERSION=$(echo $TAG | sed 's/.*px-\([^_]*\).*/\1/')
-          GATEWAY_VERSION=$(echo $TAG | sed 's/.*gw-\(.*\)/\1/')
+          GATEWAY_VERSION=$(echo $TAG | sed 's/.*gw-\([^_]*\).*/\1/')
           echo "CORE_VERSION=$CORE_VERSION" >> $GITHUB_OUTPUT
           echo "PROXY_VERSION=$PROXY_VERSION" >> $GITHUB_OUTPUT
           echo "GATEWAY_VERSION=$GATEWAY_VERSION" >> $GITHUB_OUTPUT
