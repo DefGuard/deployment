@@ -2,7 +2,7 @@ version: "3"
 
 services:
   db:
-    image: postgres:15-alpine
+    image: postgres:17-alpine
     restart: unless-stopped
     environment:
       POSTGRES_DB: defguard
@@ -14,7 +14,7 @@ services:
     #   - "5432:5432"
 
   # caddy:  # [PROXY]
-  #   image: caddy:2.7-alpine  # [PROXY]
+  #   image: caddy:2-alpine  # [PROXY]
   #   restart: unless-stopped  # [PROXY]
   #   volumes:  # [PROXY]
   #     - ${VOLUME_DIR:-./.volumes}/caddy/data:/data  # [PROXY]

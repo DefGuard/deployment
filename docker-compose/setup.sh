@@ -9,25 +9,25 @@ set -o errexit  # abort on nonzero exitstatus
 set -o pipefail # don't hide errors within pipes
 
 # Global variables
-VERSION="1.2.1"
+VERSION="1.2.2"
 SECRET_LENGTH=64
 PASSWORD_LENGTH=16
 
-VOLUME_DIR=".volumes"
+VOLUME_DIR='.volumes'
 SSL_DIR="${VOLUME_DIR}/ssl"
 RSA_DIR="${VOLUME_DIR}/core"
 
-COMPOSE_FILE="docker-compose.yaml"
-ENV_FILE=".env"
+COMPOSE_FILE='docker-compose.yaml'
+ENV_FILE='.env'
 LOG_FILE=$(mktemp setup.log.XXXXXX)
 
-BASE_COMPOSE_FILE_URL="https://raw.githubusercontent.com/DefGuard/deployment/main/docker-compose/docker-compose.yaml"
-BASE_ENV_FILE_URL="https://raw.githubusercontent.com/DefGuard/deployment/main/docker-compose/.env.template"
+BASE_COMPOSE_FILE_URL='https://raw.githubusercontent.com/DefGuard/deployment/main/docker-compose/docker-compose.yaml'
+BASE_ENV_FILE_URL='https://raw.githubusercontent.com/DefGuard/deployment/main/docker-compose/.env.template'
 
 if [ "$(uname)" = 'Darwin' ]; then
-  SED=(sed -i '')
+	SED=(sed -i '')
 else
-  SED=(sed -i)
+	SED=(sed -i)
 fi
 
 #####################
@@ -35,33 +35,33 @@ fi
 #####################
 
 main() {
-  is_utf_term
-  is_term_color
-  tput reset
+	is_utf_term
+	is_term_color
+	tput reset
 	print_header
 
 	# display help `--help` argument is found
 	for i in $*; do
-		test "$i" == "--help" && print_usage && exit 0
+		test "$i" = '--help' && print_usage && exit 0
 
-    # run non interactive
-    if [[ "$i" == "--non-interactive" ]]; then
-		    CFG_NON_INTERACTIVE=1
-        # we need to remove this element from $* or getopt will return an error
-        set -- $(remove_element "$i" $*)
-    fi
+		# run non interactive
+		if [ "$i" = '--non-interactive' ]; then
+			CFG_NON_INTERACTIVE=1
+			# we need to remove this element from $* or getopt will return an error
+			set -- $(remove_element "$i" $*)
+		fi
 
-    # configure https
-    if [[ "$i" == "--use-https" ]]; then
-		    CFG_USE_HTTPS=1
-        # we need to remove this element from $* or getopt will return an error
-        set -- $(remove_element "$i" $*)
-    fi
+		# configure https
+		if [ "$i" = '--use-https' ]; then
+			CFG_USE_HTTPS=1
+			# we need to remove this element from $* or getopt will return an error
+			set -- $(remove_element "$i" $*)
+		fi
 	done
 
-  #
-  # First let's gather the ENV/command line variables
-  #
+	#
+	# First let's gather the ENV/command line variables
+	#
 
 	# load configuration from env variables
 	load_configuration_from_env
@@ -71,12 +71,12 @@ main() {
 
 	# load configuration from user inputs
 	if [ X$CFG_VOLUME_DIR != X ]; then
-    VOLUME_DIR=${CFG_VOLUME_DIR}
-    SSL_DIR="${VOLUME_DIR}/ssl"
-    RSA_DIR="${VOLUME_DIR}/core"
+		VOLUME_DIR=${CFG_VOLUME_DIR}
+		SSL_DIR="${VOLUME_DIR}/ssl"
+		RSA_DIR="${VOLUME_DIR}/core"
 	fi
 
-  	export VOLUME_DIR
+	export VOLUME_DIR
 
 	# set current working directory
 	WORK_DIR_PATH=$(pwd)
@@ -84,7 +84,7 @@ main() {
 	# set docker compose file directory
 	PROD_COMPOSE_FILE="${WORK_DIR_PATH}/${COMPOSE_FILE}"
 
-  	# We have enough to check the enviromnent
+	# We have enough to check the enviromnent
 	# so check if necessary tools are available
 	check_environment
 
@@ -114,7 +114,7 @@ main() {
 
 	# generate caddyfile
 	create_caddyfile
-	
+
 	# generate `.env` file
 	generate_env_file
 
@@ -160,109 +160,108 @@ main() {
 ########################
 
 check_character_support() {
-    local char="$1"
-    echo -e "$char" | grep -q "$char"
+	local char="$1"
+	echo -e "$char" | grep -q "$char"
 }
 
 is_utf_term() {
-  if check_character_support "√"; then
-    TXT_CHECK="✓"
-    TXT_BEGIN="▶"
-    TXT_SUB="▷"
-    TXT_STAR="★"
-    TXT_X="✗"
-    TXT_INPUT="✍"
-  else
-    TXT_CHECK="+"
-    TXT_BEGIN=">>"
-    TXT_SUB=">"
-    TXT_STAR="*"
-    TXT_X="x"
-    TXT_INPUT=" ::"
-  fi
+	if check_character_support "√"; then
+		TXT_CHECK="✓"
+		TXT_BEGIN="▶"
+		TXT_SUB="▷"
+		TXT_STAR="★"
+		TXT_X="✗"
+		TXT_INPUT="✍"
+	else
+		TXT_CHECK="+"
+		TXT_BEGIN=">>"
+		TXT_SUB=">"
+		TXT_STAR="*"
+		TXT_X="x"
+		TXT_INPUT=" ::"
+	fi
 }
 
 is_term_color() {
+	if [[ $TERM == *"256"* ]]; then
+		C_RED="\033[31m"
+		C_GREEN="\033[32m"
+		C_YELLOW="\033[33m"
+		C_BLUE="\033[34m"
+		C_WHITE="\033[37m"
+		C_GREY="\033[90m"
 
-  if [[ $TERM == *"256"* ]]; then
-    C_RED="\033[31m"
-    C_GREEN="\033[32m"
-    C_YELLOW="\033[33m"
-    C_BLUE="\033[34m"
-    C_WHITE="\033[37m"
-    C_GREY="\033[90m"
+		C_LRED="\033[91m"
+		C_LGREEN="\033[92m"
+		C_LYELLOW="\033[93m"
+		C_LBLUE="\033[94m"
 
-    C_LRED="\033[91m"
-    C_LGREEN="\033[92m"
-    C_LYELLOW="\033[93m"
-    C_LBLUE="\033[94m"
+		C_BOLD="\033[1m"
+		C_ITALICS="\033[3m"
+		C_BG_GREY="\033[100m"
+		C_END="\033[0m"
+	else
+		C_RED=""
+		C_GREEN=""
+		C_YELLOW=""
+		C_BLUE=""
+		C_WHITE=""
+		C_GREY=""
 
-    C_BOLD="\033[1m"
-    C_ITALICS="\033[3m"
-    C_BG_GREY="\033[100m"
-    C_END="\033[0m"
-  else
-    C_RED=""
-    C_GREEN=""
-    C_YELLOW=""
-    C_BLUE=""
-    C_WHITE=""
-    C_GREY=""
+		C_LRED=""
+		C_LGREEN=""
+		C_LYELLOW=""
+		C_LBLUE=""
 
-    C_LRED=""
-    C_LGREEN=""
-    C_LYELLOW=""
-    C_LBLUE=""
-
-    C_BOLD=""
-    C_ITALICS=""
-    C_BG_GREY=""
-    C_END=""
-  fi
+		C_BOLD=""
+		C_ITALICS=""
+		C_BG_GREY=""
+		C_END=""
+	fi
 }
 
 # remove array element
 remove_element() {
-    local remove=$1
-    local result=()
-    for element in "$@"; do
-        if [[ "$element" != "$remove" ]]; then
-            result+=("$element")
-        fi
-    done
-    echo "${result[@]}"
+	local remove=$1
+	local result=()
+	for element in "$@"; do
+		if [ "$element" != "$remove" ]; then
+			result+=("$element")
+		fi
+	done
+	echo "${result[@]}"
 }
 
 # Function to convert relative path to absolute path
 to_absolute_path() {
-    local path="$1"
-    if [[ "${path:0:1}" != "/" ]]; then
-        path="$(cd "$(dirname "$path")" && pwd)/$(basename "$path")"
-    fi
-    echo ${path}
+	local path="$1"
+	if [ "${path:0:1}" != '/' ]; then
+		path="$(cd "$(dirname "$path")" && pwd)/$(basename "$path")"
+	fi
+	echo ${path}
 }
 
 print_header() {
-  echo -e "${C_LBLUE}"
-  cat << _EOF_
-           #                                                                    
-      ##   #                                                                    
-    ##  ## #        #              ##                                        #  
-  ##      ##        #             #         #                                #  
-  #   ##   #   #### #    ####   #####   ####    #     #    ####    ###  #### #  
-  # ##  ##    #    ##   #    ##   #    #    #   #     #   #    #  #    #    ##  
-  ##      ##  #     #  ########   #    #    #   #     #        #  #    #     #  
-  # ##  ## #  #     #  ##         #    #####    #     #   ######  #    #     #  
-  #   ##   #  #    ##   #     #   #    #        #     #  #     #  #    #    ##  
-  ##      ##   #### #    #####    #    #######   #### #   #### #  #     #### #  
-    ##  ## #                          #       #                                 
-      ##   #                           #######                                  
-          #                                                                     
+	echo -e "${C_LBLUE}"
+	cat <<_EOF_
+           #
+      ##   #
+    ##  ## #        #              ##                                        #
+  ##      ##        #             #         #                                #
+  #   ##   #   #### #    ####   #####   ####    #     #    ####    ###  #### #
+  # ##  ##    #    ##   #    ##   #    #    #   #     #   #    #  #    #    ##
+  ##      ##  #     #  ########   #    #    #   #     #        #  #    #     #
+  # ##  ## #  #     #  ##         #    #####    #     #   ######  #    #     #
+  #   ##   #  #    ##   #     #   #    #        #     #  #     #  #    #    ##
+  ##      ##   #### #    #####    #    #######   #### #   #### #  #     #### #
+    ##  ## #                          #       #
+      ##   #                           #######
+          #
 _EOF_
-  	echo -e "${C_END}"
+	echo -e "${C_END}"
 	echo
 	echo "Defguard docker-compose deployment setup script v${VERSION}"
-	echo -e "Copyright (C) 2023-2024 ${C_BOLD}teonite${C_END} <${C_BG_GREY}${C_YELLOW}https://teonite.com${C_END}>"
+	echo -e "Copyright ©2023-2025 ${C_BOLD}defguard sp. z o.o.${C_END} <${C_BG_GREY}${C_YELLOW}https://defguard.net/${C_END}>"
 	echo
 }
 
@@ -315,7 +314,7 @@ check_environment() {
 		if command_exists docker-compose; then
 			COMPOSE_CMD="docker-compose"
 		else
-      echo
+			echo
 			echo >&2 "ERROR: docker-compose or docker compose command not found"
 			echo >&2 "ERROR: dependency failed, exiting..."
 			exit 3
@@ -331,17 +330,17 @@ check_environment() {
 
 	if [ -d ${VOLUME_DIR} ]; then
 		echo
-				echo >&2 "ERROR: volume directory: ${VOLUME_DIR} exists."
-				echo >&2 "ERROR: this means, I would overwrite the configuration, database and certificates."
-				echo >&2 "ERROR: please backup or remove the volume directory."
+		echo >&2 "ERROR: volume directory: ${VOLUME_DIR} exists."
+		echo >&2 "ERROR: this means the configuration, database and certificates would be overwritten."
+		echo >&2 "ERROR: please backup or remove the volume directory."
 		exit 3
 	fi
 
 	if [ -f "$PROD_COMPOSE_FILE" ]; then
 		echo
-			echo >&2 "ERROR: docker compose file: ${PROD_COMPOSE_FILE} already exists."
-			echo >&2 "ERROR: this means I would overwrite the previous configuration."
-			echo >&2 "ERROR: please backup or remove the docker compose file."
+		echo >&2 "ERROR: docker compose file: ${PROD_COMPOSE_FILE} already exists."
+		echo >&2 "ERROR: this means the previous configuration would be overwritten."
+		echo >&2 "ERROR: please backup or remove the docker compose file."
 		exit 3
 	fi
 
@@ -349,8 +348,8 @@ check_environment() {
 	for dir in ${VOLUME_DIR} ${SSL_DIR} ${RSA_DIR}; do
 		mkdir ${dir}
 		if [ $? -ne 0 ]; then
-		echo >&2 "ERROR: cloud not create volume directory: ${dir}"
-		exit 3
+			echo >&2 "ERROR: cloud not create volume directory: ${dir}"
+			exit 3
 		fi
 	done
 
@@ -392,9 +391,9 @@ load_configuration_from_env() {
 	CFG_ENROLLMENT_DOMAIN="$DEFGUARD_ENROLLMENT_DOMAIN"
 	CFG_PRE_RELEASE="$DEFGUARD_PRE_RELEASE"
 	CFG_DEV="$DEFGUARD_DEV"
-  if ! [ $CFG_USE_HTTPS ]; then
-	  CFG_USE_HTTPS="$DEFGUARD_USE_HTTPS"
-  fi
+	if ! [ $CFG_USE_HTTPS ]; then
+		CFG_USE_HTTPS="$DEFGUARD_USE_HTTPS"
+	fi
 
 	print_confirmation
 }
@@ -488,8 +487,8 @@ load_configuration_from_cli() {
 }
 
 load_configuration_from_input() {
-  echo -ne "${C_ITALICS}${C_LBLUE}"
-  cat << _EOF_
+	echo -ne "${C_ITALICS}${C_LBLUE}"
+	cat <<_EOF_
 
 Please provide the values to configure your Defguard instance. If you've
 already configured some options by setting environment variables or through
@@ -500,8 +499,8 @@ with --non-interactive CLI flag.
 
 _EOF_
 
-echo -ne "${C_GREY}"
-cat << _EOF_
+	echo -ne "${C_GREY}"
+	cat <<_EOF_
 
 Choose domains that will be used to expose your instance through Caddy
 reverse proxy. Defguard uses a separate domain for the Web UI, and for
@@ -515,8 +514,8 @@ You can also enable HTTPS here (highly recommended), which will configure
 Caddy to automatically provision SSL certificates.
 _EOF_
 
-echo -ne "${C_BOLD}"
-cat << _EOF_
+	echo -ne "${C_BOLD}"
+	cat <<_EOF_
 
 Please note that this requires your server to have a public IP address
 and public DNS records for your chosen domains to be configured
@@ -524,19 +523,19 @@ correctly (pointing to your server's IP address).
 
 _EOF_
 
-  echo -ne "${C_END}"
+	echo -ne "${C_END}"
 
-  echo -e "  ${C_BOLD}${C_GREEN}${TXT_STAR} General config ${TXT_STAR}${C_END}\n"
+	echo -e "  ${C_BOLD}${C_GREEN}${TXT_STAR} General config ${TXT_STAR}${C_END}\n"
 
-  while [ X${domain} = "X" ]; do
-    echo -ne "${C_YELLOW}${TXT_INPUT}${C_END} "
-	  read -p "Enter Defguard domain [default: ${CFG_DOMAIN}]: " domain
-	  if [ "$domain" ]; then
-		  CFG_DOMAIN="$domain"
-	  fi
-  done
+	while [ X${domain} = "X" ]; do
+		echo -ne "${C_YELLOW}${TXT_INPUT}${C_END} "
+		read -p "Enter Defguard domain [default: ${CFG_DOMAIN}]: " domain
+		if [ "$domain" ]; then
+			CFG_DOMAIN="$domain"
+		fi
+	done
 
-  echo -ne "${C_YELLOW}${TXT_INPUT}${C_END} "
+	echo -ne "${C_YELLOW}${TXT_INPUT}${C_END} "
 	read -p "Enter enrollment domain [default: ${CFG_ENROLLMENT_DOMAIN}]: " enroll
 	if [ "$enroll" ]; then
 		CFG_ENROLLMENT_DOMAIN="$enroll"
@@ -544,76 +543,76 @@ _EOF_
 
 	use_https_bool_value="false"
 	if [ $CFG_USE_HTTPS ]; then use_https_bool_value="true"; fi
-  echo -ne "${C_YELLOW}${TXT_INPUT}${C_END} "
+	echo -ne "${C_YELLOW}${TXT_INPUT}${C_END} "
 	read -p "Use HTTPS [default: ${use_https_bool_value}]: " https
 	if [ "$https" ]; then
 		CFG_USE_HTTPS=1
 	fi
 
-  echo
-  echo -e "  ${C_BOLD}${C_GREEN}${TXT_STAR} WireGuard VPN${TXT_STAR}${C_END}\n"
+	echo
+	echo -e "  ${C_BOLD}${C_GREEN}${TXT_STAR} WireGuard VPN${TXT_STAR}${C_END}\n"
 
-  echo -ne "${C_ITALICS}${C_GREY}"
-  cat << _EOF_
+	echo -ne "${C_ITALICS}${C_GREY}"
+	cat <<_EOF_
 
 If you wish to configure and deploy WireGuard VPN gateway, please
 provide your VPN location name. To skip, just press enter and VPN will
 not be configured.
 _EOF_
 
-  echo -ne "${C_END}\n"
+	echo -ne "${C_END}\n"
 
-  echo -ne "${C_YELLOW}${TXT_INPUT}${C_END} "
+	echo -ne "${C_YELLOW}${TXT_INPUT}${C_END} "
 	read -p "Enter VPN location name [default: ${CFG_VPN_NAME}]: " vpn_name
 	if [ "$vpn_name" ]; then
 		CFG_VPN_NAME="$vpn_name"
 	fi
 
 	if [ "$CFG_VPN_NAME" ]; then
-    while [ X${vpn_ip} = "X" ]; do
-      echo -ne "${C_YELLOW}${TXT_INPUT}${C_END} "
-		  read -p "Enter VPN server address and subnet (e.g. 10.0.60.1/24) [default: ${CFG_VPN_IP}]: " vpn_ip
-		  if [ "$vpn_ip" ]; then
-			  CFG_VPN_IP="$vpn_ip"
-		  fi
-    done
+		while [ X${vpn_ip} = "X" ]; do
+			echo -ne "${C_YELLOW}${TXT_INPUT}${C_END} "
+			read -p "Enter VPN server address and subnet (e.g. 10.0.60.1/24) [default: ${CFG_VPN_IP}]: " vpn_ip
+			if [ "$vpn_ip" ]; then
+				CFG_VPN_IP="$vpn_ip"
+			fi
+		done
 
-    echo -ne "${C_ITALICS}${C_GREY}"
-    cat << _EOF_
+		echo -ne "${C_ITALICS}${C_GREY}"
+		cat <<_EOF_
 
 Now we'll configure a public endpoint (IP + port) that your WireGuard
 client devices will use to safely connect to your gateway from the
 public internet.
-		
+
 Since we'll be starting the gateway on this server the IP address should
-be the same as your server's public IP address. 
+be the same as your server's public IP address.
 _EOF_
-    echo -ne "${C_BOLD}"
-    cat << _EOF_
+		echo -ne "${C_BOLD}"
+		cat <<_EOF_
 Please also remember that your firewall should be configured
 to allow incoming UDP traffic on the chosen WireGuard port.
 _EOF_
-		
-    echo -ne "${C_END}"
 
-    while [ X${public_ip} = "X" ]; do
-      echo -ne "${C_YELLOW}${TXT_INPUT}${C_END} "
-      read -p "Enter VPN gateway public IP (no domains!) [default: ${CFG_VPN_GATEWAY_IP}]: " public_ip
-		  if [ "$public_ip" ]; then
-			  CFG_VPN_GATEWAY_IP="$public_ip"
-		  fi
-    done
+		echo -ne "${C_END}"
 
-    while [ X${public_port} = "X" ]; do
-      echo -ne "${C_YELLOW}${TXT_INPUT}${C_END} "
-		  read -p "Enter VPN gateway public port [default: ${CFG_VPN_GATEWAY_PORT}]: " public_port
-		  if [ "$public_port" ]; then
-			  CFG_VPN_GATEWAY_PORT="$public_port"
-		  fi
-    done
+		while [ X${public_ip} = "X" ]; do
+			echo -ne "${C_YELLOW}${TXT_INPUT}${C_END} "
+			read -p "Enter VPN gateway public IP (no domains!) [default: ${CFG_VPN_GATEWAY_IP}]: " public_ip
+			if [ "$public_ip" ]; then
+				CFG_VPN_GATEWAY_IP="$public_ip"
+			fi
+		done
 
-  else
-    echo -e "  ${C_BOLD}${C_RED}${TXT_X} ${C_GREY} WireGuard VPN skipped${C_END}\n"
+		while [ X${public_port} = "X" ]; do
+			echo -ne "${C_YELLOW}${TXT_INPUT}${C_END} "
+			read -p "Enter VPN gateway public port [default: ${CFG_VPN_GATEWAY_PORT}]: " public_port
+			if [ "$public_port" ]; then
+				CFG_VPN_GATEWAY_PORT="$public_port"
+			fi
+		done
+
+	else
+		echo -e "  ${C_BOLD}${C_RED}${TXT_X} ${C_GREY} WireGuard VPN skipped${C_END}\n"
 	fi
 
 	echo
@@ -663,11 +662,11 @@ generate_external_urls() {
 }
 
 print_config() {
-  echo
+	echo
 	echo " ${TXT_BEGIN} Setting up your Defguard instance with following config:"
-  echo
+	echo
 	echo -e "   ${TXT_SUB} data volume: ${C_BOLD}${VOLUME_DIR}${C_END}"
-  echo
+	echo
 	echo -e "   ${TXT_SUB} domain: ${C_BOLD}${CFG_DOMAIN}${C_END}"
 	echo -e "   ${TXT_SUB} web UI URL: ${C_BOLD}${CFG_DEFGUARD_URL}${C_END}"
 
@@ -682,7 +681,7 @@ print_config() {
 		echo -e "   ${TXT_SUB} Enrollment service domain: ${C_BOLD}${CFG_ENROLLMENT_DOMAIN}${C_END}"
 		echo -e "   ${TXT_SUB} Enrollment service URL: ${C_BOLD}${CFG_ENROLLMENT_URL}${C_END}"
 	fi
-  echo
+	echo
 	echo -e " ${TXT_BEGIN} All executed command's results are in log file: ${C_BOLD}${LOG_FILE}${C_END}"
 	echo
 }
@@ -711,15 +710,15 @@ generate_certs() {
 	echo "PEM passphrase for SSL certificates set to '${PASSPHRASE}'."
 
 	# generate private key for CA
-	openssl genrsa -des3 -out ${SSL_DIR}/defguard-ca.key -passout pass:"${PASSPHRASE}" 2048 2>&1 >> ${LOG_FILE}
+	openssl genrsa -des3 -out ${SSL_DIR}/defguard-ca.key -passout pass:"${PASSPHRASE}" 2048 2>&1 >>${LOG_FILE}
 	# generate Root Certificate
 	#	TODO: allow configuring CA parameters
-	openssl req -x509 -new -nodes -key ${SSL_DIR}/defguard-ca.key -sha256 -days 1825 -out ${SSL_DIR}/defguard-ca.pem -passin pass:"${PASSPHRASE}" -subj "/CN=${CFG_DOMAIN}" 2>&1 >> ${LOG_FILE}
+	openssl req -x509 -new -nodes -key ${SSL_DIR}/defguard-ca.key -sha256 -days 1825 -out ${SSL_DIR}/defguard-ca.pem -passin pass:"${PASSPHRASE}" -subj "/CN=${CFG_DOMAIN}" 2>&1 >>${LOG_FILE}
 
 	# generate CA-signed certificate for Defguard gRPC
-	openssl genrsa -out ${SSL_DIR}/defguard-grpc.key 2048 2>&1 >> ${LOG_FILE}
+	openssl genrsa -out ${SSL_DIR}/defguard-grpc.key 2048 2>&1 >>${LOG_FILE}
 
-	openssl req -new -key ${SSL_DIR}/defguard-grpc.key -out ${SSL_DIR}/defguard-grpc.csr -subj "/CN=${CFG_DOMAIN}" 2>&1 >> ${LOG_FILE}
+	openssl req -new -key ${SSL_DIR}/defguard-grpc.key -out ${SSL_DIR}/defguard-grpc.csr -subj "/CN=${CFG_DOMAIN}" 2>&1 >>${LOG_FILE}
 	cat >${SSL_DIR}/defguard-grpc.ext <<EOF
 authorityKeyIdentifier=keyid,issuer
 basicConstraints=CA:FALSE
@@ -731,13 +730,13 @@ DNS.2 = core
 DNS.3 = localhost
 EOF
 	openssl x509 -req -in ${SSL_DIR}/defguard-grpc.csr -CA ${SSL_DIR}/defguard-ca.pem -CAkey ${SSL_DIR}/defguard-ca.key -passin pass:"${PASSPHRASE}" -CAcreateserial \
-		-out ${SSL_DIR}/defguard-grpc.crt -days 1000 -sha256 -extfile ${SSL_DIR}/defguard-grpc.ext 2>&1 >> ${LOG_FILE}
+		-out ${SSL_DIR}/defguard-grpc.crt -days 1000 -sha256 -extfile ${SSL_DIR}/defguard-grpc.ext 2>&1 >>${LOG_FILE}
 
 	# generate CA-signed certificate for Defguard proxy gRPC
-  openssl genrsa -out ${SSL_DIR}/defguard-proxy-grpc.key 2048 2>&1 >> ${LOG_FILE}
+	openssl genrsa -out ${SSL_DIR}/defguard-proxy-grpc.key 2048 2>&1 >>${LOG_FILE}
 
-  openssl req -new -key ${SSL_DIR}/defguard-proxy-grpc.key -out ${SSL_DIR}/defguard-proxy-grpc.csr -subj "/CN=${CFG_DOMAIN}" 2>&1 >> ${LOG_FILE}
-  cat >${SSL_DIR}/defguard-proxy-grpc.ext <<EOF
+	openssl req -new -key ${SSL_DIR}/defguard-proxy-grpc.key -out ${SSL_DIR}/defguard-proxy-grpc.csr -subj "/CN=${CFG_DOMAIN}" 2>&1 >>${LOG_FILE}
+	cat >${SSL_DIR}/defguard-proxy-grpc.ext <<EOF
 authorityKeyIdentifier=keyid,issuer
 basicConstraints=CA:FALSE
 keyUsage = digitalSignature, nonRepudiation, keyEncipherment, dataEncipherment
@@ -746,14 +745,14 @@ subjectAltName = @alt_names
 DNS.1 = proxy
 DNS.2 = localhost
 EOF
-  openssl x509 -req -in ${SSL_DIR}/defguard-proxy-grpc.csr -CA ${SSL_DIR}/defguard-ca.pem -CAkey ${SSL_DIR}/defguard-ca.key -passin pass:"${PASSPHRASE}" -CAcreateserial \
-    -out ${SSL_DIR}/defguard-proxy-grpc.crt -days 1000 -sha256 -extfile ${SSL_DIR}/defguard-proxy-grpc.ext 2>&1 >> ${LOG_FILE}
+	openssl x509 -req -in ${SSL_DIR}/defguard-proxy-grpc.csr -CA ${SSL_DIR}/defguard-ca.pem -CAkey ${SSL_DIR}/defguard-ca.key -passin pass:"${PASSPHRASE}" -CAcreateserial \
+		-out ${SSL_DIR}/defguard-proxy-grpc.crt -days 1000 -sha256 -extfile ${SSL_DIR}/defguard-proxy-grpc.ext 2>&1 >>${LOG_FILE}
 }
 
 generate_rsa() {
 	echo "Generating RSA keys in ${RSA_DIR}..."
 	mkdir -p ${RSA_DIR}
-	openssl genpkey -out ${RSA_DIR}/rsakey.pem -algorithm RSA -pkeyopt rsa_keygen_bits:2048 2>&1 >> ${LOG_FILE}
+	openssl genpkey -out ${RSA_DIR}/rsakey.pem -algorithm RSA -pkeyopt rsa_keygen_bits:2048 2>&1 >>${LOG_FILE}
 
 }
 
@@ -767,7 +766,7 @@ generate_password() {
 
 generate_secret_inner() {
 	local length="$1"
-	openssl rand -base64 ${length} | tr -d "=+/" | tr -d '\n' | cut -c1-${length-1} 
+	openssl rand -base64 ${length} | tr -d '=+/' | tr -d '\n' | cut -c1-${length-1}
 }
 
 create_caddyfile() {
@@ -803,9 +802,9 @@ EOF
 }
 
 fetch_base_compose_file() {
-		echo -n " ${TXT_BEGIN} Fetching base compose file to ${PROD_COMPOSE_FILE}... "
+	echo -n " ${TXT_BEGIN} Fetching base compose file to ${PROD_COMPOSE_FILE}... "
 
-	curl --proto '=https' --tlsv1.2 -sSf "${BASE_COMPOSE_FILE_URL}" -o "${PROD_COMPOSE_FILE}" 2>&1 >> ${LOG_FILE}
+	curl --proto '=https' --tlsv1.2 -sSf "${BASE_COMPOSE_FILE_URL}" -o "${PROD_COMPOSE_FILE}" 2>&1 >>${LOG_FILE}
 
 	print_confirmation
 }
@@ -813,7 +812,7 @@ fetch_base_compose_file() {
 generate_env_file() {
 	PROD_ENV_FILE="${WORK_DIR_PATH}/${ENV_FILE}"
 	fetch_base_env_file
-  update_env_file
+	update_env_file
 
 	print_confirmation
 }
@@ -821,8 +820,8 @@ generate_env_file() {
 fetch_base_env_file() {
 	echo -e " ${TXT_BEGIN} Fetching base ${ENV_FILE} file for compose stack..."
 
-	curl --proto '=https' --tlsv1.2 -sSf "${BASE_ENV_FILE_URL}" -o "${PROD_ENV_FILE}" 2>&1 >> ${LOG_FILE}	
-  print_confirmation
+	curl --proto '=https' --tlsv1.2 -sSf "${BASE_ENV_FILE_URL}" -o "${PROD_ENV_FILE}" 2>&1 >>${LOG_FILE}
+	print_confirmation
 }
 
 update_env_file() {
@@ -851,7 +850,7 @@ update_env_file() {
 
 	set_env_file_value "DEFGUARD_URL" "${CFG_DEFGUARD_URL}"
 	set_env_file_value "DEFGUARD_WEBAUTHN_RP_ID" "${CFG_DOMAIN}"
-  print_confirmation
+	print_confirmation
 }
 
 set_env_file_value() {
@@ -897,7 +896,7 @@ enable_vpn_gateway() {
 
 	# create VPN location
 	echo " ${TXT_BEGIN} Adding VPN to core & generating gateway token..."
-  VPN_NETWORK=`echo ${CFG_VPN_IP} | awk -F'[./]' '{print $1"."$2"."$3".0/"$5}'`
+	VPN_NETWORK=$(echo ${CFG_VPN_IP} | awk -F'[./]' '{print $1"."$2"."$3".0/"$5}')
 	token=$($COMPOSE_CMD -f "${PROD_COMPOSE_FILE}" --env-file "${PROD_ENV_FILE}" run core init-vpn-location --name "${CFG_VPN_NAME}" --address "${CFG_VPN_IP}" --endpoint "${CFG_VPN_GATEWAY_IP}" --port "${CFG_VPN_GATEWAY_PORT}" --allowed-ips "${VPN_NETWORK}" | tail -n 1)
 	if [ $? -ne 0 ]; then
 		echo >&2 "ERROR: failed to create VPN network"
@@ -925,12 +924,12 @@ print_instance_summary() {
 	echo -e "\t${TXT_SUB} password: ${C_BOLD}${DEFGUARD_DEFAULT_ADMIN_PASSWORD}${C_END}"
 	echo
 	if [ "$CFG_ENABLE_VPN" ]; then
-  		echo -e "\t\tVPN server public endpoint is ${C_BOLD}${CFG_VPN_GATEWAY_IP}:${CFG_VPN_GATEWAY_PORT}${C_END}"
-  		echo -e "\t\tVPN network is ${C_BOLD}${VPN_NETWORK}${C_END}"
-  		echo -e "\t\t! Make sure your firewall allows external UDP traffic to port ${C_BOLD}${CFG_VPN_GATEWAY_PORT}${C_END} !"
+		echo -e "\t\tVPN server public endpoint is ${C_BOLD}${CFG_VPN_GATEWAY_IP}:${CFG_VPN_GATEWAY_PORT}${C_END}"
+		echo -e "\t\tVPN network is ${C_BOLD}${VPN_NETWORK}${C_END}"
+		echo -e "\t\t! Make sure your firewall allows external UDP traffic to port ${C_BOLD}${CFG_VPN_GATEWAY_PORT}${C_END} !"
 		echo
 		echo -e "\t\tTo test if the VPN is working: ping ${CFG_VPN_IP} (after connecting to VPN)"
-  	fi
+	fi
 	echo
 	echo -e "Files used to deploy your instance are stored in:"
 	echo -e "\t docker compose file: ${C_BOLD}${PROD_COMPOSE_FILE}${C_END}"
