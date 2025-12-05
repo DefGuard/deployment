@@ -1,0 +1,48 @@
+name: Build Defguard AMI
+
+on:
+  push:
+    tags:
+      - "ami_c-*_px-*_gw-*"
+
+jobs:
+  build-ami:
+    name: Build Defguard AMI
+    runs-on: [self-hosted, Linux, X64]
+
+    steps:
+      - name: Extract versions
+        id: versions
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          CORE_VERSION=$(echo $TAG | sed 's/.*c-\([^_]*\).*/\1/')
+          PROXY_VERSION=$(echo $TAG | sed 's/.*px-\([^_]*\).*/\1/')
+          GATEWAY_VERSION=$(echo $TAG | sed 's/.*gw-\([^_]*\).*/\1/')
+          echo "CORE_VERSION=$CORE_VERSION" >> $GITHUB_OUTPUT
+          echo "PROXY_VERSION=$PROXY_VERSION" >> $GITHUB_OUTPUT
+          echo "GATEWAY_VERSION=$GATEWAY_VERSION" >> $GITHUB_OUTPUT
+          echo "Core version: $CORE_VERSION"
+          echo "Proxy version: $PROXY_VERSION"
+          echo "Gateway version: $GATEWAY_VERSION"
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup `packer`
+        uses: hashicorp/setup-packer@main
+
+      - name: Run `packer init`
+        run: "packer init ./cloudformation/ami/defguard.pkr.hcl"
+
+      - name: Build AMI with `packer`
+        run: |
+          packer validate --var "core_version=${{ steps.versions.outputs.CORE_VERSION }}" \
+              --var "proxy_version=${{ steps.versions.outputs.PROXY_VERSION }}" \
+              --var "gateway_version=${{ steps.versions.outputs.GATEWAY_VERSION }}" \
+              ./cloudformation/ami/defguard.pkr.hcl
+          packer build --var "core_version=${{ steps.versions.outputs.CORE_VERSION }}" \
+              --var "proxy_version=${{ steps.versions.outputs.PROXY_VERSION }}" \
+              --var "gateway_version=${{ steps.versions.outputs.GATEWAY_VERSION }}" \
+              ./cloudformation/ami/defguard.pkr.hcl
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}

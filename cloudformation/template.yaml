@@ -1,0 +1,1426 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Full Defguard stack with Core, Proxy, Gateway, and a Database.
+Parameters:
+  StackPrefix:
+    Type: String
+    Default: defguard
+    Description: Prefix for all resource names, if you want to allow multiple Defguard deployments in the same region
+    AllowedPattern: ^[a-z0-9-]+$
+    ConstraintDescription: Must contain only lowercase letters, numbers, and hyphens
+  CoreUrl:
+    Type: String
+    Description: The URL for the Defguard Core (e.g., https://core.example.com)
+  CoreGrpcPort:
+    Type: Number
+    Default: 50055
+    Description: The gRPC port for the Defguard Core
+  CoreHttpPort:
+    Type: Number
+    Default: 8000
+    Description: The HTTP port for the Defguard Core web UI
+  CoreCookieInsecure:
+    Type: String
+    Default: "false"
+    AllowedValues:
+      - "true"
+      - "false"
+    Description: Whether to allow insecure cookies for the Defguard Core web UI. Set to "true" only if accessing the web UI over HTTP (not recommended for production).
+  CoreDefaultAdminPassword:
+    Type: String
+    NoEcho: true
+    Description: The initial password for the Defguard dashboard admin user
+  CoreInstanceType:
+    Type: String
+    Default: t3.micro
+    Description: The instance type for the Defguard Core server
+  ProxyUrl:
+    Type: String
+    Description: The URL for the Defguard Proxy (e.g., https://proxy.example.com)
+  ProxyGrpcPort:
+    Type: Number
+    Default: 50051
+    Description: The gRPC port for the Defguard Proxy
+  ProxyHttpPort:
+    Type: Number
+    Default: 8000
+    Description: The HTTP port for the Defguard Proxy
+  ProxyInstanceType:
+    Type: String
+    Default: t3.micro
+    Description: The instance type for the Defguard Proxy server
+  GatewayInstanceType:
+    Type: String
+    Default: t3.micro
+    Description: The instance type for the Defguard Gateway server
+  DbName:
+    Type: String
+    Default: defguard
+    Description: The name of the database
+  DbUsername:
+    Type: String
+    Default: defguard
+    Description: The username for the database
+  DbPassword:
+    Type: String
+    NoEcho: true
+    Description: The password for the database user
+  DbPort:
+    Type: Number
+    Default: 5432
+    Description: The port on which the database will listen
+  DbStorage:
+    Type: Number
+    Default: 20
+    Description: The amount of storage allocated for the database in GB
+  DbInstanceClass:
+    Type: String
+    Default: db.t3.micro
+    Description: The instance class for the database
+  VpcName:
+    Type: String
+    Default: defguard-vpc
+    Description: The name of the VPC
+  VpcCidr:
+    Type: String
+    Default: 10.0.0.0/16
+    Description: The CIDR block for the VPC
+  PublicSubnet1Cidr:
+    Type: String
+    Default: 10.0.1.0/24
+    Description: The CIDR block for the first public subnet. Must be within the VPC CIDR range.
+  PublicSubnet2Cidr:
+    Type: String
+    Default: 10.0.4.0/24
+    Description: The CIDR block for the second public subnet. Must be within the VPC CIDR range.
+  PrivateSubnet1Cidr:
+    Type: String
+    Default: 10.0.2.0/24
+    Description: The CIDR block for the first private subnet. Must be within the VPC CIDR range.
+  PrivateSubnet2Cidr:
+    Type: String
+    Default: 10.0.3.0/24
+    Description: The CIDR block for the second private subnet. Must be within the VPC CIDR range.
+  VpnNetworkName:
+    Type: String
+    Default: vpn1
+    Description: The name of the VPN network (location)
+  VpnNetworkAddress:
+    Type: String
+    Default: 10.10.10.1/24
+    Description: The CIDR address of the VPN network (location).
+  VpnNetworkPort:
+    Type: Number
+    Default: 51820
+    Description: The UDP port for the Gateway to accept VPN connections
+  VpnNetworkNat:
+    Type: String
+    Default: "true"
+    AllowedValues:
+      - "true"
+      - "false"
+    Description: Whether to enable NAT for the VPN network. This may allow VPN clients to access the internet through the Gateway.
+  CoreLogLevel:
+    Type: String
+    Default: info
+    AllowedValues:
+      - trace
+      - debug
+      - info
+      - warn
+      - error
+    Description: Log level for Defguard Core component
+  ProxyLogLevel:
+    Type: String
+    Default: info
+    AllowedValues:
+      - trace
+      - debug
+      - info
+      - warn
+      - error
+    Description: Log level for Defguard Proxy component
+  GatewayLogLevel:
+    Type: String
+    Default: info
+    AllowedValues:
+      - trace
+      - debug
+      - info
+      - warn
+      - error
+    Description: Log level for Defguard Gateway component
+  DefguardAmiId:
+    Type: String
+    Description: AMI ID for Defguard.
+    Default: "ami-030fa11d061f26d50"
+  SshKeyName:
+    Type: String
+    Description: (Optional) EC2 Key Pair name for SSH access to instances. If not provided, SSH access will not be available. Requires a manual setup of SSH security group rules afterwards.
+    Default: ""
+  SSLCertificateArn:
+    Type: String
+    Description: (Optional) ARN of the SSL certificate for HTTPS termination on the reverse proxies. If not provided, only HTTP will be used.
+    Default: ""
+Conditions:
+  UseSshKey: !Not [!Equals [!Ref SshKeyName, ""]]
+  UseSSLCertificate: !Not [!Equals [!Ref SSLCertificateArn, ""]]
+Resources:
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VpcCidr
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      Tags:
+        - Key: Name
+          Value: !Ref VpcName
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub ${VpcName}-igw
+  VPCGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref InternetGateway
+  DefguardPublicSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Ref PublicSubnet1Cidr
+      AvailabilityZone: !Select
+        - 0
+        - !GetAZs ""
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub ${VpcName}-public-subnet-1
+  
+  DefguardPublicSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Ref PublicSubnet2Cidr
+      AvailabilityZone: !Select
+        - 1
+        - !GetAZs ""
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub ${VpcName}-public-subnet-2
+  DefguardPrivateSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Ref PrivateSubnet1Cidr
+      AvailabilityZone: !Select
+        - 0
+        - !GetAZs ""
+      Tags:
+        - Key: Name
+          Value: !Sub ${VpcName}-private-subnet-1
+  DefguardPrivateSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Ref PrivateSubnet2Cidr
+      AvailabilityZone: !Select
+        - 1
+        - !GetAZs ""
+      Tags:
+        - Key: Name
+          Value: !Sub ${VpcName}-private-subnet-2
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub ${VpcName}-public-rt
+  PublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: VPCGatewayAttachment
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+  DefguardPublicSubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref DefguardPublicSubnet
+      RouteTableId: !Ref PublicRouteTable
+  
+  DefguardPublicSubnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref DefguardPublicSubnet2
+      RouteTableId: !Ref PublicRouteTable
+  NATGatewayEIP:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key: Name
+          Value: !Sub ${VpcName}-nat-eip
+  NATGateway:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt NATGatewayEIP.AllocationId
+      SubnetId: !Ref DefguardPublicSubnet
+      Tags:
+        - Key: Name
+          Value: !Sub ${VpcName}-nat-gateway
+  PrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub ${VpcName}-private-rt
+  PrivateRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NATGateway
+  DefguardPrivateSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref DefguardPrivateSubnet1
+      RouteTableId: !Ref PrivateRouteTable
+  DefguardPrivateSubnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref DefguardPrivateSubnet2
+      RouteTableId: !Ref PrivateRouteTable
+  DBSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupName: !Sub ${StackPrefix}-db-subnet-group
+      DBSubnetGroupDescription: Subnet group for Defguard database
+      SubnetIds:
+        - !Ref DefguardPrivateSubnet1
+        - !Ref DefguardPrivateSubnet2
+      Tags:
+        - Key: Name
+          Value: !Sub ${StackPrefix}-db-subnet-group
+  DBParameterGroup:
+    Type: AWS::RDS::DBParameterGroup
+    Properties:
+      DBParameterGroupName: !Sub ${StackPrefix}-db-parameter-group
+      Description: Parameter group for Defguard database
+      Family: postgres17
+      Parameters:
+        rds.force_ssl: "0"
+      Tags:
+        - Key: Name
+          Value: !Sub ${StackPrefix}-db-parameter-group
+  DatabaseSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub ${StackPrefix}-db-sg
+      GroupDescription: Access to the database
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: !Ref DbPort
+          ToPort: !Ref DbPort
+          SourceSecurityGroupId: !Ref CoreSecurityGroup
+      Tags:
+        - Key: Name
+          Value: !Sub ${StackPrefix}-db-sg
+  LambdaSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub ${StackPrefix}-lambda-sg
+      GroupDescription: Lambda function access
+      VpcId: !Ref VPC
+      SecurityGroupEgress:
+        - IpProtocol: "-1"
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: !Sub ${StackPrefix}-lambda-sg
+  Database:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      DBName: !Ref DbName
+      DBInstanceIdentifier: !Sub ${StackPrefix}-core-db
+      DBInstanceClass: !Ref DbInstanceClass
+      Engine: postgres
+      MasterUsername: !Ref DbUsername
+      MasterUserPassword: !Ref DbPassword
+      Port: !Ref DbPort
+      AllocatedStorage: !Ref DbStorage
+      DBSubnetGroupName: !Ref DBSubnetGroup
+      VPCSecurityGroups:
+        - !Ref DatabaseSecurityGroup
+      DBParameterGroupName: !Ref DBParameterGroup
+      DeletionProtection: false
+      BackupRetentionPeriod: 7
+      Tags:
+        - Key: Name
+          Value: !Sub ${StackPrefix}-core-db
+  CoreSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub ${StackPrefix}-core-sg
+      GroupDescription: Core access
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: !Ref CoreGrpcPort
+          ToPort: !Ref CoreGrpcPort
+          SourceSecurityGroupId: !Ref GatewaySecurityGroup
+          Description: gRPC communication with gateways
+        - IpProtocol: tcp
+          FromPort: !Ref CoreHttpPort
+          ToPort: !Ref CoreHttpPort
+          SourceSecurityGroupId: !Ref LambdaSecurityGroup
+          Description: HTTP access from Lambda function
+        - IpProtocol: tcp
+          FromPort: !Ref CoreHttpPort
+          ToPort: !Ref CoreHttpPort
+          SourceSecurityGroupId: !Ref InternalProxyALBSecurityGroup
+          Description: HTTP access from internal reverse proxy ALB
+      SecurityGroupEgress:
+        - IpProtocol: "-1"
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: !Sub ${StackPrefix}-core-sg
+  ProxySecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub ${StackPrefix}-proxy-sg
+      GroupDescription: Proxy access
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: !Ref ProxyHttpPort
+          ToPort: !Ref ProxyHttpPort
+          SourceSecurityGroupId: !Ref PublicProxyALBSecurityGroup
+          Description: HTTP access from public reverse proxy ALB
+        - IpProtocol: tcp
+          FromPort: !Ref ProxyGrpcPort
+          ToPort: !Ref ProxyGrpcPort
+          SourceSecurityGroupId: !Ref CoreSecurityGroup
+          Description: Internal communication with core
+      SecurityGroupEgress:
+        - IpProtocol: "-1"
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: !Sub ${StackPrefix}-proxy-sg
+  GatewaySecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub ${StackPrefix}-gateway-sg
+      GroupDescription: Gateway access
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: udp
+          FromPort: !Ref VpnNetworkPort
+          ToPort: !Ref VpnNetworkPort
+          CidrIp: 0.0.0.0/0
+          Description: VPN traffic from clients
+      SecurityGroupEgress:
+        - IpProtocol: "-1"
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: !Sub ${StackPrefix}-gateway-sg
+  
+  # Security group for the public reverse proxy (ALB)
+  PublicProxyALBSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub ${StackPrefix}-public-proxy-alb-sg
+      GroupDescription: Public reverse proxy ALB access
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+          Description: HTTP access from internet
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+          Description: HTTPS access from internet
+      SecurityGroupEgress:
+        - IpProtocol: "-1"
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: !Sub ${StackPrefix}-public-proxy-alb-sg
+  
+  # Security group for the internal reverse proxy (ALB)
+  InternalProxyALBSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub ${StackPrefix}-internal-proxy-alb-sg
+      GroupDescription: Internal reverse proxy ALB access
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          SourceSecurityGroupId: !Ref GatewaySecurityGroup
+          Description: HTTP access from gateways
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          SourceSecurityGroupId: !Ref GatewaySecurityGroup
+          Description: HTTPS access from gateways
+      SecurityGroupEgress:
+        - IpProtocol: "-1"
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: !Sub ${StackPrefix}-internal-proxy-alb-sg
+  CoreNetworkInterface:
+    Type: AWS::EC2::NetworkInterface
+    Properties:
+      SubnetId: !Ref DefguardPrivateSubnet1
+      GroupSet:
+        - !Ref CoreSecurityGroup
+      Tags:
+        - Key: Name
+          Value: !Sub ${StackPrefix}-core-network-interface
+  ProxyNetworkInterface:
+    Type: AWS::EC2::NetworkInterface
+    Properties:
+      SubnetId: !Ref DefguardPublicSubnet
+      GroupSet:
+        - !Ref ProxySecurityGroup
+      Tags:
+        - Key: Name
+          Value: !Sub ${StackPrefix}-proxy-network-interface
+  ProxyElasticIP:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key: Name
+          Value: !Sub ${StackPrefix}-proxy-eip
+  ProxyEIPAssociation:
+    Type: AWS::EC2::EIPAssociation
+    Properties:
+      NetworkInterfaceId: !Ref ProxyNetworkInterface
+      AllocationId: !GetAtt ProxyElasticIP.AllocationId
+  GatewayNetworkInterface:
+    Type: AWS::EC2::NetworkInterface
+    Properties:
+      SubnetId: !Ref DefguardPublicSubnet
+      GroupSet:
+        - !Ref GatewaySecurityGroup
+      Tags:
+        - Key: Name
+          Value: !Sub ${StackPrefix}-gateway-network-interface
+  GatewayElasticIP:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key: Name
+          Value: !Sub ${StackPrefix}-gateway-eip
+  GatewayEIPAssociation:
+    Type: AWS::EC2::EIPAssociation
+    Properties:
+      NetworkInterfaceId: !Ref GatewayNetworkInterface
+      AllocationId: !GetAtt GatewayElasticIP.AllocationId
+
+  # Public reverse proxy (ALB) for Defguard Proxy
+  PublicProxyALB:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: !Sub ${StackPrefix}-public-proxy-alb
+      Type: application
+      Scheme: internet-facing
+      IpAddressType: ipv4
+      Subnets:
+        - !Ref DefguardPublicSubnet
+        - !Ref DefguardPublicSubnet2
+      SecurityGroups:
+        - !Ref PublicProxyALBSecurityGroup
+      Tags:
+        - Key: Name
+          Value: !Sub ${StackPrefix}-public-proxy-alb
+
+  # Target group for the public reverse proxy
+  PublicProxyTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: !Sub ${StackPrefix}-public-proxy-tg
+      Port: !Ref ProxyHttpPort
+      Protocol: HTTP
+      VpcId: !Ref VPC
+      HealthCheckEnabled: true
+      HealthCheckPath: /api/v1/health
+      HealthCheckIntervalSeconds: 30
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 2
+      UnhealthyThresholdCount: 5
+      TargetType: ip
+      Targets:
+        - Id: !GetAtt ProxyNetworkInterface.PrimaryPrivateIpAddress
+          Port: !Ref ProxyHttpPort
+      Tags:
+        - Key: Name
+          Value: !Sub ${StackPrefix}-public-proxy-tg
+
+  # HTTP listener for public reverse proxy
+  PublicProxyHTTPListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref PublicProxyTargetGroup
+      LoadBalancerArn: !Ref PublicProxyALB
+      Port: 80
+      Protocol: HTTP
+
+  # HTTPS listener for public reverse proxy (only if SSL certificate is provided)
+  PublicProxyHTTPSListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Condition: UseSSLCertificate
+    Properties:
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref PublicProxyTargetGroup
+      LoadBalancerArn: !Ref PublicProxyALB
+      Port: 443
+      Protocol: HTTPS
+      Certificates:
+        - CertificateArn: !Ref SSLCertificateArn
+
+  # Internal reverse proxy (ALB) for Defguard Core
+  InternalProxyALB:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: !Sub ${StackPrefix}-internal-proxy-alb
+      Type: application
+      Scheme: internal
+      IpAddressType: ipv4
+      Subnets:
+        - !Ref DefguardPrivateSubnet1
+        - !Ref DefguardPrivateSubnet2
+      SecurityGroups:
+        - !Ref InternalProxyALBSecurityGroup
+      Tags:
+        - Key: Name
+          Value: !Sub ${StackPrefix}-internal-proxy-alb
+
+  # Target group for the internal reverse proxy (HTTP)
+  InternalProxyHTTPTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: !Sub ${StackPrefix}-internal-proxy-http-tg
+      Port: !Ref CoreHttpPort
+      Protocol: HTTP
+      VpcId: !Ref VPC
+      HealthCheckEnabled: true
+      HealthCheckPath: /api/v1/health
+      HealthCheckIntervalSeconds: 30
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 2
+      UnhealthyThresholdCount: 5
+      TargetType: ip
+      Targets:
+        - Id: !GetAtt CoreNetworkInterface.PrimaryPrivateIpAddress
+          Port: !Ref CoreHttpPort
+      Tags:
+        - Key: Name
+          Value: !Sub ${StackPrefix}-internal-proxy-http-tg
+
+  # HTTP listener for internal reverse proxy
+  InternalProxyHTTPListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref InternalProxyHTTPTargetGroup
+      LoadBalancerArn: !Ref InternalProxyALB
+      Port: 80
+      Protocol: HTTP
+
+  # HTTPS listener for internal reverse proxy (only if SSL certificate is provided)
+  InternalProxyHTTPSListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Condition: UseSSLCertificate
+    Properties:
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref InternalProxyHTTPTargetGroup
+      LoadBalancerArn: !Ref InternalProxyALB
+      Port: 443
+      Protocol: HTTPS
+      Certificates:
+        - CertificateArn: !Ref SSLCertificateArn
+
+  # IAM Role for Core Instance
+  CoreInstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: SecretsManagerAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - secretsmanager:CreateSecret
+                  - secretsmanager:PutSecretValue
+                  - secretsmanager:GetSecretValue
+                Resource:
+                  - !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:/${AWS::StackName}/grpc/*
+                  - !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:/${AWS::StackName}/gateway/*
+
+  CoreInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - !Ref CoreInstanceRole
+
+  # IAM Role for Proxy Instance
+  ProxyInstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: SecretsManagerReadAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource: !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:/${AWS::StackName}/grpc/*
+
+  ProxyInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - !Ref ProxyInstanceRole
+
+  # IAM Role for Gateway Instance
+  GatewayInstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: SecretsManagerReadAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource:
+                  - !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:/${AWS::StackName}/grpc/*
+                  - !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:/${AWS::StackName}/gateway/*
+
+  GatewayInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - !Ref GatewayInstanceRole
+
+  CoreInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref DefguardAmiId
+      InstanceType: !Ref CoreInstanceType
+      KeyName: !If [UseSshKey, !Ref SshKeyName, !Ref "AWS::NoValue"]
+      IamInstanceProfile: !Ref CoreInstanceProfile
+      NetworkInterfaces:
+        - NetworkInterfaceId: !Ref CoreNetworkInterface
+          DeviceIndex: "0"
+      UserData:
+        Fn::Base64:
+          Fn::Sub: |
+            #!/bin/bash
+            set -e
+            LOG_FILE="/var/log/defguard.log"
+
+            log() {
+                echo "$(date '+%Y-%m-%d %H:%M:%S') $1"
+            }
+
+            generate_secret_inner() {
+                local length="$1"
+                openssl rand -base64 "$length" | tr -d "=+/" | tr -d '\n' | cut -c1-"$length"
+            }
+
+            (
+
+            log "Generating gateway secret..."
+            GATEWAY_SECRET=$(generate_secret_inner 64)
+            
+            log "Storing gateway secret in Secrets Manager..."
+            aws secretsmanager create-secret --name "/${AWS::StackName}/gateway/secret" --secret-string "$GATEWAY_SECRET" --region ${AWS::Region} || \
+              aws secretsmanager put-secret-value --secret-id "/${AWS::StackName}/gateway/secret" --secret-string "$GATEWAY_SECRET" --region ${AWS::Region}
+            
+            log "Writing Core configuration to /etc/defguard/core.conf..."
+            mkdir -p /etc/defguard
+            tee /etc/defguard/core.conf <<EOF
+            ### Core configuration ###
+            DEFGUARD_AUTH_SECRET=$(generate_secret_inner 64)
+            DEFGUARD_GATEWAY_SECRET=$GATEWAY_SECRET
+            DEFGUARD_YUBIBRIDGE_SECRET=$(generate_secret_inner 64)
+            DEFGUARD_SECRET_KEY=$(generate_secret_inner 64)
+            DEFGUARD_URL=${CoreUrl}
+            DEFGUARD_AUTH_SESSION_LIFETIME=604800
+            DEFGUARD_ADMIN_GROUPNAME=admin
+            DEFGUARD_DEFAULT_ADMIN_PASSWORD=${CoreDefaultAdminPassword}
+            DEFGUARD_GRPC_PORT=${CoreGrpcPort}
+            DEFGUARD_HTTP_PORT=${CoreHttpPort}
+            DEFGUARD_COOKIE_INSECURE=${CoreCookieInsecure}
+            DEFGUARD_LOG_LEVEL=${CoreLogLevel}
+            
+            ### gRPC SSL configuration ###
+            DEFGUARD_PROXY_GRPC_CA=/etc/defguard/ssl/defguard-ca.pem
+            DEFGUARD_GRPC_CERT=/etc/defguard/ssl/defguard-grpc.crt
+            DEFGUARD_GRPC_KEY=/etc/defguard/ssl/defguard-grpc.key
+
+            ### Proxy configuration ###
+            DEFGUARD_PROXY_URL=https://${ProxyNetworkInterface.PrimaryPrivateIpAddress}:${ProxyGrpcPort}
+            DEFGUARD_ENROLLMENT_URL=${ProxyUrl}
+
+            ### DB configuration ###
+            DEFGUARD_DB_HOST="${Database.Endpoint.Address}"
+            DEFGUARD_DB_PORT=${DbPort}
+            DEFGUARD_DB_NAME="${DbName}"
+            DEFGUARD_DB_USER="${DbUsername}"
+            DEFGUARD_DB_PASSWORD="${DbPassword}"
+            EOF
+
+            log "Generating gRPC SSL certificates..."
+
+            mkdir -p /etc/defguard/ssl
+            cd /etc/defguard/ssl
+            
+            # Extract domain from CoreUrl
+            DOMAIN=$(echo "${CoreUrl}" | sed 's|https\?://||' | cut -d'/' -f1)
+            PASSPHRASE=$(generate_secret_inner 64)
+
+            openssl genrsa -des3 -out defguard-ca.key -passout pass:"${!PASSPHRASE}" 2048 2>&1
+            openssl req -x509 -new -nodes -key defguard-ca.key -sha256 -days 1825 -out defguard-ca.pem -passin pass:"${!PASSPHRASE}" -subj "/CN=${!DOMAIN}" 2>&1
+            openssl genrsa -out defguard-grpc.key 2048 2>&1
+            openssl req -new -key defguard-grpc.key -out defguard-grpc.csr -subj "/CN=${!DOMAIN}" 2>&1
+            cat >defguard-grpc.ext <<EOF
+            authorityKeyIdentifier=keyid,issuer
+            basicConstraints=CA:FALSE
+            keyUsage = digitalSignature, nonRepudiation, keyEncipherment, dataEncipherment
+            subjectAltName = @alt_names
+            [alt_names]
+            IP.1 = ${CoreNetworkInterface.PrimaryPrivateIpAddress}
+            DNS.1= localhost
+            EOF
+
+            openssl x509 -req -in defguard-grpc.csr -CA defguard-ca.pem -CAkey defguard-ca.key -passin pass:"${!PASSPHRASE}" -CAcreateserial \
+            -out defguard-grpc.crt -days 1000 -sha256 -extfile defguard-grpc.ext 2>&1
+            
+            openssl genrsa -out defguard-proxy-grpc.key 2048 2>&1
+
+            openssl req -new -key defguard-proxy-grpc.key -out defguard-proxy-grpc.csr -subj "/CN=${!DOMAIN}" 2>&1
+            cat >defguard-proxy-grpc.ext <<EOF
+            authorityKeyIdentifier=keyid,issuer
+            basicConstraints=CA:FALSE
+            keyUsage = digitalSignature, nonRepudiation, keyEncipherment, dataEncipherment
+            subjectAltName = @alt_names
+            [alt_names]
+            IP.1 = ${ProxyNetworkInterface.PrimaryPrivateIpAddress}
+            DNS.1 = localhost
+            EOF
+            openssl x509 -req -in defguard-proxy-grpc.csr -CA defguard-ca.pem -CAkey defguard-ca.key -passin pass:"${!PASSPHRASE}" -CAcreateserial \
+              -out defguard-proxy-grpc.crt -days 1000 -sha256 -extfile defguard-proxy-grpc.ext 2>&1
+
+            # Set permissions
+            chmod 644 /etc/defguard/ssl/*.key
+            chmod 644 /etc/defguard/ssl/*.pem /etc/defguard/ssl/*.crt
+            
+            # Store certificates in Secrets Manager for other instances
+            log "Storing certificates in Secrets Manager..."
+            aws secretsmanager create-secret --name "/${AWS::StackName}/grpc/ca-pem" --secret-string file://defguard-ca.pem --region ${AWS::Region} || \
+              aws secretsmanager put-secret-value --secret-id "/${AWS::StackName}/grpc/ca-pem" --secret-string file://defguard-ca.pem --region ${AWS::Region}
+            
+            aws secretsmanager create-secret --name "/${AWS::StackName}/grpc/ca-passphrase" --secret-string "${!PASSPHRASE}" --region ${AWS::Region} || \
+              aws secretsmanager put-secret-value --secret-id "/${AWS::StackName}/grpc/ca-passphrase" --secret-string "${!PASSPHRASE}" --region ${AWS::Region}
+            
+            aws secretsmanager create-secret --name "/${AWS::StackName}/grpc/proxy-key" --secret-string file://defguard-proxy-grpc.key --region ${AWS::Region} || \
+              aws secretsmanager put-secret-value --secret-id "/${AWS::StackName}/grpc/proxy-key" --secret-string file://defguard-proxy-grpc.key --region ${AWS::Region}
+            
+            aws secretsmanager create-secret --name "/${AWS::StackName}/grpc/proxy-crt" --secret-string file://defguard-proxy-grpc.crt --region ${AWS::Region} || \
+              aws secretsmanager put-secret-value --secret-id "/${AWS::StackName}/grpc/proxy-crt" --secret-string file://defguard-proxy-grpc.crt --region ${AWS::Region}
+            
+            # Clean up temporary files
+            rm -f defguard-grpc.csr defguard-grpc.ext defguard-proxy-grpc.csr defguard-proxy-grpc.ext defguard-ca.key defguard-ca.srl
+            
+            log "gRPC SSL certificates generated and stored"
+
+            log "Enabling defguard service..."
+            systemctl enable defguard
+
+            log "Starting defguard service..."
+            systemctl start defguard
+
+            log "Creating VPN location with address ${VpnNetworkAddress} and endpoint ${GatewayElasticIP} and port ${VpnNetworkPort}..."
+            export $(grep -v '^#' /etc/defguard/core.conf | xargs) && /usr/bin/defguard --secret-key "$GATEWAY_SECRET" init-vpn-location --name ${VpnNetworkName} --address ${VpnNetworkAddress} --endpoint ${GatewayElasticIP} --port ${VpnNetworkPort} --id 1 --allowed-ips ${VpnNetworkAddress} --allowed-ips ${VpcCidr} >> "$LOG_FILE" 2>&1
+
+            log "Created VPN location ${VpnNetworkName} with address ${VpnNetworkAddress} and endpoint ${GatewayElasticIP} and port ${VpnNetworkPort}"
+
+            log "Setup completed."
+            ) 2>&1 | tee -a "$LOG_FILE"
+      Tags:
+        - Key: Name
+          Value: !Sub ${StackPrefix}-core-instance
+    DependsOn:
+      - Database
+  ProxyInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref DefguardAmiId
+      InstanceType: !Ref ProxyInstanceType
+      KeyName: !If [UseSshKey, !Ref SshKeyName, !Ref "AWS::NoValue"]
+      IamInstanceProfile: !Ref ProxyInstanceProfile
+      NetworkInterfaces:
+        - NetworkInterfaceId: !Ref ProxyNetworkInterface
+          DeviceIndex: "0"
+      UserData:
+        Fn::Base64:
+          Fn::Sub: |
+            #!/bin/bash
+            set -e
+            LOG_FILE="/var/log/defguard.log"
+
+            log() {
+                echo "$(date '+%Y-%m-%d %H:%M:%S') $1"
+            }
+
+            (
+
+            log "Writing proxy configuration to /etc/defguard/proxy.toml..."
+            mkdir -p /etc/defguard
+            tee /etc/defguard/proxy.toml <<EOF
+            # port the API server will listen on
+            http_port = ${ProxyHttpPort}
+            # port the gRPC server will listen on
+            grpc_port = ${ProxyGrpcPort}
+
+            log_level = "${ProxyLogLevel}"
+            rate_limit_per_second = 0
+            rate_limit_burst = 0
+            url = "${ProxyUrl}"
+
+            # gRPC SSL configuration
+            grpc_cert = "/etc/defguard/ssl/defguard-proxy-grpc.crt"
+            grpc_key = "/etc/defguard/ssl/defguard-proxy-grpc.key"
+
+            EOF
+
+            log "Retrieving gRPC SSL certificates from Secrets Manager..."
+            mkdir -p /etc/defguard/ssl
+            aws secretsmanager get-secret-value --secret-id "/${AWS::StackName}/grpc/proxy-key" --region ${AWS::Region} --query 'SecretString' --output text > /etc/defguard/ssl/defguard-proxy-grpc.key
+            aws secretsmanager get-secret-value --secret-id "/${AWS::StackName}/grpc/proxy-crt" --region ${AWS::Region} --query 'SecretString' --output text > /etc/defguard/ssl/defguard-proxy-grpc.crt
+            chmod 644 /etc/defguard/ssl/*.key /etc/defguard/ssl/*.crt
+            log "gRPC SSL certificates retrieved and configured"
+
+            log "Enabling defguard-proxy service..."
+            systemctl enable defguard-proxy
+
+            log "Starting defguard-proxy service..."
+            systemctl start defguard-proxy
+
+            log "Setup completed."
+            ) 2>&1 | tee -a "$LOG_FILE"
+      Tags:
+        - Key: Name
+          Value: !Sub ${StackPrefix}-proxy-instance
+    DependsOn:
+      - CoreInstance
+  GatewayInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref DefguardAmiId
+      InstanceType: !Ref GatewayInstanceType
+      KeyName: !If [UseSshKey, !Ref SshKeyName, !Ref "AWS::NoValue"]
+      IamInstanceProfile: !Ref GatewayInstanceProfile
+      NetworkInterfaces:
+        - NetworkInterfaceId: !Ref GatewayNetworkInterface
+          DeviceIndex: "0"
+      UserData:
+        Fn::Base64:
+          Fn::Sub:
+          - |
+            #!/bin/bash
+            set -e
+            LOG_FILE="/var/log/defguard.log"
+
+            log() {
+                echo "$(date '+%Y-%m-%d %H:%M:%S') $1"
+            }
+
+            base64url_encode() {
+                echo -n "$1" | openssl base64 -e -A | tr '+/' '-_' | tr -d '='
+            }
+
+            (
+
+            log "Retrieving gRPC CA certificate from Secrets Manager..."
+            mkdir -p /etc/defguard/ssl
+            aws secretsmanager get-secret-value --secret-id "/${AWS::StackName}/grpc/ca-pem" --region ${AWS::Region} --query 'SecretString' --output text > /etc/defguard/ssl/defguard-ca.pem
+            chmod 644 /etc/defguard/ssl/defguard-ca.pem
+            log "gRPC CA certificate retrieved"
+            
+            log "Retrieving gateway secret from Secrets Manager..."
+            SECRET=$(aws secretsmanager get-secret-value --secret-id "/${AWS::StackName}/gateway/secret" --region ${AWS::Region} --query 'SecretString' --output text)
+            log "Gateway secret retrieved"
+            
+            log "Generating gateway token..."
+            NETWORK_ID="1"
+            ISSUER="DefGuard"
+
+            HEADER='{"alg":"HS256","typ":"JWT"}'
+            NOW=$(date +%s)
+            EXPIRATION=$(($NOW + 315360000))
+            PAYLOAD=$(cat <<EOF
+            {
+              "iss": "$ISSUER",
+              "sub": "DEFGUARD-NETWORK-$NETWORK_ID",
+              "client_id": "$NETWORK_ID",
+              "exp": $EXPIRATION,
+              "nbf": $NOW
+            }
+            EOF
+            )
+            HEADER_B64=$(base64url_encode "$HEADER")
+            PAYLOAD_B64=$(base64url_encode "$PAYLOAD")
+            SIGNING_INPUT="$HEADER_B64.$PAYLOAD_B64"
+            SIGNATURE=$(echo -n "$SIGNING_INPUT" | openssl dgst -sha256 -hmac "$SECRET" -binary | openssl base64 -e -A | tr '+/' '-_' | tr -d '=')
+
+            GATEWAY_TOKEN="$SIGNING_INPUT.$SIGNATURE"
+
+            log "Writing gateway configuration to /etc/defguard/gateway.toml..."
+            mkdir -p /etc/defguard
+            tee /etc/defguard/gateway.toml <<EOF
+            # This is an example config file for defguard VPN gateway
+            # To use it fill in actual values for your deployment below
+
+            # Required: secret token generated by defguard
+            # NOTE: must replace default with actual value
+            token = "$GATEWAY_TOKEN"
+            # Required: defguard server gRPC endpoint URL
+            # NOTE: must replace default with actual value
+            grpc_url = "https://${CorePrivateIP}:${CoreGrpcPort}"
+            # Optional: gateway name which will be displayed in defguard web UI
+            name = "defguard-gateway-1"
+            # Required: use userspace WireGuard implementation (e.g. wireguard-go)
+            userspace = false
+            # Optional: path to TLS cert file
+            grpc_ca = "/etc/defguard/ssl/defguard-ca.pem"
+            # Required: how often should interface stat updates be sent to defguard server (in seconds)
+            stats_period = 60
+            # Required: name of WireGuard interface
+            ifname = "wg0"
+            # Optional: write PID to this file
+            # pidfile = defguard-gateway.pid
+            # Required: enable logging to syslog
+            use_syslog = false
+            # Required: which syslog facility to use
+            syslog_facility = "LOG_USER"
+            # Required: which socket to use for logging
+            syslog_socket = "/var/run/log"
+
+            # Optional: Command which will be run before bringing interface up
+            # Example: Allow all traffic through WireGuard interface:
+            #pre_up = "/path/to/iptables -A INPUT -i wg0 -j ACCEPT
+            # example with multiple commands - add them to a shell script
+            #pre_up = "/path/to/shell /path/to/script"
+
+            # Optional: Command which will be run after bringing interface up
+            # Example: Add a default route after WireGuard interface is up:
+            #post_up = "/path/to/ip route add default via 192.168.1.1 dev wg0"
+
+            # Optional: Command which will be run before bringing interface down
+            # Example: Remove WireGuard-related firewall rules before interface is taken down:
+            #pre_down = "/path/to/iptables -D INPUT -i wg0 -j ACCEPT"
+
+            # Optional: Command which will be run after bringing interface down
+            # Example: Remove the default route after WireGuard interface is down:
+            #post_down = "/pat/to/ip route del default via 192.168.1.1 dev wg0"
+
+            # A HTTP port that will expose the REST HTTP gateway health status
+            # STATUS CODES:
+            # 200 - Gateway is working and is connected to CORE
+            # 503 - gateway works but is not connected to CORE
+            #health_port = 55003
+
+            # Optional: Enable automatic masquerading of traffic by the firewall
+            masquerade = ${VpnNetworkNat}
+
+            # Optional: Set the priority of the Defguard forward chain
+            #fw_priority = 0
+
+            log_level = "${GatewayLogLevel}"
+            EOF
+
+            if [ "${VpnNetworkNat}" = "true" ]; then
+              log "Enabling IP forwarding for NAT (IPv4)..."
+              sysctl -w net.ipv4.ip_forward=1
+              grep -q -e '^net.ipv4.ip_forward' /etc/sysctl.conf || echo "net.ipv4.ip_forward = 1" | tee -a /etc/sysctl.conf
+
+              log "Enabling IP forwarding for NAT (IPv6)..."
+              sysctl -w net.ipv6.conf.all.forwarding=1
+              grep -q -e '^net.ipv6.conf.all.forwarding' /etc/sysctl.conf || echo "net.ipv6.conf.all.forwarding = 1" | tee -a /etc/sysctl.conf
+            fi
+
+            log "Reloading systemd daemon to apply changes..."
+            systemctl daemon-reload
+
+            log "Enabling defguard-gateway service..."
+            systemctl enable defguard-gateway
+
+            log "Starting defguard-gateway service..."
+            systemctl start defguard-gateway
+            log "testing secret string generation..."
+
+            log "Setup completed."
+            ) 2>&1 | tee -a "$LOG_FILE"
+          - { CorePrivateIP: !GetAtt CoreNetworkInterface.PrimaryPrivateIpAddress }
+      Tags:
+        - Key: Name
+          Value: !Sub ${StackPrefix}-gateway-instance
+    DependsOn:
+      - CoreInstance
+
+  # Lambda function to call Defguard API for device creation
+  DefguardFirstDeviceFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub ${StackPrefix}-defguard-device-setup
+      Runtime: python3.9
+      Handler: index.handler
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref LambdaSecurityGroup
+        SubnetIds:
+          - !Ref DefguardPrivateSubnet1
+      Code:
+        ZipFile: |
+          import json
+          import urllib.request
+          import urllib.parse
+          import urllib.error
+          import time
+          
+          def send_response(event, context, response_status, response_data=None, physical_resource_id=None):
+              if response_data is None:
+                  response_data = {}
+              
+              # Use existing ID for updates/deletes, let CloudFormation generate one for creates
+              if physical_resource_id is None and event['RequestType'] != 'Create':
+                  physical_resource_id = event.get('PhysicalResourceId', 'DefguardDeviceSetup')
+              elif physical_resource_id is None:
+                  physical_resource_id = 'DefguardDeviceSetup'
+              
+              response_url = event['ResponseURL']
+              
+              response_body = {
+                  'Status': response_status,
+                  'Reason': f'See CloudWatch Log Stream: {context.log_stream_name}',
+                  'PhysicalResourceId': physical_resource_id,
+                  'StackId': event['StackId'],
+                  'RequestId': event['RequestId'],
+                  'LogicalResourceId': event['LogicalResourceId'],
+                  'Data': response_data
+              }
+              
+              json_response_body = json.dumps(response_body).encode('utf-8')
+              
+              print(f"Sending response to {response_url}")
+              print(f"Response body: {json.dumps(response_body, indent=2)}")
+              
+              try:
+                  request = urllib.request.Request(
+                      response_url,
+                      data=json_response_body,
+                      headers={
+                          'Content-Type': '',
+                          'Content-Length': str(len(json_response_body))
+                      },
+                      method='PUT'
+                  )
+                  
+                  response = urllib.request.urlopen(request, timeout=30)
+                  print(f"Response sent successfully. Status: {response.status}")
+                  return True
+                  
+              except Exception as e:
+                  print(f"Failed to send response: {str(e)}")
+                  return False
+          
+          def handler(event, context):
+              print(f"Event: {json.dumps(event, indent=2)}")
+              
+              try:
+                  if event['RequestType'] == 'Create':
+                      core_ip = event['ResourceProperties']['CoreIP']
+                      core_port = event['ResourceProperties']['CorePort']
+                      admin_password = event['ResourceProperties']['AdminPassword']
+                      
+                      max_retries = 5
+                      for attempt in range(max_retries):
+                          try:
+                              print(f"Attempt {attempt + 1}/{max_retries} to create device")
+                              token = create_user_device(core_ip, core_port, admin_password)
+                              
+                              response_data = {
+                                  'Token': token,
+                                  'Message': 'Device created successfully'
+                              }
+                              
+                              print(f"Sending SUCCESS response with token: {token}")
+                              return send_response(event, context, 'SUCCESS', response_data)
+                              
+                          except Exception as e:
+                              print(f"Attempt {attempt + 1} failed: {str(e)}")
+                              if attempt < max_retries - 1:
+                                  print(f"Waiting 30 seconds before retry...")
+                                  time.sleep(30)
+                              else:
+                                  raise e
+                      
+                  elif event['RequestType'] in ['Update', 'Delete']:
+                      response_data = {'Message': f'{event["RequestType"]} operation completed'}
+                      print(f"Sending SUCCESS response for {event['RequestType']}")
+                      return send_response(event, context, 'SUCCESS', response_data, event.get('PhysicalResourceId'))
+                      
+              except Exception as e:
+                  error_msg = str(e)
+                  print(f"Error occurred: {error_msg}")
+                  response_data = {'Error': error_msg}
+                  return send_response(event, context, 'FAILED', response_data)
+          
+          def create_user_device(core_ip, core_port, admin_password):
+              base_url = f"http://{core_ip}:{core_port}"
+              
+              print("Authenticating as admin...")
+              auth_data = json.dumps({
+                  "username": "admin",
+                  "password": admin_password
+              }).encode('utf-8')
+              
+              auth_request = urllib.request.Request(
+                  f"{base_url}/api/v1/auth",
+                  data=auth_data,
+                  headers={
+                      'Content-Type': 'application/json',
+                      'User-Agent': 'Defguard-CloudFormation-Setup/1.0'
+                  },
+                  method='POST'
+              )
+              
+              try:
+                  auth_response = urllib.request.urlopen(auth_request)
+                  if auth_response.status != 200:
+                      raise Exception(f"Authentication failed: {auth_response.status}")
+              except urllib.error.HTTPError as e:
+                  raise Exception(f"Authentication failed: {e.code} - {e.read().decode()}")
+              
+              session_cookie = None
+              for header_name, header_value in auth_response.headers.items():
+                  if header_name.lower() == 'set-cookie' and 'defguard_session=' in header_value:
+                      session_cookie = header_value.split('defguard_session=')[1].split(';')[0]
+                      break
+              
+              if not session_cookie:
+                  raise Exception("No session cookie received from authentication")
+              
+              print(f"Authentication successful, session cookie: {session_cookie[:20]}...")
+              
+              print("Creating enrollment token...")
+              token_data = json.dumps({
+                  "email": "",
+                  "send_enrollment_notification": False,
+                  "username": "admin"
+              }).encode('utf-8')
+              
+              token_request = urllib.request.Request(
+                  f"{base_url}/api/v1/user/admin/start_desktop",
+                  data=token_data,
+                  headers={
+                      'Content-Type': 'application/json',
+                      'User-Agent': 'Defguard-CloudFormation-Setup/1.0',
+                      'Cookie': f'defguard_session={session_cookie}'
+                  },
+                  method='POST'
+              )
+              
+              try:
+                  token_response = urllib.request.urlopen(token_request)
+                  response_data = json.loads(token_response.read().decode('utf-8'))
+                  enrollment_token = response_data.get('enrollment_token', 'TOKEN_NOT_FOUND')
+                  enrollment_url = response_data.get('enrollment_url', 'URL_NOT_FOUND')
+                  print(f"Enrollment token created successfully: {enrollment_token}")
+                  print(f"Enrollment URL: {enrollment_url}")
+                  return enrollment_token
+              except urllib.error.HTTPError as e:
+                  error_msg = e.read().decode()
+                  print(f"Token creation failed: {e.code} - {error_msg}")
+                  return f"API_CALL_FAILED_{e.code}_{error_msg[:50]}"
+      Role: !GetAtt DefguardApiRole.Arn
+      Timeout: 300
+    DependsOn:
+      - CoreInstance
+      - CoreNetworkInterface
+      - NATGateway
+      - LambdaSecurityGroup
+      - DefguardPrivateSubnet1
+      - PrivateRouteTable
+      - PrivateRoute
+      - DefguardPrivateSubnet1RouteTableAssociation
+      - DefguardPrivateSubnet2
+      - DefguardPrivateSubnet2RouteTableAssociation
+      - InternetGateway
+      - VPCGatewayAttachment
+      - VPC
+      - PublicRouteTable
+      - PublicRoute
+      - DefguardPublicSubnet
+      - DefguardPublicSubnetRouteTableAssociation
+      - DefguardPublicSubnet2
+      - DefguardPublicSubnet2RouteTableAssociation
+
+  DefguardApiRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
+
+  DeviceSetup:
+    Type: AWS::CloudFormation::CustomResource
+    Properties:
+      ServiceToken: !GetAtt DefguardFirstDeviceFunction.Arn
+      CoreIP: !GetAtt CoreNetworkInterface.PrimaryPrivateIpAddress
+      CorePort: !Ref CoreHttpPort
+      AdminPassword: !Ref CoreDefaultAdminPassword
+    DependsOn:
+      - CoreInstance
+
+###########################################################################
+############################# Template outputs ############################
+###########################################################################
+Outputs:
+  DefguardCorePrivateAddress:
+    Description: The IP address of the Defguard Core instance in the internal network
+    Value: !GetAtt CoreNetworkInterface.PrimaryPrivateIpAddress
+    Export:
+      Name: !Sub ${AWS::StackName}-core-private-ip
+  DefguardProxyPrivateAddress:
+    Description: The private IP address of the Defguard Proxy instance
+    Value: !GetAtt ProxyNetworkInterface.PrimaryPrivateIpAddress
+    Export:
+      Name: !Sub ${AWS::StackName}-proxy-private-ip
+  DefguardProxyPublicAddress:
+    Description: The public IP address of the Defguard Proxy instance
+    Value: !Ref ProxyElasticIP
+    Export:
+      Name: !Sub ${AWS::StackName}-proxy-public-ip
+  DefguardGatewayPublicAddress:
+    Description: The public IP address of the Defguard Gateway instance
+    Value: !Ref GatewayElasticIP
+    Export:
+      Name: !Sub ${AWS::StackName}-gateway-public-ip
+  DefguardGatewayPrivateAddress:
+    Description: The private IP address of the Defguard Gateway instance
+    Value: !GetAtt GatewayNetworkInterface.PrimaryPrivateIpAddress
+    Export:
+      Name: !Sub ${AWS::StackName}-gateway-private-ip
+  DatabaseEndpoint:
+    Description: The endpoint of the RDS database
+    Value: !GetAtt Database.Endpoint.Address
+    Export:
+      Name: !Sub ${AWS::StackName}-database-endpoint
+  VPCId:
+    Description: The ID of the VPC
+    Value: !Ref VPC
+    Export:
+      Name: !Sub ${AWS::StackName}-vpc-id
+  PublicSubnetId:
+    Description: The ID of the public subnet
+    Value: !Ref DefguardPublicSubnet
+    Export:
+      Name: !Sub ${AWS::StackName}-public-subnet-id
+  AdminFirstDeviceToken:
+    Description: Enrollment token for admin's first device. Use it to add the first device to Defguard and access the VPN.
+    Value: !GetAtt DeviceSetup.Token
+    Export:
+      Name: !Sub ${AWS::StackName}-admin-first-device-token
+  
+  PublicProxyALBDNSName:
+    Description: DNS name of the public reverse proxy (ALB) for Defguard Proxy
+    Value: !GetAtt PublicProxyALB.DNSName
+    Export:
+      Name: !Sub ${AWS::StackName}-public-proxy-alb-dns-name
+  
+  PublicProxyALBHostedZoneID:
+    Description: Hosted Zone ID of the public reverse proxy (ALB) for Route53 alias records
+    Value: !GetAtt PublicProxyALB.CanonicalHostedZoneID
+    Export:
+      Name: !Sub ${AWS::StackName}-public-proxy-alb-hosted-zone-id
+  
+  PublicProxyURL:
+    Description: URL of the public reverse proxy for Defguard Proxy (uses ProxyUrl parameter)
+    Value: !Ref ProxyUrl
+    Export:
+      Name: !Sub ${AWS::StackName}-public-proxy-url
+  
+  InternalProxyALBDNSName:
+    Description: DNS name of the internal reverse proxy (ALB) for Defguard Core
+    Value: !GetAtt InternalProxyALB.DNSName
+    Export:
+      Name: !Sub ${AWS::StackName}-internal-proxy-alb-dns-name
+  
+  InternalProxyALBHostedZoneID:
+    Description: Hosted Zone ID of the internal reverse proxy (ALB) for Route53 alias records
+    Value: !GetAtt InternalProxyALB.CanonicalHostedZoneID
+    Export:
+      Name: !Sub ${AWS::StackName}-internal-proxy-alb-hosted-zone-id
+  
+  InternalProxyURL:
+    Description: URL of the internal reverse proxy for Defguard Core (uses CoreUrl parameter)
+    Value: !Ref CoreUrl
+    Export:
+      Name: !Sub ${AWS::StackName}-internal-proxy-url
