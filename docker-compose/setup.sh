@@ -9,7 +9,7 @@ set -o errexit  # abort on nonzero exitstatus
 set -o pipefail # don't hide errors within pipes
 
 # Global variables
-VERSION="1.2.2"
+VERSION="1.2.3"
 SECRET_LENGTH=64
 PASSWORD_LENGTH=16
 
@@ -710,15 +710,15 @@ generate_certs() {
 	echo "PEM passphrase for SSL certificates set to '${PASSPHRASE}'."
 
 	# generate private key for CA
-	openssl genrsa -des3 -out ${SSL_DIR}/defguard-ca.key -passout pass:"${PASSPHRASE}" 2048 2>&1 >>${LOG_FILE}
+	openssl genrsa -des3 -out ${SSL_DIR}/defguard-ca.key -passout pass:"${PASSPHRASE}" 2048 2>&1 | tee -a ${LOG_FILE}
 	# generate Root Certificate
 	#	TODO: allow configuring CA parameters
-	openssl req -x509 -new -nodes -key ${SSL_DIR}/defguard-ca.key -sha256 -days 1825 -out ${SSL_DIR}/defguard-ca.pem -passin pass:"${PASSPHRASE}" -subj "/CN=${CFG_DOMAIN}" 2>&1 >>${LOG_FILE}
+	openssl req -x509 -new -nodes -key ${SSL_DIR}/defguard-ca.key -sha256 -days 1825 -out ${SSL_DIR}/defguard-ca.pem -passin pass:"${PASSPHRASE}" -subj "/CN=${CFG_DOMAIN}" 2>&1 | tee -a ${LOG_FILE}
 
 	# generate CA-signed certificate for Defguard gRPC
-	openssl genrsa -out ${SSL_DIR}/defguard-grpc.key 2048 2>&1 >>${LOG_FILE}
+	openssl genrsa -out ${SSL_DIR}/defguard-grpc.key 2048 2>&1 | tee -a ${LOG_FILE}
 
-	openssl req -new -key ${SSL_DIR}/defguard-grpc.key -out ${SSL_DIR}/defguard-grpc.csr -subj "/CN=${CFG_DOMAIN}" 2>&1 >>${LOG_FILE}
+	openssl req -new -key ${SSL_DIR}/defguard-grpc.key -out ${SSL_DIR}/defguard-grpc.csr -subj "/CN=${CFG_DOMAIN}" 2>&1 | tee -a ${LOG_FILE}
 	cat >${SSL_DIR}/defguard-grpc.ext <<EOF
 authorityKeyIdentifier=keyid,issuer
 basicConstraints=CA:FALSE
@@ -730,12 +730,12 @@ DNS.2 = core
 DNS.3 = localhost
 EOF
 	openssl x509 -req -in ${SSL_DIR}/defguard-grpc.csr -CA ${SSL_DIR}/defguard-ca.pem -CAkey ${SSL_DIR}/defguard-ca.key -passin pass:"${PASSPHRASE}" -CAcreateserial \
-		-out ${SSL_DIR}/defguard-grpc.crt -days 1000 -sha256 -extfile ${SSL_DIR}/defguard-grpc.ext 2>&1 >>${LOG_FILE}
+		-out ${SSL_DIR}/defguard-grpc.crt -days 1000 -sha256 -extfile ${SSL_DIR}/defguard-grpc.ext 2>&1 | tee -a ${LOG_FILE}
 
 	# generate CA-signed certificate for Defguard proxy gRPC
-	openssl genrsa -out ${SSL_DIR}/defguard-proxy-grpc.key 2048 2>&1 >>${LOG_FILE}
+	openssl genrsa -out ${SSL_DIR}/defguard-proxy-grpc.key 2048 2>&1 | tee -a ${LOG_FILE}
 
-	openssl req -new -key ${SSL_DIR}/defguard-proxy-grpc.key -out ${SSL_DIR}/defguard-proxy-grpc.csr -subj "/CN=${CFG_DOMAIN}" 2>&1 >>${LOG_FILE}
+	openssl req -new -key ${SSL_DIR}/defguard-proxy-grpc.key -out ${SSL_DIR}/defguard-proxy-grpc.csr -subj "/CN=${CFG_DOMAIN}" 2>&1 | tee -a ${LOG_FILE}
 	cat >${SSL_DIR}/defguard-proxy-grpc.ext <<EOF
 authorityKeyIdentifier=keyid,issuer
 basicConstraints=CA:FALSE
@@ -746,13 +746,13 @@ DNS.1 = proxy
 DNS.2 = localhost
 EOF
 	openssl x509 -req -in ${SSL_DIR}/defguard-proxy-grpc.csr -CA ${SSL_DIR}/defguard-ca.pem -CAkey ${SSL_DIR}/defguard-ca.key -passin pass:"${PASSPHRASE}" -CAcreateserial \
-		-out ${SSL_DIR}/defguard-proxy-grpc.crt -days 1000 -sha256 -extfile ${SSL_DIR}/defguard-proxy-grpc.ext 2>&1 >>${LOG_FILE}
+		-out ${SSL_DIR}/defguard-proxy-grpc.crt -days 1000 -sha256 -extfile ${SSL_DIR}/defguard-proxy-grpc.ext 2>&1 | tee -a ${LOG_FILE}
 }
 
 generate_rsa() {
 	echo "Generating RSA keys in ${RSA_DIR}..."
 	mkdir -p ${RSA_DIR}
-	openssl genpkey -out ${RSA_DIR}/rsakey.pem -algorithm RSA -pkeyopt rsa_keygen_bits:2048 2>&1 >>${LOG_FILE}
+	openssl genpkey -out ${RSA_DIR}/rsakey.pem -algorithm RSA -pkeyopt rsa_keygen_bits:2048 2>&1 | tee -a ${LOG_FILE}
 
 }
 
@@ -804,7 +804,7 @@ EOF
 fetch_base_compose_file() {
 	echo -n " ${TXT_BEGIN} Fetching base compose file to ${PROD_COMPOSE_FILE}... "
 
-	curl --proto '=https' --tlsv1.2 -sSf "${BASE_COMPOSE_FILE_URL}" -o "${PROD_COMPOSE_FILE}" 2>&1 >>${LOG_FILE}
+	curl --proto '=https' --tlsv1.2 -sSf "${BASE_COMPOSE_FILE_URL}" -o "${PROD_COMPOSE_FILE}" 2>&1 | tee -a ${LOG_FILE}
 
 	print_confirmation
 }
@@ -820,7 +820,7 @@ generate_env_file() {
 fetch_base_env_file() {
 	echo -e " ${TXT_BEGIN} Fetching base ${ENV_FILE} file for compose stack..."
 
-	curl --proto '=https' --tlsv1.2 -sSf "${BASE_ENV_FILE_URL}" -o "${PROD_ENV_FILE}" 2>&1 >>${LOG_FILE}
+	curl --proto '=https' --tlsv1.2 -sSf "${BASE_ENV_FILE_URL}" -o "${PROD_ENV_FILE}" 2>&1 | tee -a ${LOG_FILE}
 	print_confirmation
 }
 
