@@ -987,6 +987,16 @@ entries:
     version: 0.1.2
   defguard-proxy:
   - apiVersion: v2
+    appVersion: 1.6.1
+    created: "2026-01-09T16:34:59.07493036+01:00"
+    description: Defguard proxy is a public-facing proxy for core Defguard service
+    digest: 178fc79dc5c835a341a6c395c5f7eb3f6ae90b85777e3ff058518bd1948a4369
+    name: defguard-proxy
+    type: application
+    urls:
+    - https://github.com/DefGuard/deployment/releases/download/defguard-proxy-0.8.1/defguard-proxy-0.8.1.tgz
+    version: 0.8.1
+  - apiVersion: v2
     appVersion: 1.6.0
     created: "2025-12-09T13:33:17.114156114+01:00"
     description: Defguard proxy is a public-facing proxy for core Defguard service
@@ -1206,4 +1216,4 @@ entries:
     urls:
     - https://github.com/DefGuard/deployment/releases/download/defguard-proxy-0.1.0/defguard-proxy-0.1.0.tgz
     version: 0.1.0
-generated: "2025-12-09T13:43:02.420114752+01:00"
+generated: "2026-01-09T16:34:59.075200435+01:00"
