@@ -3,7 +3,7 @@ name: defguard
 description: Defguard is an open-source enterprise WireGuard VPN with MFA and SSO
 
 type: application
-version: 0.14.1
+version: 0.14.2
 appVersion: 1.6.1
 
 dependencies:
@@ -18,6 +18,6 @@ dependencies:
     # repository: "file://../defguard-proxy"
   - name: defguard-gateway
     condition: defguard-gateway.enabled
-    version: 0.5.0
+    version: 0.5.1
     repository: https://defguard.github.io/deployment
     # repository: "file://../defguard-gateway"
