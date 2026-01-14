@@ -7,6 +7,6 @@ dependencies:
   version: 0.8.1
 - name: defguard-gateway
   repository: https://defguard.github.io/deployment
-  version: 0.5.0
-digest: sha256:ca399fbadeabf7b14cca1ef02d4454c8ab12cdf9430490a06838525ff8d31aaa
-generated: "2026-01-09T16:38:14.929770544+01:00"
+  version: 0.5.1
+digest: sha256:f549d5c78081e4c25b7d5ca1e4596819163d002d144cb46971fb9a70ab2d2f8a
+generated: "2026-01-14T10:01:26.469506079+01:00"
