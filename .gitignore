@@ -1,5 +1,6 @@
 docker-compose/.env
 docker-compose/.volumes
+docker-compose2.0/.volumes
 .idea
 terraform/**/terraform.tfstate
 terraform/**/terraform.tfstate.backup

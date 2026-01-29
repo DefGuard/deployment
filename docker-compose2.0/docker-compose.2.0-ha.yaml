@@ -1,0 +1,87 @@
+services:
+  core:
+    image: ghcr.io/defguard/defguard:dev
+    environment:
+      DEFGUARD_COOKIE_INSECURE: "true"
+      DEFGUARD_SECRET_KEY: aa5a506b11d719dd7170f57f5d9947faf8eb0bc2be1325e42aa0237c3dcfd26456e73dff9eef3b12c7bcf8711b45e3e703d8e21ee1c08520f5e12e3f5772da94
+      DEFGUARD_AUTH_SECRET: defguard-auth-secret
+      DEFGUARD_GATEWAY_SECRET: defguard-gateway-secret
+      DEFGUARD_YUBIBRIDGE_SECRET: defguard-yubibridge-secret
+      DEFGUARD_DB_HOST: db
+      DEFGUARD_DB_PORT: 5432
+      DEFGUARD_DB_USER: defguard
+      DEFGUARD_DB_PASSWORD: defguard
+      DEFGUARD_DB_NAME: defguard
+      DEFGUARD_URL: http://localhost:8000
+      RUST_BACKTRACE: 1
+    depends_on:
+      - db
+    ports:
+      - "8000:8000"
+
+  edge1:
+    image: ghcr.io/defguard/defguard-proxy:dev
+    volumes:
+      - ./.volumes/certs2.0-ha/edge1:/etc/defguard/certs
+    depends_on:
+      - core
+
+  edge2:
+    image: ghcr.io/defguard/defguard-proxy:dev
+    volumes:
+      - ./.volumes/certs2.0-ha/edge2:/etc/defguard/certs
+    depends_on:
+      - core
+
+  edge-lb:
+    image: nginx:1.25-alpine
+    depends_on:
+      - edge1
+      - edge2
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./nginx/edge.conf:/etc/nginx/conf.d/default.conf:ro
+
+  gateway1:
+    image: ghcr.io/defguard/gateway:dev
+    depends_on:
+      - core
+    cap_add:
+      - NET_ADMIN
+    volumes:
+      - ./.volumes/certs2.0-ha/gateway1:/etc/defguard/certs
+    environment:
+      DEFGUARD_STATS_PERIOD: 10
+
+  gateway2:
+    image: ghcr.io/defguard/gateway:dev
+    depends_on:
+      - core
+    cap_add:
+      - NET_ADMIN
+    volumes:
+      - ./.volumes/certs2.0-ha/gateway2:/etc/defguard/certs
+    environment:
+      DEFGUARD_STATS_PERIOD: 10
+
+  gateway-lb:
+    image: nginx:1.25-alpine
+    depends_on:
+      - gateway1
+      - gateway2
+    ports:
+      - "50051:50051/udp"
+    volumes:
+      - ./nginx/gateway.conf:/etc/nginx/nginx.conf:ro
+
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: defguard
+      POSTGRES_USER: defguard
+      POSTGRES_PASSWORD: defguard
+    volumes:
+      - ./.volumes/db2.0-ha:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
