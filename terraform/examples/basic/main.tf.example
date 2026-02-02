@@ -77,7 +77,7 @@ locals {
 
   # The gateway deb package version that will be installed on the instance.
   # Must be a valid, released version of Defguard Gateway.
-  gateway_package_version = "1.6.1"
+  gateway_package_version = "1.6.2"
 
   # The architecture of the Defguard Gateway server instance.
   # Supported values: "x86_64", "aarch64"
