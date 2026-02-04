@@ -1,0 +1,60 @@
+static_resources:
+  listeners:
+    - name: udp_listener
+      address:
+        socket_address:
+          address: 0.0.0.0
+          port_value: 50051
+          protocol: UDP
+
+      # UDP listeners use udp_listener_config + listener_filters (not filter_chains)
+      udp_listener_config:
+        downstream_socket_config:
+          # Optional: enable GRO/GSO if kernel supports it, otherwise omit
+          prefer_gro: true
+
+      listener_filters:
+        - name: envoy.filters.udp_listener.udp_proxy
+          typed_config:
+            "@type": type.googleapis.com/envoy.extensions.filters.udp.udp_proxy.v3.UdpProxyConfig
+            stat_prefix: udp_lb
+            cluster: defguard_gateway_cluster
+            idle_timeout: 60s
+
+  clusters:
+    - name: defguard_gateway_cluster
+      type: STRICT_DNS
+      connect_timeout: 1s
+      lb_policy: ROUND_ROBIN
+      dns_lookup_family: V4_ONLY
+
+      health_checks:
+        - timeout: 2s
+          interval: 5s
+          unhealthy_threshold: 2
+          healthy_threshold: 2
+          http_health_check:
+            path: /health
+            host: gateway_health
+            expected_statuses:
+              start: 200
+              end: 300
+
+      load_assignment:
+        cluster_name: defguard_gateway_cluster
+        endpoints:
+          - lb_endpoints:
+              - endpoint:
+                  address:
+                    socket_address:
+                      address: gateway1
+                      port_value: 50051
+                  health_check_config:
+                    port_value: 55003
+              - endpoint:
+                  address:
+                    socket_address:
+                      address: gateway2
+                      port_value: 50051
+                  health_check_config:
+                    port_value: 55003

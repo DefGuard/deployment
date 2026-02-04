@@ -1,0 +1,56 @@
+services:
+  core:
+    image: ghcr.io/defguard/defguard:dev
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      DEFGUARD_COOKIE_INSECURE: "true"
+      DEFGUARD_SECRET_KEY: aa5a506b11d719dd7170f57f5d9947faf8eb0bc2be1325e42aa0237c3dcfd26456e73dff9eef3b12c7bcf8711b45e3e703d8e21ee1c08520f5e12e3f5772da94
+      DEFGUARD_AUTH_SECRET: defguard-auth-secret
+      DEFGUARD_GATEWAY_SECRET: defguard-gateway-secret
+      DEFGUARD_YUBIBRIDGE_SECRET: defguard-yubibridge-secret
+      DEFGUARD_DB_HOST: db
+      DEFGUARD_DB_PORT: 5432
+      DEFGUARD_DB_USER: defguard
+      DEFGUARD_DB_PASSWORD: defguard
+      DEFGUARD_DB_NAME: defguard
+      DEFGUARD_URL: http://localhost:8000
+      RUST_BACKTRACE: 1
+    ports:
+      # rest api
+      - "8000:8000"
+      # grpc
+      - "50055:50055"
+    depends_on:
+      - db
+
+  edge:
+    image: ghcr.io/defguard/defguard-proxy:dev
+    volumes:
+      - ./.volumes/certs2.0/proxy:/etc/defguard/certs
+    ports:
+      - "8080:8080"
+
+  gateway:
+    image: ghcr.io/defguard/gateway:dev
+    ports:
+      # WireGuard endpoint
+      - "50051:50051/udp"
+    depends_on:
+      - core
+    cap_add:
+      - NET_ADMIN
+    volumes:
+      - ./.volumes/certs2.0/gateway:/etc/defguard/certs
+
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: defguard
+      POSTGRES_USER: defguard
+      POSTGRES_PASSWORD: defguard
+    volumes:
+      - ./.volumes/db2.0:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
