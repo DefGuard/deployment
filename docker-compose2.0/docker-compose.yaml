@@ -67,7 +67,7 @@ services:
       DEFGUARD_STATS_PERIOD: 10
       HEALTH_PORT: 55003
 
-  envoy:
+  gateway-lb:
     image: envoyproxy/envoy:v1.33-latest
     ports:
       - "50051:50051/udp"
@@ -76,28 +76,6 @@ services:
     depends_on:
       - gateway1
       - gateway2
-
-  # gatewaymfa1:
-  #   image: ghcr.io/defguard/gateway:dev
-  #   depends_on:
-  #     - core
-  #   cap_add:
-  #     - NET_ADMIN
-  #   volumes:
-  #     - ./.volumes/certs2.0-ha/gatewaymfa1:/etc/defguard/certs
-  #   environment:
-  #     DEFGUARD_STATS_PERIOD: 10
-
-  # gatewaymfa2:
-  #   image: ghcr.io/defguard/gateway:dev
-  #   depends_on:
-  #     - core
-  #   cap_add:
-  #     - NET_ADMIN
-  #   volumes:
-  #     - ./.volumes/certs2.0-ha/gatewaymfa2:/etc/defguard/certs
-  #   environment:
-  #     DEFGUARD_STATS_PERIOD: 10
 
   db:
     image: postgres:17-alpine
