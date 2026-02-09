@@ -77,7 +77,7 @@ services:
       - gateway2
 
   db:
-    image: postgres:17-alpine
+    image: postgres:18-alpine
     environment:
       POSTGRES_DB: defguard
       POSTGRES_USER: defguard
