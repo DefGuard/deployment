@@ -1,6 +1,6 @@
 services:
   core:
-    image: ghcr.io/defguard/defguard:dev
+    image: ghcr.io/defguard/defguard:2.0.0-alpha1
     environment:
       DEFGUARD_COOKIE_INSECURE: "true"
       DEFGUARD_SECRET_KEY: defguard-secret-key-defguard-secret-key-defguard-secret-key-defguard-secret-key
@@ -19,14 +19,14 @@ services:
       - "8000:8000"
 
   edge1:
-    image: ghcr.io/defguard/defguard-proxy:dev
+    image: ghcr.io/defguard/defguard-proxy:2.0.0-alpha1
     volumes:
       - ./.volumes/certs2.0-ha/edge1:/etc/defguard/certs
     depends_on:
       - core
 
   edge2:
-    image: ghcr.io/defguard/defguard-proxy:dev
+    image: ghcr.io/defguard/defguard-proxy:2.0.0-alpha1
     volumes:
       - ./.volumes/certs2.0-ha/edge2:/etc/defguard/certs
     depends_on:
@@ -43,7 +43,7 @@ services:
       - ./nginx/edge.conf:/etc/nginx/conf.d/default.conf:ro
 
   gateway1:
-    image: ghcr.io/defguard/gateway:dev
+    image: ghcr.io/defguard/gateway:2.0.0-alpha1
     depends_on:
       - core
     cap_add:
@@ -55,7 +55,7 @@ services:
       HEALTH_PORT: 55003
 
   gateway2:
-    image: ghcr.io/defguard/gateway:dev
+    image: ghcr.io/defguard/gateway:2.0.0-alpha1
     depends_on:
       - core
     cap_add:
