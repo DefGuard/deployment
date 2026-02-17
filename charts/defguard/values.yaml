@@ -1,4 +1,5 @@
 ---
+# yaml-language-server: $schema=values.schema.json
 # this should be a URL based on defguard-proxy.ingress.grpc.host
 proxyUrl: ""
 # this should be a URL based on ingress.web.host

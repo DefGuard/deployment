@@ -8,3 +8,4 @@ terraform/**/.*
 terraform/**/*.tfvars
 .direnv/
 .envrc
+.venv/

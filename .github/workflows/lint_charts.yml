@@ -27,7 +27,7 @@ jobs:
           for chart in charts/*/; do
             if [ -f "$chart/Chart.yaml" ]; then
               echo "Validating $chart"
-              helm lint "$chart"
+              helm lint "$chart" --strict
               helm template "$chart" --debug
             fi
           done

@@ -1,0 +1,1299 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "properties": {
+    "additionalEnvFromConfigMap": {
+      "default": "",
+      "description": "defguard-core additional ENV config from config map",
+      "required": [],
+      "title": "additionalEnvFromConfigMap",
+      "type": "string"
+    },
+    "affinity": {
+      "additionalProperties": false,
+      "description": "defguard-core pod affinity configuration",
+      "required": [],
+      "title": "affinity",
+      "type": "object"
+    },
+    "autoscaling": {
+      "additionalProperties": false,
+      "description": "defguard-core pod autoscaling configuration",
+      "properties": {
+        "enabled": {
+          "default": false,
+          "required": [],
+          "title": "enabled",
+          "type": "boolean"
+        },
+        "maxReplicas": {
+          "default": 10,
+          "required": [],
+          "title": "maxReplicas",
+          "type": "integer"
+        },
+        "minReplicas": {
+          "default": 1,
+          "required": [],
+          "title": "minReplicas",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "enabled",
+        "minReplicas",
+        "maxReplicas"
+      ],
+      "title": "autoscaling",
+      "type": "object"
+    },
+    "cookie": {
+      "additionalProperties": false,
+      "description": "defguard-core cookie configuration",
+      "properties": {
+        "domain": {
+          "default": "",
+          "required": [],
+          "title": "domain",
+          "type": "string"
+        },
+        "insecure": {
+          "default": false,
+          "required": [],
+          "title": "insecure",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "domain",
+        "insecure"
+      ],
+      "title": "cookie",
+      "type": "object"
+    },
+    "defguard-gateway": {
+      "additionalProperties": false,
+      "description": "\nsub-chart defguard-gateway\n",
+      "properties": {
+        "additionalEnvFromConfigMap": {
+          "default": "",
+          "description": "defguard-gateway pod additional ENV from configmap",
+          "required": [],
+          "title": "additionalEnvFromConfigMap",
+          "type": "string"
+        },
+        "affinity": {
+          "additionalProperties": false,
+          "description": "defguard-gateway pod affinity configuration",
+          "required": [],
+          "title": "affinity",
+          "type": "object"
+        },
+        "enabled": {
+          "default": false,
+          "required": [],
+          "title": "enabled",
+          "type": "boolean"
+        },
+        "existingTokenSecret": {
+          "default": "",
+          "description": "Secret to get the token from",
+          "required": [],
+          "title": "existingTokenSecret",
+          "type": "string"
+        },
+        "existingTokenSecretKey": {
+          "default": "",
+          "description": "Key to extract the token from in existingTokenSecret",
+          "required": [],
+          "title": "existingTokenSecretKey",
+          "type": "string"
+        },
+        "fullnameOverride": {
+          "default": "",
+          "description": "defguard-gateway full name override",
+          "required": [],
+          "title": "fullnameOverride",
+          "type": "string"
+        },
+        "grpcUrl": {
+          "default": "",
+          "description": "Defguard GRPC URL, e.g.: defguard-grpc.mycompany.com",
+          "required": [],
+          "title": "grpcUrl",
+          "type": "string"
+        },
+        "image": {
+          "additionalProperties": false,
+          "description": "defguard-gateway container image configuration",
+          "properties": {
+            "pullPolicy": {
+              "default": "IfNotPresent",
+              "required": [],
+              "title": "pullPolicy",
+              "type": "string"
+            },
+            "repository": {
+              "default": "ghcr.io/defguard/gateway",
+              "required": [],
+              "title": "repository",
+              "type": "string"
+            },
+            "tag": {
+              "default": "",
+              "required": [],
+              "title": "tag",
+              "type": "string"
+            }
+          },
+          "required": [
+            "pullPolicy",
+            "repository",
+            "tag"
+          ],
+          "title": "image",
+          "type": "object"
+        },
+        "imagePullSecrets": {
+          "description": "defguard-gateway container image pull secrets",
+          "items": {
+            "required": []
+          },
+          "required": [],
+          "title": "imagePullSecrets",
+          "type": "array"
+        },
+        "logLevel": {
+          "default": "debug",
+          "description": "rust log level, default is debug",
+          "required": [],
+          "title": "logLevel",
+          "type": "string"
+        },
+        "nameOverride": {
+          "default": "",
+          "description": "defguard-gateway name override",
+          "required": [],
+          "title": "nameOverride",
+          "type": "string"
+        },
+        "nodeSelector": {
+          "additionalProperties": false,
+          "description": "defguard-gateway node selector configuration",
+          "required": [],
+          "title": "nodeSelector",
+          "type": "object"
+        },
+        "podAnnotations": {
+          "additionalProperties": false,
+          "description": "defguard-gateway pod annotations",
+          "required": [],
+          "title": "podAnnotations",
+          "type": "object"
+        },
+        "podLabels": {
+          "additionalProperties": false,
+          "description": "defguard-gateway pod labels",
+          "required": [],
+          "title": "podLabels",
+          "type": "object"
+        },
+        "podSecurityContext": {
+          "additionalProperties": false,
+          "description": "defguard-gateway pod security context",
+          "required": [],
+          "title": "podSecurityContext",
+          "type": "object"
+        },
+        "replicaCount": {
+          "default": 1,
+          "description": "defguard-gateway pod replica count",
+          "required": [],
+          "title": "replicaCount",
+          "type": "integer"
+        },
+        "resources": {
+          "additionalProperties": false,
+          "description": "defguard-gateway pod resources",
+          "required": [],
+          "title": "resources",
+          "type": "object"
+        },
+        "securityContext": {
+          "additionalProperties": false,
+          "description": "defguard-gateway container security context",
+          "required": [],
+          "title": "securityContext",
+          "type": "object"
+        },
+        "service": {
+          "additionalProperties": false,
+          "description": "defguard-gateway service configuration",
+          "properties": {
+            "wireguard": {
+              "additionalProperties": false,
+              "properties": {
+                "annotations": {
+                  "additionalProperties": false,
+                  "required": [],
+                  "title": "annotations",
+                  "type": "object"
+                },
+                "labels": {
+                  "additionalProperties": false,
+                  "required": [],
+                  "title": "labels",
+                  "type": "object"
+                },
+                "port": {
+                  "default": 32140,
+                  "required": [],
+                  "title": "port",
+                  "type": "integer"
+                },
+                "type": {
+                  "default": "ClusterIP",
+                  "required": [],
+                  "title": "type",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "annotations",
+                "labels",
+                "port",
+                "type"
+              ],
+              "title": "wireguard",
+              "type": "object"
+            }
+          },
+          "required": [
+            "wireguard"
+          ],
+          "title": "service",
+          "type": "object"
+        },
+        "serviceAccount": {
+          "additionalProperties": false,
+          "description": "defguard-gateway serviceaccount configuration",
+          "properties": {
+            "annotations": {
+              "additionalProperties": false,
+              "required": [],
+              "title": "annotations",
+              "type": "object"
+            },
+            "create": {
+              "default": true,
+              "required": [],
+              "title": "create",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "annotations",
+            "create"
+          ],
+          "title": "serviceAccount",
+          "type": "object"
+        },
+        "statsPeriod": {
+          "default": 30,
+          "description": "Defines how often (in seconds) should interface statistics be sent to Defguard server",
+          "required": [],
+          "title": "statsPeriod",
+          "type": "integer"
+        },
+        "token": {
+          "default": "",
+          "description": "Token from Defguard app to secure gRPC connection, available on network page.\nIt is not recommended to use this. Create a secret yourself and use existingTokenSecret instead",
+          "required": [],
+          "title": "token",
+          "type": "string"
+        },
+        "tolerations": {
+          "description": "defguard-gateway pod tolerations",
+          "items": {
+            "required": []
+          },
+          "required": [],
+          "title": "tolerations",
+          "type": "array"
+        },
+        "userspace": {
+          "default": "false",
+          "description": "Use userspace wireguard implementation, useful on systems without native wireguard support. Set to true/false",
+          "required": [],
+          "title": "userspace",
+          "type": "string"
+        }
+      },
+      "required": [
+        "enabled",
+        "userspace",
+        "grpcUrl",
+        "token",
+        "existingTokenSecret",
+        "existingTokenSecretKey",
+        "statsPeriod",
+        "logLevel",
+        "fullnameOverride",
+        "nameOverride",
+        "image",
+        "imagePullSecrets",
+        "affinity",
+        "nodeSelector",
+        "tolerations",
+        "podAnnotations",
+        "podLabels",
+        "replicaCount",
+        "resources",
+        "podSecurityContext",
+        "securityContext",
+        "additionalEnvFromConfigMap",
+        "service",
+        "serviceAccount"
+      ],
+      "title": "defguard-gateway",
+      "type": "object"
+    },
+    "defguard-proxy": {
+      "additionalProperties": false,
+      "description": "\nsub-chart defguard-proxy\n",
+      "properties": {
+        "additionalEnvFromConfigMap": {
+          "default": "",
+          "description": "defguard-proxy additional ENV from configmap",
+          "required": [],
+          "title": "additionalEnvFromConfigMap",
+          "type": "string"
+        },
+        "affinity": {
+          "additionalProperties": false,
+          "description": "defguard-proxy pod affinity",
+          "required": [],
+          "title": "affinity",
+          "type": "object"
+        },
+        "autoscaling": {
+          "additionalProperties": false,
+          "description": "defguard-proxy pod autoscaling configuration",
+          "properties": {
+            "enabled": {
+              "default": false,
+              "required": [],
+              "title": "enabled",
+              "type": "boolean"
+            },
+            "maxReplicas": {
+              "default": 10,
+              "required": [],
+              "title": "maxReplicas",
+              "type": "integer"
+            },
+            "minReplicas": {
+              "default": 1,
+              "required": [],
+              "title": "minReplicas",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "enabled",
+            "minReplicas",
+            "maxReplicas"
+          ],
+          "title": "autoscaling",
+          "type": "object"
+        },
+        "enabled": {
+          "default": false,
+          "description": "defguard-proxy is turned off by default. enable to allow use of the enrollment interface",
+          "required": [],
+          "title": "enabled",
+          "type": "boolean"
+        },
+        "fullnameOverride": {
+          "default": "",
+          "description": "defguard-proxy full name override",
+          "required": [],
+          "title": "fullnameOverride",
+          "type": "string"
+        },
+        "image": {
+          "additionalProperties": false,
+          "description": "defguard-proxy container image configuration",
+          "properties": {
+            "pullPolicy": {
+              "default": "IfNotPresent",
+              "required": [],
+              "title": "pullPolicy",
+              "type": "string"
+            },
+            "repository": {
+              "default": "ghcr.io/defguard/defguard-proxy",
+              "required": [],
+              "title": "repository",
+              "type": "string"
+            },
+            "tag": {
+              "default": "",
+              "required": [],
+              "title": "tag",
+              "type": "string"
+            }
+          },
+          "required": [
+            "pullPolicy",
+            "repository",
+            "tag"
+          ],
+          "title": "image",
+          "type": "object"
+        },
+        "imagePullSecrets": {
+          "description": "defguard-proxy container image pull secrets configuration",
+          "items": {
+            "required": []
+          },
+          "required": [],
+          "title": "imagePullSecrets",
+          "type": "array"
+        },
+        "ingress": {
+          "additionalProperties": false,
+          "description": "defguard-proxy ingress configuration",
+          "properties": {
+            "grpc": {
+              "additionalProperties": false,
+              "properties": {
+                "annotations": {
+                  "additionalProperties": false,
+                  "required": [],
+                  "title": "annotations",
+                  "type": "object"
+                },
+                "className": {
+                  "default": "",
+                  "required": [],
+                  "title": "className",
+                  "type": "string"
+                },
+                "enabled": {
+                  "default": true,
+                  "required": [],
+                  "title": "enabled",
+                  "type": "boolean"
+                },
+                "host": {
+                  "default": "enrollment-grpc.local",
+                  "required": [],
+                  "title": "host",
+                  "type": "string"
+                },
+                "labels": {
+                  "additionalProperties": false,
+                  "required": [],
+                  "title": "labels",
+                  "type": "object"
+                },
+                "tls": {
+                  "default": false,
+                  "required": [],
+                  "title": "tls",
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "annotations",
+                "className",
+                "enabled",
+                "host",
+                "labels",
+                "tls"
+              ],
+              "title": "grpc",
+              "type": "object"
+            },
+            "web": {
+              "additionalProperties": false,
+              "properties": {
+                "annotations": {
+                  "additionalProperties": false,
+                  "required": [],
+                  "title": "annotations",
+                  "type": "object"
+                },
+                "className": {
+                  "default": "",
+                  "required": [],
+                  "title": "className",
+                  "type": "string"
+                },
+                "enabled": {
+                  "default": true,
+                  "required": [],
+                  "title": "enabled",
+                  "type": "boolean"
+                },
+                "host": {
+                  "default": "enrollment.local",
+                  "required": [],
+                  "title": "host",
+                  "type": "string"
+                },
+                "labels": {
+                  "additionalProperties": false,
+                  "required": [],
+                  "title": "labels",
+                  "type": "object"
+                },
+                "tls": {
+                  "default": false,
+                  "required": [],
+                  "title": "tls",
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "annotations",
+                "className",
+                "enabled",
+                "host",
+                "labels",
+                "tls"
+              ],
+              "title": "web",
+              "type": "object"
+            }
+          },
+          "required": [
+            "grpc",
+            "web"
+          ],
+          "title": "ingress",
+          "type": "object"
+        },
+        "nameOverride": {
+          "default": "",
+          "description": "defguard-proxy name override",
+          "required": [],
+          "title": "nameOverride",
+          "type": "string"
+        },
+        "nodeSelector": {
+          "additionalProperties": false,
+          "description": "defguard-proxy pod node selection",
+          "required": [],
+          "title": "nodeSelector",
+          "type": "object"
+        },
+        "podAnnotations": {
+          "additionalProperties": false,
+          "description": "defguard-proxy pod annotations",
+          "required": [],
+          "title": "podAnnotations",
+          "type": "object"
+        },
+        "podLabels": {
+          "additionalProperties": false,
+          "description": "defguard-proxy pod labels",
+          "required": [],
+          "title": "podLabels",
+          "type": "object"
+        },
+        "podSecurityContext": {
+          "additionalProperties": false,
+          "description": "defguard-proxy pod security context",
+          "required": [],
+          "title": "podSecurityContext",
+          "type": "object"
+        },
+        "publicUrl": {
+          "default": "http://enrollment.local",
+          "description": "this should be a URL based on defguard-proxy.ingress.web.host",
+          "required": [],
+          "title": "publicUrl",
+          "type": "string"
+        },
+        "replicaCount": {
+          "default": 1,
+          "description": "defguard-proxy container replica count",
+          "required": [],
+          "title": "replicaCount",
+          "type": "integer"
+        },
+        "resources": {
+          "additionalProperties": false,
+          "description": "defguard-proxy pod resource configuration",
+          "required": [],
+          "title": "resources",
+          "type": "object"
+        },
+        "securityContext": {
+          "additionalProperties": false,
+          "description": "defguard-proxy container security context",
+          "required": [],
+          "title": "securityContext",
+          "type": "object"
+        },
+        "service": {
+          "additionalProperties": false,
+          "description": "defguard-proxy service configuration",
+          "properties": {
+            "grpc": {
+              "additionalProperties": false,
+              "properties": {
+                "annotations": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "traefik.ingress.kubernetes.io/service.serversscheme": {
+                      "default": "h2c",
+                      "required": [],
+                      "title": "traefik.ingress.kubernetes.io/service.serversscheme",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "traefik.ingress.kubernetes.io/service.serversscheme"
+                  ],
+                  "title": "annotations",
+                  "type": "object"
+                },
+                "labels": {
+                  "additionalProperties": false,
+                  "required": [],
+                  "title": "labels",
+                  "type": "object"
+                },
+                "port": {
+                  "default": 50051,
+                  "required": [],
+                  "title": "port",
+                  "type": "integer"
+                },
+                "type": {
+                  "default": "ClusterIP",
+                  "required": [],
+                  "title": "type",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "annotations",
+                "labels",
+                "port",
+                "type"
+              ],
+              "title": "grpc",
+              "type": "object"
+            },
+            "web": {
+              "additionalProperties": false,
+              "properties": {
+                "annotations": {
+                  "additionalProperties": false,
+                  "required": [],
+                  "title": "annotations",
+                  "type": "object"
+                },
+                "labels": {
+                  "additionalProperties": false,
+                  "required": [],
+                  "title": "labels",
+                  "type": "object"
+                },
+                "port": {
+                  "default": 8080,
+                  "required": [],
+                  "title": "port",
+                  "type": "integer"
+                },
+                "type": {
+                  "default": "ClusterIP",
+                  "required": [],
+                  "title": "type",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "annotations",
+                "labels",
+                "port",
+                "type"
+              ],
+              "title": "web",
+              "type": "object"
+            }
+          },
+          "required": [
+            "grpc",
+            "web"
+          ],
+          "title": "service",
+          "type": "object"
+        },
+        "serviceAccount": {
+          "additionalProperties": false,
+          "description": "defguard-proxy service account configuration",
+          "properties": {
+            "annotations": {
+              "additionalProperties": false,
+              "required": [],
+              "title": "annotations",
+              "type": "object"
+            },
+            "create": {
+              "default": true,
+              "required": [],
+              "title": "create",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "annotations",
+            "create"
+          ],
+          "title": "serviceAccount",
+          "type": "object"
+        },
+        "tolerations": {
+          "description": "defguard-proxy pod tolerations",
+          "items": {
+            "required": []
+          },
+          "required": [],
+          "title": "tolerations",
+          "type": "array"
+        }
+      },
+      "required": [
+        "enabled",
+        "publicUrl",
+        "fullnameOverride",
+        "nameOverride",
+        "autoscaling",
+        "image",
+        "imagePullSecrets",
+        "ingress",
+        "affinity",
+        "nodeSelector",
+        "tolerations",
+        "podAnnotations",
+        "podLabels",
+        "podSecurityContext",
+        "securityContext",
+        "replicaCount",
+        "resources",
+        "service",
+        "serviceAccount",
+        "additionalEnvFromConfigMap"
+      ],
+      "title": "defguard-proxy",
+      "type": "object"
+    },
+    "existingJwtSecret": {
+      "default": "",
+      "description": "defguard-core existing JWT secret",
+      "required": [],
+      "title": "existingJwtSecret",
+      "type": "string"
+    },
+    "existingOpenIdSecret": {
+      "default": "",
+      "description": "defguard-core existing OpenID secret",
+      "required": [],
+      "title": "existingOpenIdSecret",
+      "type": "string"
+    },
+    "fullnameOverride": {
+      "default": "",
+      "description": "Defguard full name override",
+      "required": [],
+      "title": "fullnameOverride",
+      "type": "string"
+    },
+    "global": {
+      "description": "Global values are values that can be accessed from any chart or subchart by exactly the same name.",
+      "required": [],
+      "title": "global",
+      "type": "object"
+    },
+    "image": {
+      "additionalProperties": false,
+      "description": "Defguard-core container image configuration",
+      "properties": {
+        "pullPolicy": {
+          "default": "IfNotPresent",
+          "required": [],
+          "title": "pullPolicy",
+          "type": "string"
+        },
+        "repository": {
+          "default": "ghcr.io/defguard/defguard",
+          "required": [],
+          "title": "repository",
+          "type": "string"
+        },
+        "tag": {
+          "default": "",
+          "required": [],
+          "title": "tag",
+          "type": "string"
+        }
+      },
+      "required": [
+        "pullPolicy",
+        "repository",
+        "tag"
+      ],
+      "title": "image",
+      "type": "object"
+    },
+    "imagePullSecrets": {
+      "description": "Defguard-core container image pull secrets",
+      "items": {
+        "required": []
+      },
+      "required": [],
+      "title": "imagePullSecrets",
+      "type": "array"
+    },
+    "ingress": {
+      "additionalProperties": false,
+      "description": "Defguard-core ingress configuration",
+      "properties": {
+        "grpc": {
+          "additionalProperties": false,
+          "properties": {
+            "annotations": {
+              "additionalProperties": false,
+              "required": [],
+              "title": "annotations",
+              "type": "object"
+            },
+            "className": {
+              "default": "",
+              "required": [],
+              "title": "className",
+              "type": "string"
+            },
+            "enabled": {
+              "default": true,
+              "required": [],
+              "title": "enabled",
+              "type": "boolean"
+            },
+            "host": {
+              "default": "defguard-grpc.local",
+              "required": [],
+              "title": "host",
+              "type": "string"
+            },
+            "labels": {
+              "additionalProperties": false,
+              "required": [],
+              "title": "labels",
+              "type": "object"
+            },
+            "tls": {
+              "default": false,
+              "required": [],
+              "title": "tls",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "annotations",
+            "className",
+            "enabled",
+            "host",
+            "labels",
+            "tls"
+          ],
+          "title": "grpc",
+          "type": "object"
+        },
+        "web": {
+          "additionalProperties": false,
+          "properties": {
+            "annotations": {
+              "additionalProperties": false,
+              "required": [],
+              "title": "annotations",
+              "type": "object"
+            },
+            "className": {
+              "default": "",
+              "required": [],
+              "title": "className",
+              "type": "string"
+            },
+            "enabled": {
+              "default": true,
+              "required": [],
+              "title": "enabled",
+              "type": "boolean"
+            },
+            "host": {
+              "default": "defguard.local",
+              "required": [],
+              "title": "host",
+              "type": "string"
+            },
+            "labels": {
+              "additionalProperties": false,
+              "required": [],
+              "title": "labels",
+              "type": "object"
+            },
+            "tls": {
+              "default": false,
+              "required": [],
+              "title": "tls",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "annotations",
+            "className",
+            "enabled",
+            "host",
+            "labels",
+            "tls"
+          ],
+          "title": "web",
+          "type": "object"
+        }
+      },
+      "required": [
+        "grpc",
+        "web"
+      ],
+      "title": "ingress",
+      "type": "object"
+    },
+    "nameOverride": {
+      "default": "",
+      "description": "Defguard name override",
+      "required": [],
+      "title": "nameOverride",
+      "type": "string"
+    },
+    "nodeSelector": {
+      "additionalProperties": false,
+      "description": "defguard-core node selector cnfiguration",
+      "required": [],
+      "title": "nodeSelector",
+      "type": "object"
+    },
+    "podAnnotations": {
+      "additionalProperties": false,
+      "description": "defguard-core pod annotation",
+      "required": [],
+      "title": "podAnnotations",
+      "type": "object"
+    },
+    "podLabels": {
+      "additionalProperties": false,
+      "description": "defguard-core pod labels",
+      "required": [],
+      "title": "podLabels",
+      "type": "object"
+    },
+    "podSecurityContext": {
+      "additionalProperties": false,
+      "description": "defguard-core pod security context",
+      "required": [],
+      "title": "podSecurityContext",
+      "type": "object"
+    },
+    "postgresql": {
+      "additionalProperties": true,
+      "description": "\nsub-chart bitnami/postgresql\n",
+      "properties": {
+        "auth": {
+          "additionalProperties": true,
+          "properties": {
+            "database": {
+              "default": "defguard",
+              "required": [],
+              "title": "database",
+              "type": "string"
+            },
+            "existingSecret": {
+              "default": "postgres-password",
+              "required": [],
+              "title": "existingSecret",
+              "type": "string"
+            },
+            "existingSecretPasswordKey": {
+              "default": "",
+              "required": [],
+              "title": "existingSecretPasswordKey",
+              "type": "string"
+            },
+            "username": {
+              "default": "defguard",
+              "required": [],
+              "title": "username",
+              "type": "string"
+            }
+          },
+          "required": [
+            "database",
+            "existingSecret",
+            "existingSecretPasswordKey",
+            "username"
+          ],
+          "title": "auth",
+          "type": "object"
+        },
+        "enabled": {
+          "default": true,
+          "required": [],
+          "title": "enabled",
+          "type": "boolean"
+        },
+        "host": {
+          "default": "",
+          "required": [],
+          "title": "host",
+          "type": "string"
+        },
+        "image": {
+          "additionalProperties": true,
+          "properties": {
+            "repository": {
+              "default": "bitnami/postgresql",
+              "required": [],
+              "title": "repository",
+              "type": "string"
+            },
+            "tag": {
+              "default": "latest",
+              "required": [],
+              "title": "tag",
+              "type": "string"
+            }
+          },
+          "required": [
+            "repository",
+            "tag"
+          ],
+          "title": "image",
+          "type": "object"
+        },
+        "port": {
+          "default": 5432,
+          "required": [],
+          "title": "port",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "enabled",
+        "host",
+        "port",
+        "auth",
+        "image"
+      ],
+      "title": "postgresql",
+      "type": "object"
+    },
+    "proxyUrl": {
+      "default": "",
+      "description": "yaml-language-server: $schema=values.schema.json\nthis should be a URL based on defguard-proxy.ingress.grpc.host",
+      "required": [],
+      "title": "proxyUrl",
+      "type": "string"
+    },
+    "publicUrl": {
+      "default": "http://defguard.local",
+      "description": "this should be a URL based on ingress.web.host",
+      "required": [],
+      "title": "publicUrl",
+      "type": "string"
+    },
+    "replicaCount": {
+      "default": 1,
+      "description": "defguard-core container replica count",
+      "required": [],
+      "title": "replicaCount",
+      "type": "integer"
+    },
+    "resources": {
+      "additionalProperties": false,
+      "description": "defguard-core pod resource configuration",
+      "required": [],
+      "title": "resources",
+      "type": "object"
+    },
+    "securityContext": {
+      "additionalProperties": false,
+      "description": "defguard-core container security context",
+      "required": [],
+      "title": "securityContext",
+      "type": "object"
+    },
+    "service": {
+      "additionalProperties": false,
+      "description": "defguard-core service configuration",
+      "properties": {
+        "grpc": {
+          "additionalProperties": false,
+          "properties": {
+            "annotations": {
+              "additionalProperties": false,
+              "properties": {
+                "traefik.ingress.kubernetes.io/service.serversscheme": {
+                  "default": "h2c",
+                  "required": [],
+                  "title": "traefik.ingress.kubernetes.io/service.serversscheme",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "traefik.ingress.kubernetes.io/service.serversscheme"
+              ],
+              "title": "annotations",
+              "type": "object"
+            },
+            "labels": {
+              "additionalProperties": false,
+              "required": [],
+              "title": "labels",
+              "type": "object"
+            },
+            "port": {
+              "default": 50055,
+              "required": [],
+              "title": "port",
+              "type": "integer"
+            },
+            "type": {
+              "default": "ClusterIP",
+              "required": [],
+              "title": "type",
+              "type": "string"
+            }
+          },
+          "required": [
+            "annotations",
+            "labels",
+            "port",
+            "type"
+          ],
+          "title": "grpc",
+          "type": "object"
+        },
+        "web": {
+          "additionalProperties": false,
+          "properties": {
+            "annotations": {
+              "additionalProperties": false,
+              "required": [],
+              "title": "annotations",
+              "type": "object"
+            },
+            "labels": {
+              "additionalProperties": false,
+              "required": [],
+              "title": "labels",
+              "type": "object"
+            },
+            "port": {
+              "default": 80,
+              "required": [],
+              "title": "port",
+              "type": "integer"
+            },
+            "type": {
+              "default": "ClusterIP",
+              "required": [],
+              "title": "type",
+              "type": "string"
+            }
+          },
+          "required": [
+            "annotations",
+            "labels",
+            "port",
+            "type"
+          ],
+          "title": "web",
+          "type": "object"
+        }
+      },
+      "required": [
+        "grpc",
+        "web"
+      ],
+      "title": "service",
+      "type": "object"
+    },
+    "serviceAccount": {
+      "additionalProperties": false,
+      "description": "defguard-core serviceaccount configuration",
+      "properties": {
+        "annotations": {
+          "additionalProperties": false,
+          "required": [],
+          "title": "annotations",
+          "type": "object"
+        },
+        "create": {
+          "default": true,
+          "required": [],
+          "title": "create",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "annotations",
+        "create"
+      ],
+      "title": "serviceAccount",
+      "type": "object"
+    },
+    "tolerations": {
+      "description": "defguard-core pod tolerations",
+      "items": {
+        "required": []
+      },
+      "required": [],
+      "title": "tolerations",
+      "type": "array"
+    }
+  },
+  "required": [
+    "proxyUrl",
+    "publicUrl",
+    "autoscaling",
+    "cookie",
+    "fullnameOverride",
+    "nameOverride",
+    "image",
+    "imagePullSecrets",
+    "ingress",
+    "existingJwtSecret",
+    "affinity",
+    "nodeSelector",
+    "existingOpenIdSecret",
+    "podAnnotations",
+    "podLabels",
+    "podSecurityContext",
+    "securityContext",
+    "replicaCount",
+    "resources",
+    "service",
+    "serviceAccount",
+    "tolerations",
+    "additionalEnvFromConfigMap",
+    "postgresql",
+    "defguard-proxy",
+    "defguard-gateway"
+  ],
+  "type": "object"
+}

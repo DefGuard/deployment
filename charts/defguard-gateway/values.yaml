@@ -1,4 +1,5 @@
 ---
+# yaml-language-server: $schema=values.schema.json
 # Use userspace wireguard implementation, useful on systems without native wireguard support. Set to true/false
 userspace: "false"
 # Defguard GRPC URL, e.g.: defguard-grpc.mycompany.com
