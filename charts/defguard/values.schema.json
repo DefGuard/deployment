@@ -1010,11 +1010,11 @@
       "type": "object"
     },
     "postgresql": {
-      "additionalProperties": false,
+      "additionalProperties": true,
       "description": "\nsub-chart bitnami/postgresql\n",
       "properties": {
         "auth": {
-          "additionalProperties": false,
+          "additionalProperties": true,
           "properties": {
             "database": {
               "default": "defguard",
@@ -1063,7 +1063,7 @@
           "type": "string"
         },
         "image": {
-          "additionalProperties": false,
+          "additionalProperties": true,
           "properties": {
             "repository": {
               "default": "bitnami/postgresql",
