@@ -966,7 +966,7 @@
           "type": "string"
         },
         "audit": {
-          "additionalProperties": true,
+          "additionalProperties": false,
           "description": "# Audit settings\n# https://github.com/bitnami/containers/tree/main/bitnami/postgresql#auditing\n#\n#\n#\n#\n#\n#\n#\n#\n#",
           "properties": {
             "clientMinMessages": {
@@ -1015,7 +1015,7 @@
           "type": "object"
         },
         "auth": {
-          "additionalProperties": false,
+          "additionalProperties": true,
           "description": "# Authentication parameters\n# ref: https://github.com/bitnami/containers/tree/main/bitnami/postgresql#setting-the-root-password-on-first-run\n# ref: https://github.com/bitnami/containers/tree/main/bitnami/postgresql#creating-a-database-on-first-run\n# ref: https://github.com/bitnami/containers/tree/main/bitnami/postgresql#creating-a-database-user-on-first-run\n#",
           "properties": {
             "database": {
