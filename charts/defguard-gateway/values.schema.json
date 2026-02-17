@@ -1,0 +1,398 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "properties": {
+    "additionalEnvFromConfigMap": {
+      "default": "",
+      "description": "defguard-gateway pod additional ENV from configmap",
+      "title": "additionalEnvFromConfigMap",
+      "type": "string"
+    },
+    "affinity": {
+      "additionalProperties": false,
+      "description": "defguard-gateway pod affinity configuration",
+      "required": [],
+      "title": "affinity",
+      "type": "object"
+    },
+    "existingTokenSecret": {
+      "default": "",
+      "description": "Secret to get the token from",
+      "title": "existingTokenSecret",
+      "type": "string"
+    },
+    "existingTokenSecretKey": {
+      "default": "",
+      "description": "Key to extract the token from in existingTokenSecret",
+      "title": "existingTokenSecretKey",
+      "type": "string"
+    },
+    "fullnameOverride": {
+      "default": "",
+      "description": "defguard-gateway full name override",
+      "title": "fullnameOverride",
+      "type": "string"
+    },
+    "global": {
+      "description": "Global values are values that can be accessed from any chart or subchart by exactly the same name.",
+      "required": [],
+      "title": "global",
+      "type": "object"
+    },
+    "grpcUrl": {
+      "default": "",
+      "description": "Defguard GRPC URL, e.g.: defguard-grpc.mycompany.com",
+      "title": "grpcUrl",
+      "type": "string"
+    },
+    "healthCheck": {
+      "additionalProperties": false,
+      "description": "defguard-gateway health check configuration",
+      "properties": {
+        "enabled": {
+          "default": false,
+          "title": "enabled",
+          "type": "boolean"
+        },
+        "livenessProbe": {
+          "additionalProperties": false,
+          "properties": {
+            "failureThreshold": {
+              "default": 3,
+              "title": "failureThreshold",
+              "type": "integer"
+            },
+            "initialDelaySeconds": {
+              "default": 30,
+              "title": "initialDelaySeconds",
+              "type": "integer"
+            },
+            "periodSeconds": {
+              "default": 10,
+              "title": "periodSeconds",
+              "type": "integer"
+            },
+            "timeoutSeconds": {
+              "default": 5,
+              "title": "timeoutSeconds",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "initialDelaySeconds",
+            "periodSeconds",
+            "timeoutSeconds",
+            "failureThreshold"
+          ],
+          "title": "livenessProbe",
+          "type": "object"
+        },
+        "port": {
+          "default": 35053,
+          "title": "port",
+          "type": "integer"
+        },
+        "readinessProbe": {
+          "additionalProperties": false,
+          "properties": {
+            "failureThreshold": {
+              "default": 3,
+              "title": "failureThreshold",
+              "type": "integer"
+            },
+            "initialDelaySeconds": {
+              "default": 10,
+              "title": "initialDelaySeconds",
+              "type": "integer"
+            },
+            "periodSeconds": {
+              "default": 10,
+              "title": "periodSeconds",
+              "type": "integer"
+            },
+            "timeoutSeconds": {
+              "default": 5,
+              "title": "timeoutSeconds",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "initialDelaySeconds",
+            "periodSeconds",
+            "timeoutSeconds",
+            "failureThreshold"
+          ],
+          "title": "readinessProbe",
+          "type": "object"
+        }
+      },
+      "required": [
+        "enabled",
+        "port",
+        "livenessProbe",
+        "readinessProbe"
+      ],
+      "title": "healthCheck",
+      "type": "object"
+    },
+    "image": {
+      "additionalProperties": false,
+      "description": "defguard-gateway container image configuration",
+      "properties": {
+        "pullPolicy": {
+          "default": "IfNotPresent",
+          "title": "pullPolicy",
+          "type": "string"
+        },
+        "repository": {
+          "default": "ghcr.io/defguard/gateway",
+          "title": "repository",
+          "type": "string"
+        },
+        "tag": {
+          "default": "",
+          "title": "tag",
+          "type": "string"
+        }
+      },
+      "required": [
+        "pullPolicy",
+        "repository",
+        "tag"
+      ],
+      "title": "image",
+      "type": "object"
+    },
+    "imagePullSecrets": {
+      "description": "defguard-gateway container image pull secrets",
+      "items": {
+        "required": []
+      },
+      "title": "imagePullSecrets",
+      "type": "array"
+    },
+    "logLevel": {
+      "default": "debug",
+      "description": "rust log level, default is debug",
+      "title": "logLevel",
+      "type": "string"
+    },
+    "nameOverride": {
+      "default": "",
+      "description": "defguard-gateway name override",
+      "title": "nameOverride",
+      "type": "string"
+    },
+    "nodeSelector": {
+      "additionalProperties": false,
+      "description": "defguard-gateway node selector configuration",
+      "required": [],
+      "title": "nodeSelector",
+      "type": "object"
+    },
+    "podAnnotations": {
+      "additionalProperties": false,
+      "description": "defguard-gateway pod annotations",
+      "required": [],
+      "title": "podAnnotations",
+      "type": "object"
+    },
+    "podLabels": {
+      "additionalProperties": false,
+      "description": "defguard-gateway pod labels",
+      "required": [],
+      "title": "podLabels",
+      "type": "object"
+    },
+    "podSecurityContext": {
+      "additionalProperties": false,
+      "description": "defguard-gateway pod security context",
+      "required": [],
+      "title": "podSecurityContext",
+      "type": "object"
+    },
+    "replicaCount": {
+      "default": 1,
+      "description": "defguard-gateway pod replica count",
+      "title": "replicaCount",
+      "type": "integer"
+    },
+    "resources": {
+      "additionalProperties": false,
+      "description": "defguard-gateway pod resources",
+      "required": [],
+      "title": "resources",
+      "type": "object"
+    },
+    "securityContext": {
+      "additionalProperties": false,
+      "description": "defguard-gateway container security context\nelevated priveleges are required for managing network interfaces",
+      "properties": {
+        "allowPrivilegeEscalation": {
+          "default": true,
+          "title": "allowPrivilegeEscalation",
+          "type": "boolean"
+        },
+        "capabilities": {
+          "additionalProperties": false,
+          "properties": {
+            "add": {
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "string"
+                  }
+                ],
+                "required": []
+              },
+              "title": "add",
+              "type": "array"
+            }
+          },
+          "required": [
+            "add"
+          ],
+          "title": "capabilities",
+          "type": "object"
+        },
+        "privileged": {
+          "default": true,
+          "title": "privileged",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "allowPrivilegeEscalation",
+        "privileged",
+        "capabilities"
+      ],
+      "title": "securityContext",
+      "type": "object"
+    },
+    "service": {
+      "additionalProperties": false,
+      "description": "defguard-gateway service configuration",
+      "properties": {
+        "wireguard": {
+          "additionalProperties": false,
+          "properties": {
+            "annotations": {
+              "additionalProperties": false,
+              "required": [],
+              "title": "annotations",
+              "type": "object"
+            },
+            "labels": {
+              "additionalProperties": false,
+              "required": [],
+              "title": "labels",
+              "type": "object"
+            },
+            "port": {
+              "default": 32140,
+              "title": "port",
+              "type": "integer"
+            },
+            "type": {
+              "default": "ClusterIP",
+              "title": "type",
+              "type": "string"
+            }
+          },
+          "required": [
+            "annotations",
+            "labels",
+            "port",
+            "type"
+          ],
+          "title": "wireguard",
+          "type": "object"
+        }
+      },
+      "required": [
+        "wireguard"
+      ],
+      "title": "service",
+      "type": "object"
+    },
+    "serviceAccount": {
+      "additionalProperties": false,
+      "description": "defguard-gateway serviceaccount configuration",
+      "properties": {
+        "annotations": {
+          "additionalProperties": false,
+          "required": [],
+          "title": "annotations",
+          "type": "object"
+        },
+        "create": {
+          "default": true,
+          "title": "create",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "annotations",
+        "create"
+      ],
+      "title": "serviceAccount",
+      "type": "object"
+    },
+    "statsPeriod": {
+      "default": 30,
+      "description": "Defines how often (in seconds) should interface statistics be sent to Defguard server",
+      "title": "statsPeriod",
+      "type": "integer"
+    },
+    "token": {
+      "default": "",
+      "description": "Token from Defguard app to secure gRPC connection, available on network page.\nIt is not recommended to use this. Create a secret yourself and use existingTokenSecret instead",
+      "title": "token",
+      "type": "string"
+    },
+    "tolerations": {
+      "description": "defguard-gateway pod tolerations",
+      "items": {
+        "required": []
+      },
+      "title": "tolerations",
+      "type": "array"
+    },
+    "userspace": {
+      "default": "false",
+      "description": "Use userspace wireguard implementation, useful on systems without native wireguard support. Set to true/false",
+      "title": "userspace",
+      "type": "string"
+    }
+  },
+  "required": [
+    "userspace",
+    "grpcUrl",
+    "token",
+    "existingTokenSecret",
+    "existingTokenSecretKey",
+    "statsPeriod",
+    "logLevel",
+    "fullnameOverride",
+    "nameOverride",
+    "image",
+    "imagePullSecrets",
+    "affinity",
+    "nodeSelector",
+    "tolerations",
+    "podAnnotations",
+    "podLabels",
+    "replicaCount",
+    "resources",
+    "podSecurityContext",
+    "securityContext",
+    "additionalEnvFromConfigMap",
+    "healthCheck",
+    "service",
+    "serviceAccount"
+  ],
+  "type": "object"
+}
