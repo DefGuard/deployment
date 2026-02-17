@@ -5,6 +5,7 @@
     "additionalEnvFromConfigMap": {
       "default": "",
       "description": "defguard-gateway pod additional ENV from configmap",
+      "required": [],
       "title": "additionalEnvFromConfigMap",
       "type": "string"
     },
@@ -18,18 +19,21 @@
     "existingTokenSecret": {
       "default": "",
       "description": "Secret to get the token from",
+      "required": [],
       "title": "existingTokenSecret",
       "type": "string"
     },
     "existingTokenSecretKey": {
       "default": "",
       "description": "Key to extract the token from in existingTokenSecret",
+      "required": [],
       "title": "existingTokenSecretKey",
       "type": "string"
     },
     "fullnameOverride": {
       "default": "",
       "description": "defguard-gateway full name override",
+      "required": [],
       "title": "fullnameOverride",
       "type": "string"
     },
@@ -42,6 +46,7 @@
     "grpcUrl": {
       "default": "",
       "description": "Defguard GRPC URL, e.g.: defguard-grpc.mycompany.com",
+      "required": [],
       "title": "grpcUrl",
       "type": "string"
     },
@@ -51,6 +56,7 @@
       "properties": {
         "enabled": {
           "default": false,
+          "required": [],
           "title": "enabled",
           "type": "boolean"
         },
@@ -59,21 +65,25 @@
           "properties": {
             "failureThreshold": {
               "default": 3,
+              "required": [],
               "title": "failureThreshold",
               "type": "integer"
             },
             "initialDelaySeconds": {
               "default": 30,
+              "required": [],
               "title": "initialDelaySeconds",
               "type": "integer"
             },
             "periodSeconds": {
               "default": 10,
+              "required": [],
               "title": "periodSeconds",
               "type": "integer"
             },
             "timeoutSeconds": {
               "default": 5,
+              "required": [],
               "title": "timeoutSeconds",
               "type": "integer"
             }
@@ -89,6 +99,7 @@
         },
         "port": {
           "default": 35053,
+          "required": [],
           "title": "port",
           "type": "integer"
         },
@@ -97,21 +108,25 @@
           "properties": {
             "failureThreshold": {
               "default": 3,
+              "required": [],
               "title": "failureThreshold",
               "type": "integer"
             },
             "initialDelaySeconds": {
               "default": 10,
+              "required": [],
               "title": "initialDelaySeconds",
               "type": "integer"
             },
             "periodSeconds": {
               "default": 10,
+              "required": [],
               "title": "periodSeconds",
               "type": "integer"
             },
             "timeoutSeconds": {
               "default": 5,
+              "required": [],
               "title": "timeoutSeconds",
               "type": "integer"
             }
@@ -141,16 +156,19 @@
       "properties": {
         "pullPolicy": {
           "default": "IfNotPresent",
+          "required": [],
           "title": "pullPolicy",
           "type": "string"
         },
         "repository": {
           "default": "ghcr.io/defguard/gateway",
+          "required": [],
           "title": "repository",
           "type": "string"
         },
         "tag": {
           "default": "",
+          "required": [],
           "title": "tag",
           "type": "string"
         }
@@ -168,18 +186,21 @@
       "items": {
         "required": []
       },
+      "required": [],
       "title": "imagePullSecrets",
       "type": "array"
     },
     "logLevel": {
       "default": "debug",
       "description": "rust log level, default is debug",
+      "required": [],
       "title": "logLevel",
       "type": "string"
     },
     "nameOverride": {
       "default": "",
       "description": "defguard-gateway name override",
+      "required": [],
       "title": "nameOverride",
       "type": "string"
     },
@@ -214,6 +235,7 @@
     "replicaCount": {
       "default": 1,
       "description": "defguard-gateway pod replica count",
+      "required": [],
       "title": "replicaCount",
       "type": "integer"
     },
@@ -230,6 +252,7 @@
       "properties": {
         "allowPrivilegeEscalation": {
           "default": true,
+          "required": [],
           "title": "allowPrivilegeEscalation",
           "type": "boolean"
         },
@@ -240,14 +263,17 @@
               "items": {
                 "anyOf": [
                   {
+                    "required": [],
                     "type": "string"
                   },
                   {
+                    "required": [],
                     "type": "string"
                   }
                 ],
                 "required": []
               },
+              "required": [],
               "title": "add",
               "type": "array"
             }
@@ -260,6 +286,7 @@
         },
         "privileged": {
           "default": true,
+          "required": [],
           "title": "privileged",
           "type": "boolean"
         }
@@ -293,11 +320,13 @@
             },
             "port": {
               "default": 32140,
+              "required": [],
               "title": "port",
               "type": "integer"
             },
             "type": {
               "default": "ClusterIP",
+              "required": [],
               "title": "type",
               "type": "string"
             }
@@ -330,6 +359,7 @@
         },
         "create": {
           "default": true,
+          "required": [],
           "title": "create",
           "type": "boolean"
         }
@@ -344,12 +374,14 @@
     "statsPeriod": {
       "default": 30,
       "description": "Defines how often (in seconds) should interface statistics be sent to Defguard server",
+      "required": [],
       "title": "statsPeriod",
       "type": "integer"
     },
     "token": {
       "default": "",
       "description": "Token from Defguard app to secure gRPC connection, available on network page.\nIt is not recommended to use this. Create a secret yourself and use existingTokenSecret instead",
+      "required": [],
       "title": "token",
       "type": "string"
     },
@@ -358,12 +390,14 @@
       "items": {
         "required": []
       },
+      "required": [],
       "title": "tolerations",
       "type": "array"
     },
     "userspace": {
       "default": "false",
-      "description": "Use userspace wireguard implementation, useful on systems without native wireguard support. Set to true/false",
+      "description": "yaml-language-server: $schema=values.schema.json\nUse userspace wireguard implementation, useful on systems without native wireguard support. Set to true/false",
+      "required": [],
       "title": "userspace",
       "type": "string"
     }

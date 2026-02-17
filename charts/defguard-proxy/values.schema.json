@@ -5,6 +5,7 @@
     "additionalEnvFromConfigMap": {
       "default": "",
       "description": "defguard-proxy additional ENV from configmap",
+      "required": [],
       "title": "additionalEnvFromConfigMap",
       "type": "string"
     },
@@ -21,16 +22,19 @@
       "properties": {
         "enabled": {
           "default": false,
+          "required": [],
           "title": "enabled",
           "type": "boolean"
         },
         "maxReplicas": {
           "default": 10,
+          "required": [],
           "title": "maxReplicas",
           "type": "integer"
         },
         "minReplicas": {
           "default": 1,
+          "required": [],
           "title": "minReplicas",
           "type": "integer"
         }
@@ -45,13 +49,15 @@
     },
     "enabled": {
       "default": false,
-      "description": "defguard-proxy is turned off by default. enable to allow use of the enrollment interface",
+      "description": "yaml-language-server: $schema=values.schema.json\ndefguard-proxy is turned off by default. enable to allow use of the enrollment interface",
+      "required": [],
       "title": "enabled",
       "type": "boolean"
     },
     "fullnameOverride": {
       "default": "",
       "description": "defguard-proxy full name override",
+      "required": [],
       "title": "fullnameOverride",
       "type": "string"
     },
@@ -67,16 +73,19 @@
       "properties": {
         "pullPolicy": {
           "default": "IfNotPresent",
+          "required": [],
           "title": "pullPolicy",
           "type": "string"
         },
         "repository": {
           "default": "ghcr.io/defguard/defguard-proxy",
+          "required": [],
           "title": "repository",
           "type": "string"
         },
         "tag": {
           "default": "",
+          "required": [],
           "title": "tag",
           "type": "string"
         }
@@ -94,6 +103,7 @@
       "items": {
         "required": []
       },
+      "required": [],
       "title": "imagePullSecrets",
       "type": "array"
     },
@@ -112,16 +122,19 @@
             },
             "className": {
               "default": "",
+              "required": [],
               "title": "className",
               "type": "string"
             },
             "enabled": {
               "default": true,
+              "required": [],
               "title": "enabled",
               "type": "boolean"
             },
             "host": {
               "default": "enrollment-grpc.local",
+              "required": [],
               "title": "host",
               "type": "string"
             },
@@ -133,6 +146,7 @@
             },
             "tls": {
               "default": false,
+              "required": [],
               "title": "tls",
               "type": "boolean"
             }
@@ -159,16 +173,19 @@
             },
             "className": {
               "default": "",
+              "required": [],
               "title": "className",
               "type": "string"
             },
             "enabled": {
               "default": true,
+              "required": [],
               "title": "enabled",
               "type": "boolean"
             },
             "host": {
               "default": "enrollment.local",
+              "required": [],
               "title": "host",
               "type": "string"
             },
@@ -180,6 +197,7 @@
             },
             "tls": {
               "default": false,
+              "required": [],
               "title": "tls",
               "type": "boolean"
             }
@@ -206,6 +224,7 @@
     "nameOverride": {
       "default": "",
       "description": "defguard-proxy name override",
+      "required": [],
       "title": "nameOverride",
       "type": "string"
     },
@@ -240,12 +259,14 @@
     "publicUrl": {
       "default": "http://enrollment.local",
       "description": "this should be a URL based on defguard-proxy.ingress.web.host",
+      "required": [],
       "title": "publicUrl",
       "type": "string"
     },
     "replicaCount": {
       "default": 1,
       "description": "defguard-proxy container replica count",
+      "required": [],
       "title": "replicaCount",
       "type": "integer"
     },
@@ -275,6 +296,7 @@
               "properties": {
                 "traefik.ingress.kubernetes.io/service.serversscheme": {
                   "default": "h2c",
+                  "required": [],
                   "title": "traefik.ingress.kubernetes.io/service.serversscheme",
                   "type": "string"
                 }
@@ -293,11 +315,13 @@
             },
             "port": {
               "default": 50051,
+              "required": [],
               "title": "port",
               "type": "integer"
             },
             "type": {
               "default": "ClusterIP",
+              "required": [],
               "title": "type",
               "type": "string"
             }
@@ -328,11 +352,13 @@
             },
             "port": {
               "default": 8080,
+              "required": [],
               "title": "port",
               "type": "integer"
             },
             "type": {
               "default": "ClusterIP",
+              "required": [],
               "title": "type",
               "type": "string"
             }
@@ -366,6 +392,7 @@
         },
         "create": {
           "default": true,
+          "required": [],
           "title": "create",
           "type": "boolean"
         }
@@ -382,6 +409,7 @@
       "items": {
         "required": []
       },
+      "required": [],
       "title": "tolerations",
       "type": "array"
     }

@@ -1,4 +1,5 @@
 ---
+# yaml-language-server: $schema=values.schema.json
 # defguard-proxy is turned off by default. enable to allow use of the enrollment interface
 enabled: false
 # this should be a URL based on defguard-proxy.ingress.web.host
