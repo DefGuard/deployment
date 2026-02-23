@@ -1,0 +1,30 @@
+services:
+  proxy:
+    image: ghcr.io/defguard/defguard-proxy:latest
+    restart: unless-stopped
+    ports:
+      - "50051:50051"
+    environment:
+      - DEFGUARD_PROXY_URL=<PROXY_GRPC_URL>
+      - DEFGUARD_LOG_LEVEL=info
+      # More info about securing gRPC communication here:
+      # https://docs.defguard.net/deployment-strategies/grpc-ssl-communication#custom-ssl-ca-and-certificates
+      #- DEFGUARD_PROXY_GRPC_CERT=/certs/proxy.pem
+      #- DEFGUARD_PROXY_GRPC_KEY=/certs/proxy.key
+    # volumes:
+    #   - ./proxy.pem:/certs/proxy.pem
+    #   - ./proxy.key:/certs/proxy.key
+  npm:
+    image: "jc21/nginx-proxy-manager:latest"
+    restart: unless-stopped
+    ports:
+      - "80:80" # HTTP Port
+      - "443:443" # HTTPS Port
+      - "81:81" # Admin Web Port
+
+    environment:
+      TZ: "Europe/Warsaw"
+
+    volumes:
+      - ./volumes/npm/data:/data
+      - ./volumes/npm/letsencrypt:/etc/letsencrypt
