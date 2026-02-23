@@ -1,3 +1,9 @@
+admin:
+  address:
+    socket_address:
+      address: 0.0.0.0
+      port_value: 9901
+
 static_resources:
   listeners:
     - name: udp_listener
@@ -29,10 +35,10 @@ static_resources:
       dns_lookup_family: V4_ONLY
 
       health_checks:
-        - timeout: 2s
-          interval: 5s
-          unhealthy_threshold: 2
-          healthy_threshold: 2
+        - timeout: 1s
+          interval: 1s
+          unhealthy_threshold: 1
+          healthy_threshold: 1
           http_health_check:
             path: /health
             host: gateway_health
