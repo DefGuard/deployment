@@ -55,6 +55,8 @@ services:
     environment:
       DEFGUARD_STATS_PERIOD: 10
       HEALTH_PORT: 55003
+    # ports:
+    #   - "50051:50051/udp"
 
   gateway2:
     # image: ghcr.io/defguard/gateway:2.0.0-alpha1
@@ -68,6 +70,8 @@ services:
     environment:
       DEFGUARD_STATS_PERIOD: 10
       HEALTH_PORT: 55003
+    # ports:
+    #   - "50051:50051/udp"
 
   gateway-lb:
     image: envoyproxy/envoy:v1.33-latest
@@ -80,6 +84,20 @@ services:
     depends_on:
       - gateway1
       - gateway2
+
+  # gateway-lb-nginx:
+  #   image: nginx:1.25-alpine
+  #   command:
+  #     - /bin/sh
+  #     - -ec
+  #     - until getent hosts gateway1 gateway2 >/dev/null 2>&1; do sleep 0.2; done; exec nginx -g 'daemon off;'
+  #   ports:
+  #     - "50051:50051/udp"
+  #   volumes:
+  #     - ./nginx/gateway-lb.conf:/etc/nginx/nginx.conf:ro
+  #   depends_on:
+  #     - gateway1
+  #     - gateway2
 
   db:
     image: postgres:18-alpine
