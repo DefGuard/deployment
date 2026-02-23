@@ -25,13 +25,15 @@ static_resources:
             "@type": type.googleapis.com/envoy.extensions.filters.udp.udp_proxy.v3.UdpProxyConfig
             stat_prefix: udp_lb
             cluster: defguard_gateway_cluster
+            hash_policies:
+              - source_ip: true
             idle_timeout: 60s
 
   clusters:
     - name: defguard_gateway_cluster
       type: STRICT_DNS
       connect_timeout: 1s
-      lb_policy: ROUND_ROBIN
+      lb_policy: RING_HASH
       dns_lookup_family: V4_ONLY
 
       health_checks:
