@@ -2,6 +2,7 @@ services:
   proxy:
     image: ghcr.io/defguard/defguard-proxy:latest
     restart: unless-stopped
+    container_name: "defguard-proxy"
     ports:
       - "50051:50051"
     environment:

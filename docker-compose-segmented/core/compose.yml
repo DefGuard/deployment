@@ -9,7 +9,8 @@ services:
       # open on all interfaces/IPs - should be secured with custom CA (see .env)
       - "50055:50055"
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     # volumes:
     # More info here:
     # https://docs.defguard.net/deployment-strategies/openid-rsa-key
@@ -22,10 +23,16 @@ services:
 
   db:
     image: postgres:17-alpine
+    restart: unless-stopped
     container_name: "defguard-db"
     env_file: .env
     volumes:
       - ./volumes/db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U defguard"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   npm:
     image: "jc21/nginx-proxy-manager:latest"

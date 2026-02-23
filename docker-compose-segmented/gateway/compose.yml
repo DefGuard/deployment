@@ -2,6 +2,7 @@ services:
   gateway:
     image: ghcr.io/defguard/gateway:latest
     restart: unless-stopped
+    container_name: "defguard-gateway"
     network_mode: "host"
     environment:
       - DEFGUARD_GRPC_URL=<CORE_GRPC_URL>
