@@ -39,6 +39,14 @@ static_resources:
       health_checks:
         - timeout: 1s
           interval: 1s
+          no_traffic_interval: 1s
+          no_traffic_healthy_interval: 1s
+          unhealthy_interval: 1s
+          healthy_edge_interval: 1s
+          unhealthy_edge_interval: 1s
+          initial_jitter: 0s
+          interval_jitter: 0s
+          interval_jitter_percent: 0
           unhealthy_threshold: 1
           healthy_threshold: 1
           http_health_check:
