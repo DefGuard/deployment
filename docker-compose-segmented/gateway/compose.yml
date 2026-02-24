@@ -1,0 +1,17 @@
+services:
+  gateway:
+    image: ghcr.io/defguard/gateway:latest
+    restart: unless-stopped
+    container_name: "defguard-gateway"
+    network_mode: "host"
+    environment:
+      - DEFGUARD_GRPC_URL=<CORE_GRPC_URL>
+      - DEFGUARD_TOKEN=<GATEWAY_TOKEN>
+      - DEFGUARD_LOG_LEVEL=info
+      # More info about securing gRPC communication here:
+      # https://docs.defguard.net/deployment-strategies/grpc-ssl-communication#custom-ssl-ca-and-certificates
+      # - DEFGUARD_GRPC_CA=/ca.pem
+    # volumes:
+    #   - ./ca.pem:/ca.pem
+    cap_add:
+      - NET_ADMIN

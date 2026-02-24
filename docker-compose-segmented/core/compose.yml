@@ -1,0 +1,51 @@
+services:
+  core:
+    image: ghcr.io/defguard/defguard:latest
+    restart: unless-stopped
+    container_name: "defguard"
+    env_file: .env
+    ports:
+      # gRPC port for the Gateway to connect to
+      # open on all interfaces/IPs - should be secured with custom CA (see .env)
+      - "50055:50055"
+    depends_on:
+      db:
+        condition: service_healthy
+    # volumes:
+    # More info here:
+    # https://docs.defguard.net/deployment-strategies/openid-rsa-key
+    # - ./rsakey.pem:/keys/rsakey.pem
+    # More info about securing gRPC communication here:
+    # https://docs.defguard.net/deployment-strategies/grpc-ssl-communication#custom-ssl-ca-and-certificates
+    # - ./core.pem:/certs/core.pem
+    # - ./core.key:/certs/core.key
+    # - ./ca.pem:/certs/ca.pem
+
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    container_name: "defguard-db"
+    env_file: .env
+    volumes:
+      - ./volumes/db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U defguard"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  npm:
+    image: "jc21/nginx-proxy-manager:latest"
+    restart: unless-stopped
+
+    ports:
+      - "80:80" # HTTP Port
+      - "443:443" # HTTPS Port
+      - "81:81" # Admin Web Port
+
+    environment:
+      TZ: "UTC"
+
+    volumes:
+      - ./volumes/npm/data:/data
+      - ./volumes/npm/letsencrypt:/etc/letsencrypt
