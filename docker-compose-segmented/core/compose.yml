@@ -44,7 +44,7 @@ services:
       - "81:81" # Admin Web Port
 
     environment:
-      TZ: "Europe/Warsaw"
+      TZ: "UTC"
 
     volumes:
       - ./volumes/npm/data:/data
