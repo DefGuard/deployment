@@ -68,13 +68,30 @@ services:
 
   gateway-lb:
     image: envoyproxy/envoy:v1.33-latest
+    command: ["envoy", "-c", "/etc/envoy/envoy.yaml", "-l", "debug"]
     ports:
       - "50051:50051/udp"
+      - "9901:9901"
     volumes:
       - ./envoy/envoy.yaml:/etc/envoy/envoy.yaml:ro
     depends_on:
       - gateway1
       - gateway2
+
+  # NGINX can be used for LB but not HA since it does not support healthchecks
+  # gateway-lb-nginx:
+  #   image: nginx:1.25-alpine
+  #   command:
+  #     - /bin/sh
+  #     - -ec
+  #     - until getent hosts gateway1 gateway2 >/dev/null 2>&1; do sleep 0.2; done; exec nginx -g 'daemon off;'
+  #   ports:
+  #     - "50051:50051/udp"
+  #   volumes:
+  #     - ./nginx/gateway-lb.conf:/etc/nginx/nginx.conf:ro
+  #   depends_on:
+  #     - gateway1
+  #     - gateway2
 
   db:
     image: postgres:18-alpine

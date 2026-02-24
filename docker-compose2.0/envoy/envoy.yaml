@@ -1,3 +1,9 @@
+admin:
+  address:
+    socket_address:
+      address: 0.0.0.0
+      port_value: 9901
+
 static_resources:
   listeners:
     - name: udp_listener
@@ -19,20 +25,27 @@ static_resources:
             "@type": type.googleapis.com/envoy.extensions.filters.udp.udp_proxy.v3.UdpProxyConfig
             stat_prefix: udp_lb
             cluster: defguard_gateway_cluster
+            hash_policies:
+              - source_ip: true
             idle_timeout: 60s
 
   clusters:
     - name: defguard_gateway_cluster
       type: STRICT_DNS
       connect_timeout: 1s
-      lb_policy: ROUND_ROBIN
+      lb_policy: RING_HASH
       dns_lookup_family: V4_ONLY
 
       health_checks:
-        - timeout: 2s
-          interval: 5s
-          unhealthy_threshold: 2
-          healthy_threshold: 2
+        - timeout: 1s
+          interval: 1s
+          no_traffic_interval: 1s
+          no_traffic_healthy_interval: 1s
+          unhealthy_interval: 1s
+          healthy_edge_interval: 1s
+          unhealthy_edge_interval: 1s
+          unhealthy_threshold: 1
+          healthy_threshold: 1
           http_health_check:
             path: /health
             host: gateway_health
