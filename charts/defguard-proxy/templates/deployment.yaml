@@ -53,7 +53,7 @@ spec:
               port: http
           readinessProbe:
             httpGet:
-              path: /api/v1/health
+              path: /api/v1/health-grpc
               port: http
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
