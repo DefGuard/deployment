@@ -1,0 +1,100 @@
+services:
+  core:
+    image: ghcr.io/defguard/defguard:dev
+    environment:
+      DEFGUARD_COOKIE_INSECURE: "true"
+      DEFGUARD_SECRET_KEY: defguard-secret-key-defguard-secret-key-defguard-secret-key-defguard-secret-key
+      DEFGUARD_AUTH_SECRET: defguard-auth-secret
+      DEFGUARD_GATEWAY_SECRET: defguard-gateway-secret
+      DEFGUARD_YUBIBRIDGE_SECRET: defguard-yubibridge-secret
+      DEFGUARD_DB_HOST: db
+      DEFGUARD_DB_PORT: 5432
+      DEFGUARD_DB_USER: defguard
+      DEFGUARD_DB_PASSWORD: defguard
+      DEFGUARD_DB_NAME: defguard
+      DEFGUARD_ADOPT_EDGE: "edge1:50051"
+      DEFGUARD_ADOPT_GATEWAY: "gateway1:50066"
+    depends_on:
+      - db
+      - gateway-lb
+      - edge-lb
+    ports:
+      - "8000:8000"
+
+  edge1:
+    image: ghcr.io/defguard/defguard-proxy:dev
+    volumes:
+      - ./.volumes/certs2.0-ha/edge1:/etc/defguard/certs
+
+  edge2:
+    image: ghcr.io/defguard/defguard-proxy:dev
+    volumes:
+      - ./.volumes/certs2.0-ha/edge2:/etc/defguard/certs
+
+  edge-lb:
+    image: nginx:1.25-alpine
+    depends_on:
+      - edge1
+      - edge2
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./nginx/edge.conf:/etc/nginx/conf.d/default.conf:ro
+
+  gateway1:
+    image: ghcr.io/defguard/gateway:dev
+    cap_add:
+      - NET_ADMIN
+    volumes:
+      - ./.volumes/certs2.0-ha/gateway1:/etc/defguard/certs
+    environment:
+      DEFGUARD_STATS_PERIOD: 10
+      HEALTH_PORT: 55003
+
+  gateway2:
+    image: ghcr.io/defguard/gateway:dev
+    cap_add:
+      - NET_ADMIN
+    volumes:
+      - ./.volumes/certs2.0-ha/gateway2:/etc/defguard/certs
+    environment:
+      DEFGUARD_STATS_PERIOD: 10
+      HEALTH_PORT: 55003
+
+  gateway-lb:
+    image: envoyproxy/envoy:v1.33-latest
+    command: ["envoy", "-c", "/etc/envoy/envoy.yaml", "-l", "debug"]
+    ports:
+      - "50051:50051/udp"
+      - "9901:9901"
+    volumes:
+      - ./envoy/envoy.yaml:/etc/envoy/envoy.yaml:ro
+    depends_on:
+      - gateway1
+      - gateway2
+
+  # NGINX can be used for LB but not HA since it does not support healthchecks
+  # gateway-lb-nginx:
+  #   image: nginx:1.25-alpine
+  #   command:
+  #     - /bin/sh
+  #     - -ec
+  #     - until getent hosts gateway1 gateway2 >/dev/null 2>&1; do sleep 0.2; done; exec nginx -g 'daemon off;'
+  #   ports:
+  #     - "50051:50051/udp"
+  #   volumes:
+  #     - ./nginx/gateway-lb.conf:/etc/nginx/nginx.conf:ro
+  #   depends_on:
+  #     - gateway1
+  #     - gateway2
+
+  db:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_DB: defguard
+      POSTGRES_USER: defguard
+      POSTGRES_PASSWORD: defguard
+    volumes:
+      - ./.volumes/db2.0-ha:/var/lib/postgresql
+    ports:
+      - "5432:5432"
