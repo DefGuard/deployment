@@ -34,7 +34,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends ovmf
+          sudo apt-get install -y --no-install-recommends ovmf awscli
 
       - name: Check KVM availability
         run: |
@@ -75,5 +75,17 @@ jobs:
             -var "gateway_tag=${{ github.event.inputs.gateway_tag || env.DEFAULT_TAG }}" \
             defguard.pkr.hcl
 
-      - name: Print OVA size
-        run: ls -lh output/defguard/defguard.ova
+      - name: Upload OVA to S3
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: eu-central-1
+          CORE_TAG: ${{ github.event.inputs.core_tag || env.DEFAULT_TAG }}
+          PROXY_TAG: ${{ github.event.inputs.proxy_tag || env.DEFAULT_TAG }}
+          GATEWAY_TAG: ${{ github.event.inputs.gateway_tag || env.DEFAULT_TAG }}
+        run: |
+          TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+          FILENAME="defguard_${TIMESTAMP}_core-${CORE_TAG}_edge-${PROXY_TAG}_gateway-${GATEWAY_TAG}.ova"
+          ls -lh output/defguard/defguard.ova
+          aws s3 cp output/defguard/defguard.ova "s3://defguard-downloads/ova/${FILENAME}"
+          echo "Uploaded: s3://defguard-downloads/ova/${FILENAME}"
