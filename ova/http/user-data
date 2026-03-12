@@ -1,0 +1,29 @@
+#cloud-config
+autoinstall:
+  version: 1
+  locale: en_US.UTF-8
+  keyboard:
+    layout: us
+  network:
+    network:
+      version: 2
+      ethernets:
+        any-en:
+          match:
+            name: "en*"
+          dhcp4: true
+  storage:
+    layout:
+      name: direct
+  identity:
+    hostname: ubuntu-server
+    username: ubuntu
+    password: "$6$WJrbHbM95cTpbYHJ$1D6g0IicBI9.hl9ArsohApVqq/9iKbMMC7GNXvbnmshHYSDaGmQfxtBy/hCOglt.dRZYr9wymXcYMhjeRVUd6."
+  ssh:
+    install-server: true
+    allow-pw: true
+  packages:
+    - curl
+  late-commands:
+    - echo 'ubuntu ALL=(ALL) NOPASSWD:ALL' > /target/etc/sudoers.d/ubuntu
+    - chmod 440 /target/etc/sudoers.d/ubuntu

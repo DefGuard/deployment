@@ -1,0 +1,71 @@
+name: Build OVF Image
+
+on:
+  workflow_dispatch:
+    inputs:
+      core_tag:
+        description: "defguard core image tag"
+        required: true
+      proxy_tag:
+        description: "defguard proxy image tag"
+        required: true
+      gateway_tag:
+        description: "defguard gateway image tag"
+        required: true
+
+jobs:
+  build:
+    runs-on: [self-hosted, Linux, X64]
+
+    defaults:
+      run:
+        working-directory: ova
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            qemu-kvm \
+            qemu-utils \
+            ovmf \
+            cpu-checker
+
+      - name: Check KVM availability
+        run: kvm-ok
+
+      - name: Setup Packer
+        uses: hashicorp/setup-packer@main
+        with:
+          version: latest
+
+      - name: Cache ISO
+        uses: actions/cache@v4
+        with:
+          path: ova/ubuntu-24.04.4-live-server-amd64.iso
+          key: ubuntu-24.04.4-live-server-amd64-iso
+
+      - name: Download ISO (if not cached)
+        run: |
+          if [ ! -f ubuntu-24.04.4-live-server-amd64.iso ]; then
+            curl -fL -o ubuntu-24.04.4-live-server-amd64.iso \
+              https://releases.ubuntu.com/24.04.4/ubuntu-24.04.4-live-server-amd64.iso
+          fi
+
+      - name: Packer init
+        run: packer init defguard.pkr.hcl
+
+      - name: Packer build
+        run: |
+          packer build \
+            -var "iso_url=file://$PWD/ubuntu-24.04.4-live-server-amd64.iso" \
+            -var "core_tag=${{ github.event.inputs.core_tag }}" \
+            -var "proxy_tag=${{ github.event.inputs.proxy_tag }}" \
+            -var "gateway_tag=${{ github.event.inputs.gateway_tag }}" \
+            defguard.pkr.hcl
+
+      - name: Print OVA size
+        run: ls -lh output/defguard/defguard.ova

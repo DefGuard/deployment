@@ -1,0 +1,20 @@
+.encoding = "UTF-8"
+config.version = "8"
+virtualHW.version = "19"
+displayName = "defguard"
+guestOS = "ubuntu-64"
+
+memsize = "2048"
+numvcpus = "2"
+cpuid.coresPerSocket = "2"
+
+scsi0.present = "TRUE"
+scsi0.virtualDev = "pvscsi"
+scsi0:0.present = "TRUE"
+scsi0:0.fileName = "defguard.vmdk"
+scsi0:0.deviceType = "scsi-hardDisk"
+
+ide1:0.present = "TRUE"
+ide1:0.deviceType = "cdrom-raw"
+ide1:0.autodetect = "TRUE"
+ide1:0.startConnected = "FALSE"
