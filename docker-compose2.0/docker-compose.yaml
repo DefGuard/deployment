@@ -1,6 +1,6 @@
 services:
   core:
-    image: ghcr.io/defguard/defguard:dev
+    image: ghcr.io/defguard/defguard:2.0.0-alpha2
     environment:
       DEFGUARD_COOKIE_INSECURE: "true"
       DEFGUARD_SECRET_KEY: defguard-secret-key-defguard-secret-key-defguard-secret-key-defguard-secret-key
@@ -22,14 +22,14 @@ services:
       - "8000:8000"
 
   edge1:
-    image: ghcr.io/defguard/defguard-proxy:dev
+    image: ghcr.io/defguard/defguard-proxy:2.0.0-alpha2
     volumes:
       - ./.volumes/certs2.0/edge1:/etc/defguard/certs
     ports:
       - "8080:8080"
 
   gateway1:
-    image: ghcr.io/defguard/gateway:dev
+    image: ghcr.io/defguard/gateway:2.0.0-alpha2
     cap_add:
       - NET_ADMIN
     volumes:
@@ -48,5 +48,3 @@ services:
       POSTGRES_PASSWORD: defguard
     volumes:
       - ./.volumes/db2.0:/var/lib/postgresql
-    ports:
-      - "5432:5432"
