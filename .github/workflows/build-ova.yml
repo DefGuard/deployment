@@ -34,12 +34,10 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends \
-            ovmf \
-            cpu-checker
+          sudo apt-get install -y --no-install-recommends ovmf
 
       - name: Check KVM availability
-        run: kvm-ok
+        run: ls /dev/kvm
 
       - name: Setup Packer
         uses: hashicorp/setup-packer@main
