@@ -40,7 +40,7 @@ jobs:
         run: |
           ls -la /dev/kvm
           id
-          [ -r /dev/kvm ] && echo "KVM readable" || echo "KVM NOT readable - runner user lacks permission"
+          [ -r /dev/kvm ] && echo "KVM readable" || echo "KVM NOT readable"
 
       - name: Setup Packer
         uses: hashicorp/setup-packer@main
