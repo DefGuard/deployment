@@ -39,6 +39,7 @@ jobs:
       - name: Check KVM availability
         run: |
           ls -la /dev/kvm
+          echo "test"
           id
           [ -r /dev/kvm ] && echo "KVM readable" || echo "KVM NOT readable"
 
