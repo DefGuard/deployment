@@ -37,7 +37,10 @@ jobs:
           sudo apt-get install -y --no-install-recommends ovmf
 
       - name: Check KVM availability
-        run: ls /dev/kvm
+        run: |
+          ls -la /dev/kvm
+          id
+          [ -r /dev/kvm ] && echo "KVM readable" || echo "KVM NOT readable - runner user lacks permission"
 
       - name: Setup Packer
         uses: hashicorp/setup-packer@main
@@ -61,6 +64,8 @@ jobs:
         run: packer init defguard.pkr.hcl
 
       - name: Packer build
+        env:
+          PACKER_LOG: 1
         run: |
           packer build \
             -var "iso_url=file://$PWD/ubuntu-24.04.4-live-server-amd64.iso" \
