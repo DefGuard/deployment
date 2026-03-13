@@ -38,7 +38,7 @@ services:
     network_mode: "host"
 
   npm:
-    image: "jc21/nginx-proxy-manager:latest"
+    image: "jc21/nginx-proxy-manager:2.14.0"
     restart: unless-stopped
 
     ports:

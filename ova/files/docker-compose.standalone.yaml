@@ -36,7 +36,7 @@ services:
       HEALTH_PORT: 55003
 
   npm:
-    image: "jc21/nginx-proxy-manager:latest"
+    image: "jc21/nginx-proxy-manager:2.14.0"
     restart: unless-stopped
     profiles: [edge, core]
 
