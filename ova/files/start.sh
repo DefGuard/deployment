@@ -9,6 +9,13 @@ PROFILES_FILE="/opt/defguard/active-profiles"
 if [ ! -f "$PROFILES_FILE" ]; then
   docker compose -f /opt/defguard/docker-compose.yaml up -d
 else
-  export COMPOSE_PROFILES=$(tr '[:space:]' ',' < "$PROFILES_FILE" | tr -s ',' | sed 's/,$//')
-  docker compose -f /opt/defguard/docker-compose.standalone.yaml up -d
+  COMPOSE_PROFILES=$(tr '[:space:]' ',' < "$PROFILES_FILE" | tr -s ',' | sed 's/,$//')
+  if [ -z "$COMPOSE_PROFILES" ]; then
+    echo "Warning: $PROFILES_FILE is empty or contains only whitespace; starting full all-in-one stack."
+    unset COMPOSE_PROFILES
+    docker compose -f /opt/defguard/docker-compose.yaml up -d
+  else
+    export COMPOSE_PROFILES
+    docker compose -f /opt/defguard/docker-compose.standalone.yaml up -d
+  fi
 fi
