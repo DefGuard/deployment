@@ -48,18 +48,10 @@ jobs:
         with:
           version: latest
 
-      - name: Cache ISO
-        uses: actions/cache@v4
-        with:
-          path: ova/ubuntu-24.04.4-live-server-amd64.iso
-          key: ubuntu-24.04.4-live-server-amd64-iso
-
-      - name: Download ISO (if not cached)
+      - name: Download ISO
         run: |
-          if [ ! -f ubuntu-24.04.4-live-server-amd64.iso ]; then
-            curl -fL -o ubuntu-24.04.4-live-server-amd64.iso \
-              https://releases.ubuntu.com/24.04.4/ubuntu-24.04.4-live-server-amd64.iso
-          fi
+          curl -fL -o ubuntu-24.04.4-live-server-amd64.iso \
+            https://releases.ubuntu.com/24.04.4/ubuntu-24.04.4-live-server-amd64.iso
 
       - name: Packer init
         run: packer init defguard.pkr.hcl
