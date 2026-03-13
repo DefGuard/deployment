@@ -1,0 +1,61 @@
+services:
+  core:
+    restart: always
+    image: ghcr.io/defguard/defguard:${DEFGUARD_CORE_TAG:?DEFGUARD_CORE_TAG is required}
+    env_file: .env
+    environment:
+      DEFGUARD_DB_HOST: db
+      DEFGUARD_DB_PORT: 5432
+      DEFGUARD_ADOPT_EDGE: "edge:50051"
+      DEFGUARD_ADOPT_GATEWAY: "host.docker.internal:50066"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      - db
+      - edge
+      - gateway
+    ports:
+      - "8000:8000"
+
+  edge:
+    restart: always
+    image: ghcr.io/defguard/defguard-proxy:${DEFGUARD_PROXY_TAG:?DEFGUARD_PROXY_TAG is required}
+    volumes:
+      - ./.volumes/certs/edge:/etc/defguard/certs
+    ports:
+      - "8080:8080"
+
+  gateway:
+    restart: always
+    image: ghcr.io/defguard/gateway:${DEFGUARD_GATEWAY_TAG:?DEFGUARD_GATEWAY_TAG is required}
+    cap_add:
+      - NET_ADMIN
+    volumes:
+      - ./.volumes/certs/gateway:/etc/defguard/certs
+    environment:
+      DEFGUARD_STATS_PERIOD: 10
+      HEALTH_PORT: 55003
+    network_mode: "host"
+
+  npm:
+    image: "jc21/nginx-proxy-manager:2.14.0"
+    restart: unless-stopped
+
+    ports:
+      - "80:80" # HTTP Port
+      - "443:443" # HTTPS Port
+      - "81:81" # Admin Web Port
+
+    environment:
+      TZ: "UTC"
+
+    volumes:
+      - ./.volumes/npm/data:/data
+      - ./.volumes/npm/letsencrypt:/etc/letsencrypt
+
+  db:
+    restart: always
+    image: postgres:18-alpine
+    env_file: .env
+    volumes:
+      - ./.volumes/db:/var/lib/postgresql

@@ -1,0 +1,86 @@
+name: Build OVF Image
+
+on:
+  workflow_dispatch:
+    inputs:
+      core_tag:
+        description: "defguard core image tag"
+        required: true
+      proxy_tag:
+        description: "defguard proxy image tag"
+        required: true
+      gateway_tag:
+        description: "defguard gateway image tag"
+        required: true
+
+jobs:
+  build:
+    runs-on: [self-hosted, Linux, X64]
+
+    defaults:
+      run:
+        working-directory: ova
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends ovmf awscli
+
+      - name: Check KVM availability
+        run: |
+          if [ ! -e /dev/kvm ]; then
+            echo "Error: /dev/kvm does not exist. KVM is required for this workflow."
+            exit 1
+          fi
+
+          ls -la /dev/kvm
+
+          if [ -r /dev/kvm ]; then
+            echo "KVM readable"
+          else
+            echo "Error: /dev/kvm is not readable. Ensure the runner has KVM access (e.g., correct permissions and group membership)."
+            exit 1
+          fi
+
+      - name: Setup Packer
+        uses: hashicorp/setup-packer@v3.1.0
+        with:
+          version: "1.11.2"
+
+      - name: Download ISO
+        run: |
+          curl -fL -o ubuntu-24.04.4-live-server-amd64.iso \
+            https://releases.ubuntu.com/24.04.4/ubuntu-24.04.4-live-server-amd64.iso
+
+      - name: Packer init
+        run: packer init defguard.pkr.hcl
+
+      - name: Packer build
+        env:
+          PACKER_LOG: 1
+        run: |
+          packer build \
+            -var "iso_url=file://$PWD/ubuntu-24.04.4-live-server-amd64.iso" \
+            -var "core_tag=${{ github.event.inputs.core_tag }}" \
+            -var "proxy_tag=${{ github.event.inputs.proxy_tag }}" \
+            -var "gateway_tag=${{ github.event.inputs.gateway_tag }}" \
+            defguard.pkr.hcl
+
+      - name: Upload OVA to S3
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: eu-central-1
+          CORE_TAG: ${{ github.event.inputs.core_tag }}
+          PROXY_TAG: ${{ github.event.inputs.proxy_tag }}
+          GATEWAY_TAG: ${{ github.event.inputs.gateway_tag }}
+        run: |
+          TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+          FILENAME="defguard_${TIMESTAMP}_core-${CORE_TAG}_edge-${PROXY_TAG}_gateway-${GATEWAY_TAG}.ova"
+          ls -lh output/defguard/defguard.ova
+          aws s3 cp output/defguard/defguard.ova "s3://defguard-downloads/ova/${FILENAME}"
+          echo "Uploaded: s3://defguard-downloads/ova/${FILENAME}"
