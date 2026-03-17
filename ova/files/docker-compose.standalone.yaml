@@ -45,6 +45,13 @@ services:
       - "443:443" # HTTPS Port
       - "81:81" # Admin Web Port
 
+    environment:
+      TZ: "UTC"
+
+    volumes:
+      - ./.volumes/npm/data:/data
+      - ./.volumes/npm/letsencrypt:/etc/letsencrypt
+
   db:
     restart: always
     profiles: [core]
