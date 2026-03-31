@@ -54,6 +54,10 @@ securityContext: {}
 replicaCount: 1
 # defguard-proxy pod resource configuration
 resources: {}
+# defguard-proxy persistent storage configuration
+persistence:
+  size: 32Mi
+  storageClassName: ""
 # defguard-proxy service configuration
 service:
   grpc:
