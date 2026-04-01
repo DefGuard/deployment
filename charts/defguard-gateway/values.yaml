@@ -71,6 +71,12 @@ healthCheck:
     failureThreshold: 3
 # defguard-gateway service configuration
 service:
+  grpc:
+    annotations:
+      traefik.ingress.kubernetes.io/service.serversscheme: h2c
+    labels: {}
+    port: 50066
+    type: ClusterIP
   wireguard:
     annotations: {}
     labels: {}

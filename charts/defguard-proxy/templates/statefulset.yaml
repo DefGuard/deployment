@@ -5,13 +5,12 @@ metadata:
   labels:
     {{- include "defguard-proxy.labels" . | nindent 4 }}
 spec:
-  serviceName: {{ include "defguard-proxy.fullname" . }}-grpc-headless
-  {{- if not .Values.autoscaling.enabled }}
+  podManagementPolicy: Parallel
   replicas: {{ .Values.replicaCount }}
-  {{- end }}
   selector:
     matchLabels:
       {{- include "defguard-proxy.selectorLabels" . | nindent 6 }}
+  serviceName: {{ include "defguard-proxy.fullname" . }}-grpc-headless
   template:
     metadata:
       {{- with .Values.podAnnotations }}
@@ -37,8 +36,6 @@ spec:
             - configMapRef:
                 name: {{ .Values.additionalEnvFromConfigMap }}
             {{- end }}
-          securityContext:
-            {{- toYaml .Values.securityContext | nindent 12 }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
@@ -58,6 +55,8 @@ spec:
               port: http
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
           volumeMounts:
             - name: data
               mountPath: /etc/defguard

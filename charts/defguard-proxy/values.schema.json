@@ -16,37 +16,6 @@
       "title": "affinity",
       "type": "object"
     },
-    "autoscaling": {
-      "additionalProperties": false,
-      "description": "defguard-proxy pod autoscaling configuration",
-      "properties": {
-        "enabled": {
-          "default": false,
-          "required": [],
-          "title": "enabled",
-          "type": "boolean"
-        },
-        "maxReplicas": {
-          "default": 10,
-          "required": [],
-          "title": "maxReplicas",
-          "type": "integer"
-        },
-        "minReplicas": {
-          "default": 1,
-          "required": [],
-          "title": "minReplicas",
-          "type": "integer"
-        }
-      },
-      "required": [
-        "enabled",
-        "minReplicas",
-        "maxReplicas"
-      ],
-      "title": "autoscaling",
-      "type": "object"
-    },
     "enabled": {
       "default": false,
       "description": "yaml-language-server: $schema=values.schema.json\ndefguard-proxy is turned off by default. enable to allow use of the enrollment interface",
@@ -441,7 +410,6 @@
     "publicUrl",
     "fullnameOverride",
     "nameOverride",
-    "autoscaling",
     "image",
     "imagePullSecrets",
     "ingress",

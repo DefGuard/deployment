@@ -318,6 +318,53 @@
       "additionalProperties": false,
       "description": "defguard-gateway service configuration",
       "properties": {
+        "grpc": {
+          "additionalProperties": false,
+          "properties": {
+            "annotations": {
+              "additionalProperties": false,
+              "properties": {
+                "traefik.ingress.kubernetes.io/service.serversscheme": {
+                  "default": "h2c",
+                  "required": [],
+                  "title": "traefik.ingress.kubernetes.io/service.serversscheme",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "traefik.ingress.kubernetes.io/service.serversscheme"
+              ],
+              "title": "annotations",
+              "type": "object"
+            },
+            "labels": {
+              "additionalProperties": false,
+              "required": [],
+              "title": "labels",
+              "type": "object"
+            },
+            "port": {
+              "default": 50066,
+              "required": [],
+              "title": "port",
+              "type": "integer"
+            },
+            "type": {
+              "default": "ClusterIP",
+              "required": [],
+              "title": "type",
+              "type": "string"
+            }
+          },
+          "required": [
+            "annotations",
+            "labels",
+            "port",
+            "type"
+          ],
+          "title": "grpc",
+          "type": "object"
+        },
         "wireguard": {
           "additionalProperties": false,
           "properties": {

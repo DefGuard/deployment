@@ -5,12 +5,12 @@ metadata:
   labels:
     {{- include "defguard-gateway.labels" . | nindent 4 }}
 spec:
-  serviceName: {{ include "defguard-gateway.fullname" . }}-headless
   podManagementPolicy: Parallel
   replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
       {{- include "defguard-gateway.selectorLabels" . | nindent 6 }}
+  serviceName: {{ include "defguard-gateway.fullname" . }}-grpc-headless
   template:
     metadata:
       {{- with .Values.podAnnotations }}
@@ -56,6 +56,9 @@ spec:
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
+            - name: grpc
+              containerPort: {{ .Values.service.grpc.port }}
+              protocol: TCP
             - name: wireguard
               containerPort: {{ .Values.service.wireguard.port }}
               protocol: UDP
@@ -83,7 +86,7 @@ spec:
           {{- end }}
           volumeMounts:
             - name: data
-              mountPath: /etc/defguard/certs
+              mountPath: /etc/defguard
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
