@@ -29,18 +29,6 @@ spec:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
       containers:
         - name: {{ .Chart.Name }}
-          {{- if .Values.token }}
-          env:
-            - name: DEFGUARD_TOKEN
-              value: {{ .Values.token }}
-          {{- else if .Values.existingTokenSecret }}
-          env:
-            - name: DEFGUARD_TOKEN
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.existingTokenSecret }}
-                  key: {{ .Values.existingTokenSecretKey }}
-          {{- end }}
           {{- if .Values.healthCheck.enabled }}
           env:
             - name: HEALTH_PORT

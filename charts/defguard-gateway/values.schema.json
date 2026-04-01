@@ -16,20 +16,6 @@
       "title": "affinity",
       "type": "object"
     },
-    "existingTokenSecret": {
-      "default": "",
-      "description": "Secret to get the token from",
-      "required": [],
-      "title": "existingTokenSecret",
-      "type": "string"
-    },
-    "existingTokenSecretKey": {
-      "default": "",
-      "description": "Key to extract the token from in existingTokenSecret",
-      "required": [],
-      "title": "existingTokenSecretKey",
-      "type": "string"
-    },
     "fullnameOverride": {
       "default": "",
       "description": "defguard-gateway full name override",
@@ -204,20 +190,6 @@
       "title": "nodeSelector",
       "type": "object"
     },
-    "podAnnotations": {
-      "additionalProperties": false,
-      "description": "defguard-gateway pod annotations",
-      "required": [],
-      "title": "podAnnotations",
-      "type": "object"
-    },
-    "podLabels": {
-      "additionalProperties": false,
-      "description": "defguard-gateway pod labels",
-      "required": [],
-      "title": "podLabels",
-      "type": "object"
-    },
     "persistence": {
       "additionalProperties": false,
       "description": "defguard-gateway persistent storage for certificates",
@@ -238,6 +210,20 @@
         "storageClassName"
       ],
       "title": "persistence",
+      "type": "object"
+    },
+    "podAnnotations": {
+      "additionalProperties": false,
+      "description": "defguard-gateway pod annotations",
+      "required": [],
+      "title": "podAnnotations",
+      "type": "object"
+    },
+    "podLabels": {
+      "additionalProperties": false,
+      "description": "defguard-gateway pod labels",
+      "required": [],
+      "title": "podLabels",
       "type": "object"
     },
     "podSecurityContext": {
@@ -440,13 +426,6 @@
       "title": "statsPeriod",
       "type": "integer"
     },
-    "token": {
-      "default": "",
-      "description": "Token from Defguard app to secure gRPC connection, available on network page.\nIt is not recommended to use this. Create a secret yourself and use existingTokenSecret instead",
-      "required": [],
-      "title": "token",
-      "type": "string"
-    },
     "tolerations": {
       "description": "defguard-gateway pod tolerations",
       "items": {
@@ -458,7 +437,7 @@
     },
     "userspace": {
       "default": "false",
-      "description": "yaml-language-server: $schema=values.schema.json\nUse userspace wireguard implementation, useful on systems without native wireguard support. Set to true/false",
+      "description": "yaml-language-server: $schema=values.schema.json\nUse userspace WireGuard implementation, useful on systems without native wireguard support. Set to true/false",
       "required": [],
       "title": "userspace",
       "type": "string"
@@ -466,9 +445,6 @@
   },
   "required": [
     "userspace",
-    "token",
-    "existingTokenSecret",
-    "existingTokenSecretKey",
     "statsPeriod",
     "logLevel",
     "fullnameOverride",

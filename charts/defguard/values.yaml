@@ -110,11 +110,6 @@ defguard-proxy:
   fullnameOverride: ""
   # defguard-proxy name override
   nameOverride: ""
-  # defguard-proxy pod autoscaling configuration
-  autoscaling:
-    enabled: false
-    minReplicas: 1
-    maxReplicas: 10
   # defguard-proxy container image configuration
   image:
     pullPolicy: IfNotPresent
@@ -181,17 +176,8 @@ defguard-proxy:
 #
 defguard-gateway:
   enabled: false
-  # Use userspace wireguard implementation, useful on systems without native wireguard support. Set to true/false
+  # Use userspace WireGuard implementation, useful on systems without native WireGuard support. Set to true/false
   userspace: "false"
-  # Defguard GRPC URL, e.g.: defguard-grpc.mycompany.com
-  grpcUrl: ""
-  # Token from Defguard app to secure gRPC connection, available on network page.
-  # It is not recommended to use this. Create a secret yourself and use existingTokenSecret instead
-  token: ""
-  # Secret to get the token from
-  existingTokenSecret: ""
-  # Key to extract the token from in existingTokenSecret
-  existingTokenSecretKey: ""
   # Defines how often (in seconds) should interface statistics be sent to Defguard server
   statsPeriod: 30
   # rust log level, default is debug
@@ -227,8 +213,28 @@ defguard-gateway:
   securityContext: {}
   # defguard-gateway pod additional ENV from configmap
   additionalEnvFromConfigMap: ""
+  # defguard-gateway health check configuration
+  healthCheck:
+    enabled: false
+    port: 35053
+    livenessProbe:
+      initialDelaySeconds: 30
+      periodSeconds: 10
+      timeoutSeconds: 5
+      failureThreshold: 3
+    readinessProbe:
+      initialDelaySeconds: 10
+      periodSeconds: 10
+      timeoutSeconds: 5
+      failureThreshold: 3
   # defguard-gateway service configuration
   service:
+    grpc:
+      annotations:
+        traefik.ingress.kubernetes.io/service.serversscheme: h2c
+      labels: {}
+      port: 50066
+      type: ClusterIP
     wireguard:
       annotations: {}
       labels: {}
