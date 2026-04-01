@@ -2,8 +2,6 @@
 # yaml-language-server: $schema=values.schema.json
 # Use userspace wireguard implementation, useful on systems without native wireguard support. Set to true/false
 userspace: "false"
-# Defguard GRPC URL, e.g.: defguard-grpc.mycompany.com
-grpcUrl: ""
 # Token from Defguard app to secure gRPC connection, available on network page.
 # It is not recommended to use this. Create a secret yourself and use existingTokenSecret instead
 token: ""
@@ -40,6 +38,10 @@ podLabels: {}
 replicaCount: 1
 # defguard-gateway pod resources
 resources: {}
+# defguard-gateway persistent storage for certificates
+persistence:
+  size: 32Mi
+  storageClassName: ""
 # defguard-gateway pod security context
 podSecurityContext: {}
 # defguard-gateway container security context

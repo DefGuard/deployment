@@ -1,10 +1,12 @@
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
   name: {{ include "defguard-gateway.fullname" . }}
   labels:
     {{- include "defguard-gateway.labels" . | nindent 4 }}
 spec:
+  serviceName: {{ include "defguard-gateway.fullname" . }}-headless
+  podManagementPolicy: Parallel
   replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
@@ -27,41 +29,6 @@ spec:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
       containers:
         - name: {{ .Chart.Name }}
-          envFrom:
-            - configMapRef:
-                name: {{ include "defguard-gateway.fullname" . }}-config
-            {{- if .Values.additionalEnvFromConfigMap }}
-            - configMapRef:
-                name: {{ .Values.additionalEnvFromConfigMap }}
-            {{- end }}
-          securityContext:
-            {{- toYaml .Values.securityContext | nindent 12 }}
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
-          ports:
-            - name: wireguard
-              containerPort: {{ .Values.service.wireguard.port }}
-              protocol: UDP
-          resources:
-            {{- toYaml .Values.resources | nindent 12 }}
-          {{- if .Values.healthCheck.enabled }}
-          livenessProbe:
-            httpGet:
-              path: /
-              port: {{ .Values.healthCheck.port }}
-            initialDelaySeconds: {{ .Values.healthCheck.livenessProbe.initialDelaySeconds }}
-            periodSeconds: {{ .Values.healthCheck.livenessProbe.periodSeconds }}
-            timeoutSeconds: {{ .Values.healthCheck.livenessProbe.timeoutSeconds }}
-            failureThreshold: {{ .Values.healthCheck.livenessProbe.failureThreshold }}
-          readinessProbe:
-            httpGet:
-              path: /
-              port: {{ .Values.healthCheck.port }}
-            initialDelaySeconds: {{ .Values.healthCheck.readinessProbe.initialDelaySeconds }}
-            periodSeconds: {{ .Values.healthCheck.readinessProbe.periodSeconds }}
-            timeoutSeconds: {{ .Values.healthCheck.readinessProbe.timeoutSeconds }}
-            failureThreshold: {{ .Values.healthCheck.readinessProbe.failureThreshold }}
-          {{- end }}
           {{- if .Values.token }}
           env:
             - name: DEFGUARD_TOKEN
@@ -79,6 +46,44 @@ spec:
             - name: HEALTH_PORT
               value: {{ .Values.healthCheck.port }}
           {{- end }}
+          envFrom:
+            - configMapRef:
+                name: {{ include "defguard-gateway.fullname" . }}-config
+            {{- if .Values.additionalEnvFromConfigMap }}
+            - configMapRef:
+                name: {{ .Values.additionalEnvFromConfigMap }}
+            {{- end }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: wireguard
+              containerPort: {{ .Values.service.wireguard.port }}
+              protocol: UDP
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          {{- if .Values.healthCheck.enabled }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: /
+              port: {{ .Values.healthCheck.port }}
+            initialDelaySeconds: {{ .Values.healthCheck.livenessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.healthCheck.livenessProbe.periodSeconds }}
+            timeoutSeconds: {{ .Values.healthCheck.livenessProbe.timeoutSeconds }}
+            failureThreshold: {{ .Values.healthCheck.livenessProbe.failureThreshold }}
+          readinessProbe:
+            httpGet:
+              path: /
+              port: {{ .Values.healthCheck.port }}
+            initialDelaySeconds: {{ .Values.healthCheck.readinessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.healthCheck.readinessProbe.periodSeconds }}
+            timeoutSeconds: {{ .Values.healthCheck.readinessProbe.timeoutSeconds }}
+            failureThreshold: {{ .Values.healthCheck.readinessProbe.failureThreshold }}
+          {{- end }}
+          volumeMounts:
+            - name: data
+              mountPath: /etc/defguard/certs
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
@@ -91,3 +96,15 @@ spec:
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        {{- with .Values.persistence.storageClassName }}
+        storageClassName: {{ . }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.persistence.size }}

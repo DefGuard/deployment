@@ -5,7 +5,6 @@ metadata:
   labels:
     {{- include "defguard-gateway.labels" . | nindent 4 }}
 data:
-  DEFGUARD_USERSPACE: {{ .Values.userspace | quote }}
-  DEFGUARD_GRPC_URL: {{ .Values.grpcUrl | quote }}
-  DEFGUARD_STATS_PERIOD: {{ .Values.statsPeriod | quote }}
   DEFGUARD_LOG_LEVEL: {{ .Values.logLevel | quote }}
+  DEFGUARD_STATS_PERIOD: {{ .Values.statsPeriod | quote }}
+  DEFGUARD_USERSPACE: {{ .Values.userspace | quote }}

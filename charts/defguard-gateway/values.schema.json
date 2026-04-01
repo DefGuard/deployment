@@ -43,13 +43,6 @@
       "title": "global",
       "type": "object"
     },
-    "grpcUrl": {
-      "default": "",
-      "description": "Defguard GRPC URL, e.g.: defguard-grpc.mycompany.com",
-      "required": [],
-      "title": "grpcUrl",
-      "type": "string"
-    },
     "healthCheck": {
       "additionalProperties": false,
       "description": "defguard-gateway health check configuration",
@@ -223,6 +216,28 @@
       "description": "defguard-gateway pod labels",
       "required": [],
       "title": "podLabels",
+      "type": "object"
+    },
+    "persistence": {
+      "additionalProperties": false,
+      "description": "defguard-gateway persistent storage for certificates",
+      "properties": {
+        "size": {
+          "default": "32Mi",
+          "title": "size",
+          "type": "string"
+        },
+        "storageClassName": {
+          "default": "",
+          "title": "storageClassName",
+          "type": "string"
+        }
+      },
+      "required": [
+        "size",
+        "storageClassName"
+      ],
+      "title": "persistence",
       "type": "object"
     },
     "podSecurityContext": {
@@ -404,7 +419,6 @@
   },
   "required": [
     "userspace",
-    "grpcUrl",
     "token",
     "existingTokenSecret",
     "existingTokenSecretKey",
@@ -419,6 +433,7 @@
     "tolerations",
     "podAnnotations",
     "podLabels",
+    "persistence",
     "replicaCount",
     "resources",
     "podSecurityContext",
