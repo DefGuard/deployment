@@ -1,6 +1,6 @@
 services:
   core:
-    image: ghcr.io/defguard/defguard:dev
+    image: ghcr.io/defguard/defguard:2.0.0-alpha2
     environment:
       DEFGUARD_COOKIE_INSECURE: "true"
       DEFGUARD_SECRET_KEY: defguard-secret-key-defguard-secret-key-defguard-secret-key-defguard-secret-key
