@@ -210,7 +210,13 @@ defguard-gateway:
   # defguard-gateway pod security context
   podSecurityContext: {}
   # defguard-gateway container security context
-  securityContext: {}
+  securityContext:
+    allowPrivilegeEscalation: true
+    privileged: true
+    capabilities:
+      add:
+        - NET_ADMIN
+        - SYS_MODULE
   # defguard-gateway pod additional ENV from configmap
   additionalEnvFromConfigMap: ""
   # defguard-gateway health check configuration

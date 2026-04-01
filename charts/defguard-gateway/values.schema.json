@@ -16,6 +16,12 @@
       "title": "affinity",
       "type": "object"
     },
+    "enabled": {
+      "default": false,
+      "required": [],
+      "title": "enabled",
+      "type": "boolean"
+    },
     "fullnameOverride": {
       "default": "",
       "description": "defguard-gateway full name override",
@@ -24,6 +30,7 @@
       "type": "string"
     },
     "global": {
+      "additionalProperties": true,
       "description": "Global values are values that can be accessed from any chart or subchart by exactly the same name.",
       "required": [],
       "title": "global",

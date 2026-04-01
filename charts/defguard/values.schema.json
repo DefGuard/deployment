@@ -102,6 +102,13 @@
           "title": "fullnameOverride",
           "type": "string"
         },
+        "global": {
+          "additionalProperties": true,
+          "description": "Global values are values that can be accessed from any chart or subchart by exactly the same name.",
+          "required": [],
+          "title": "global",
+          "type": "object"
+        },
         "healthCheck": {
           "additionalProperties": false,
           "description": "defguard-gateway health check configuration",
@@ -322,8 +329,54 @@
         },
         "securityContext": {
           "additionalProperties": false,
-          "description": "defguard-gateway container security context",
-          "required": [],
+          "description": "defguard-gateway container security context\nelevated priveleges are required for managing network interfaces",
+          "properties": {
+            "allowPrivilegeEscalation": {
+              "default": true,
+              "required": [],
+              "title": "allowPrivilegeEscalation",
+              "type": "boolean"
+            },
+            "capabilities": {
+              "additionalProperties": false,
+              "properties": {
+                "add": {
+                  "items": {
+                    "anyOf": [
+                      {
+                        "required": [],
+                        "type": "string"
+                      },
+                      {
+                        "required": [],
+                        "type": "string"
+                      }
+                    ],
+                    "required": []
+                  },
+                  "required": [],
+                  "title": "add",
+                  "type": "array"
+                }
+              },
+              "required": [
+                "add"
+              ],
+              "title": "capabilities",
+              "type": "object"
+            },
+            "privileged": {
+              "default": true,
+              "required": [],
+              "title": "privileged",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "allowPrivilegeEscalation",
+            "privileged",
+            "capabilities"
+          ],
           "title": "securityContext",
           "type": "object"
         },
@@ -527,6 +580,13 @@
           "title": "fullnameOverride",
           "type": "string"
         },
+        "global": {
+          "additionalProperties": true,
+          "description": "Global values are values that can be accessed from any chart or subchart by exactly the same name.",
+          "required": [],
+          "title": "global",
+          "type": "object"
+        },
         "image": {
           "additionalProperties": false,
           "description": "defguard-proxy container image configuration",
@@ -693,6 +753,28 @@
           "description": "defguard-proxy pod node selection",
           "required": [],
           "title": "nodeSelector",
+          "type": "object"
+        },
+        "persistence": {
+          "additionalProperties": false,
+          "description": "defguard-proxy persistent storage for configuration files",
+          "properties": {
+            "size": {
+              "default": "32Mi",
+              "title": "size",
+              "type": "string"
+            },
+            "storageClassName": {
+              "default": "",
+              "title": "storageClassName",
+              "type": "string"
+            }
+          },
+          "required": [
+            "size",
+            "storageClassName"
+          ],
+          "title": "persistence",
           "type": "object"
         },
         "podAnnotations": {

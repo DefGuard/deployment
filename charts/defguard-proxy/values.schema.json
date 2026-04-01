@@ -31,6 +31,7 @@
       "type": "string"
     },
     "global": {
+      "additionalProperties": true,
       "description": "Global values are values that can be accessed from any chart or subchart by exactly the same name.",
       "required": [],
       "title": "global",
@@ -204,27 +205,6 @@
       "title": "nodeSelector",
       "type": "object"
     },
-    "podAnnotations": {
-      "additionalProperties": false,
-      "description": "defguard-proxy pod annotations",
-      "required": [],
-      "title": "podAnnotations",
-      "type": "object"
-    },
-    "podLabels": {
-      "additionalProperties": false,
-      "description": "defguard-proxy pod labels",
-      "required": [],
-      "title": "podLabels",
-      "type": "object"
-    },
-    "podSecurityContext": {
-      "additionalProperties": false,
-      "description": "defguard-proxy pod security context",
-      "required": [],
-      "title": "podSecurityContext",
-      "type": "object"
-    },
     "persistence": {
       "additionalProperties": false,
       "description": "defguard-proxy persistent storage for configuration files",
@@ -245,6 +225,27 @@
         "storageClassName"
       ],
       "title": "persistence",
+      "type": "object"
+    },
+    "podAnnotations": {
+      "additionalProperties": false,
+      "description": "defguard-proxy pod annotations",
+      "required": [],
+      "title": "podAnnotations",
+      "type": "object"
+    },
+    "podLabels": {
+      "additionalProperties": false,
+      "description": "defguard-proxy pod labels",
+      "required": [],
+      "title": "podLabels",
+      "type": "object"
+    },
+    "podSecurityContext": {
+      "additionalProperties": false,
+      "description": "defguard-proxy pod security context",
+      "required": [],
+      "title": "podSecurityContext",
       "type": "object"
     },
     "publicUrl": {

@@ -1,6 +1,7 @@
 apiVersion: v2
 name: defguard
 description: Defguard is an open-source enterprise WireGuard VPN with MFA and SSO.
+icon: https://defguard.net/favicon/favicon-512x512.png
 
 type: application
 version: 2.0.0
