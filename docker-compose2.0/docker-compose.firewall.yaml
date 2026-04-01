@@ -14,12 +14,15 @@ services:
       DEFGUARD_DB_NAME: defguard
       DEFGUARD_ADOPT_EDGE: "edge1:50051"
       DEFGUARD_ADOPT_GATEWAY: "gateway1:50066"
+      DEFGUARD_LOG_LEVEL: debug
     depends_on:
       - db
       - gateway1
       - edge1
     ports:
       - "8000:8000"
+    networks:
+      - default
 
   edge1:
     image: ghcr.io/defguard/defguard-proxy:2.0.0-alpha2
@@ -27,9 +30,11 @@ services:
       - ./.volumes/certs2.0/edge1:/etc/defguard/certs
     ports:
       - "8080:8080"
+    networks:
+      - default
 
   gateway1:
-    image: ghcr.io/defguard/gateway:2.0.0-alpha2
+    image: ghcr.io/defguard/gateway:dev
     cap_add:
       - NET_ADMIN
     volumes:
@@ -39,6 +44,10 @@ services:
     environment:
       DEFGUARD_STATS_PERIOD: 10
       HEALTH_PORT: 55003
+    networks:
+      default:
+      protected_net:
+        ipv4_address: 10.10.20.2
 
   db:
     image: postgres:18-alpine
@@ -48,3 +57,29 @@ services:
       POSTGRES_PASSWORD: defguard
     volumes:
       - ./.volumes/db2.0:/var/lib/postgresql
+    ports:
+      - "5432:5432"
+    networks:
+      - default
+
+  protected_app1:
+    image: hashicorp/http-echo:1.0
+    command: ["-text=Protected App #1"]
+    networks:
+      protected_net:
+        ipv4_address: 10.10.20.20
+
+  protected_app2:
+    image: hashicorp/http-echo:1.0
+    command: ["-text=Protected App #2"]
+    networks:
+      protected_net:
+        ipv4_address: 10.10.20.30
+
+networks:
+  default:
+  protected_net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.10.20.0/24

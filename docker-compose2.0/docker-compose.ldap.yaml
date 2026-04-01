@@ -48,3 +48,35 @@ services:
       POSTGRES_PASSWORD: defguard
     volumes:
       - ./.volumes/db2.0:/var/lib/postgresql
+
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: mailpit
+    ports:
+      - "8025:8025"   # web UI
+      - "1025:1025"   # SMTP
+
+  openldap:
+    image: bitnamilegacy/openldap:2.6
+    user: root
+    restart: unless-stopped
+    environment:
+      LDAP_ADMIN_PASSWORD: "pass123"
+    ports:
+      - "389:1389"
+    volumes:
+      - ./ldap/entrypoint:/docker-entrypoint-initdb.d:ro
+      - ./ldap/init.ldif:/ldifs/init.ldif:ro
+      - ./ldap/custom.ldif:/schema/custom.ldif:ro
+      - ./volumes/openldap:/bitnami/openldap
+
+  phpldapadmin:
+    image: osixia/phpldapadmin:0.9.0
+    restart: unless-stopped
+    depends_on:
+      - openldap
+    environment:
+      PHPLDAPADMIN_LDAP_HOSTS: "#PYTHON2BASH:[{'openldap': [{'server': [{'host': 'openldap', 'port': 1389}]}]}]"
+      PHPLDAPADMIN_HTTPS: "false"
+    ports:
+      - "8081:80"  
