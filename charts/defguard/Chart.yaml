@@ -15,10 +15,10 @@ dependencies:
   - name: defguard-proxy
     condition: defguard-proxy.enabled
     version: 2.0.0
-    # repository: https://defguard.github.io/deployment
-    repository: "file://../defguard-proxy"
+    repository: https://defguard.github.io/deployment
+    # repository: "file://../defguard-proxy"
   - name: defguard-gateway
     condition: defguard-gateway.enabled
     version: 2.0.0
-    # repository: https://defguard.github.io/deployment
-    repository: "file://../defguard-gateway"
+    repository: https://defguard.github.io/deployment
+    # repository: "file://../defguard-gateway"
