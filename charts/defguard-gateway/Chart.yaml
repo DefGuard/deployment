@@ -3,5 +3,5 @@ name: defguard-gateway
 description: Defguard Gateway is a public-facing VPN endpoint.
 
 type: application
-version: 0.5.3
-appVersion: 1.6.3
+version: 0.5.4
+appVersion: 1.6.4
