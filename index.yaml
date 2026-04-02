@@ -1064,6 +1064,16 @@ entries:
     version: 0.3.1
   defguard-gateway:
   - apiVersion: v2
+    appVersion: 1.6.4
+    created: "2026-04-02T11:22:55.706601952+02:00"
+    description: Defguard Gateway is a public-facing VPN endpoint.
+    digest: 748ff17d3c741390455c65487a2b2b9ad6c0e20ecfa0b366a0e7ba0450fd7029
+    name: defguard-gateway
+    type: application
+    urls:
+    - https://github.com/DefGuard/deployment/releases/download/defguard-gateway-0.5.4/defguard-gateway-0.5.4.tgz
+    version: 0.5.4
+  - apiVersion: v2
     appVersion: 1.6.3
     created: "2026-02-16T16:52:26.937156456+01:00"
     description: Defguard Gateway is a public-facing VPN endpoint.
@@ -1434,4 +1444,4 @@ entries:
     urls:
     - https://github.com/DefGuard/deployment/releases/download/defguard-proxy-0.1.0/defguard-proxy-0.1.0.tgz
     version: 0.1.0
-generated: "2026-03-13T13:19:09.505878002+01:00"
+generated: "2026-04-02T11:22:55.706839551+02:00"
