@@ -90,3 +90,5 @@ jobs:
           ls -lh output/defguard/defguard.ova
           aws s3 cp output/defguard/defguard.ova "s3://defguard-downloads/ova/${FILENAME}"
           echo "Uploaded: s3://defguard-downloads/ova/${FILENAME}"
+          aws s3 cp output/defguard/defguard.ova "s3://defguard-downloads/ova/defguard-latest.ova" \
+            --cache-control "no-cache"
