@@ -1,6 +1,9 @@
 name: Build OVF Image
 
 on:
+  push:
+    branches:
+      - add-dockge
   workflow_dispatch:
     inputs:
       core_tag:
@@ -63,11 +66,14 @@ jobs:
         env:
           PACKER_LOG: 1
         run: |
+          CORE_TAG="${{ github.event.inputs.core_tag || '2.0.0-alpha2' }}"
+          PROXY_TAG="${{ github.event.inputs.proxy_tag || '2.0.0-alpha2' }}"
+          GATEWAY_TAG="${{ github.event.inputs.gateway_tag || '2.0.0-alpha2' }}"
           packer build \
             -var "iso_url=file://$PWD/ubuntu-24.04.4-live-server-amd64.iso" \
-            -var "core_tag=${{ github.event.inputs.core_tag }}" \
-            -var "proxy_tag=${{ github.event.inputs.proxy_tag }}" \
-            -var "gateway_tag=${{ github.event.inputs.gateway_tag }}" \
+            -var "core_tag=${CORE_TAG}" \
+            -var "proxy_tag=${PROXY_TAG}" \
+            -var "gateway_tag=${GATEWAY_TAG}" \
             defguard.pkr.hcl
 
       - name: Upload OVA to S3
@@ -75,9 +81,9 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_DEFAULT_REGION: eu-central-1
-          CORE_TAG: ${{ github.event.inputs.core_tag }}
-          PROXY_TAG: ${{ github.event.inputs.proxy_tag }}
-          GATEWAY_TAG: ${{ github.event.inputs.gateway_tag }}
+          CORE_TAG: ${{ github.event.inputs.core_tag || '2.0.0-alpha2' }}
+          PROXY_TAG: ${{ github.event.inputs.proxy_tag || '2.0.0-alpha2' }}
+          GATEWAY_TAG: ${{ github.event.inputs.gateway_tag || '2.0.0-alpha2' }}
         run: |
           TIMESTAMP=$(date +%Y%m%d-%H%M%S)
           FILENAME="defguard_${TIMESTAMP}_core-${CORE_TAG}_edge-${PROXY_TAG}_gateway-${GATEWAY_TAG}.ova"
