@@ -60,9 +60,9 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./.volumes/dockge:/app/data
-      - /opt/defguard:/opt/defguard
+      - /opt:/opt
     environment:
-      DOCKGE_STACKS_DIR: /opt/defguard
+      DOCKGE_STACKS_DIR: /opt
 
   db:
     restart: always
