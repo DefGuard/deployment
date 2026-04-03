@@ -5,8 +5,8 @@ Wants=network-online.target docker.service
 
 [Service]
 Type=oneshot
-WorkingDirectory=/opt/defguard
+WorkingDirectory=/opt/stacks/defguard
 StandardOutput=append:/var/log/defguard-startup.log
 StandardError=append:/var/log/defguard-startup.log
-ExecStart=/bin/bash /opt/defguard/generate-env.sh
-ExecStart=/bin/bash /opt/defguard/start.sh
+ExecStart=/bin/bash /opt/stacks/defguard/generate-env.sh
+ExecStart=/bin/bash /opt/stacks/defguard/start.sh

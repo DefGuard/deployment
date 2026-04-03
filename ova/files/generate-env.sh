@@ -1,8 +1,8 @@
 #!/bin/bash
-# Generates /opt/defguard/.env with random secrets on first boot.
+# Generates /opt/stacks/defguard/.env with random secrets on first boot.
 # If .env already exists (e.g. provided via cloud-init), this script does nothing.
 
-ENV_FILE="/opt/defguard/.env"
+ENV_FILE="/opt/stacks/defguard/.env"
 
 if [ -f "$ENV_FILE" ]; then
   echo "DefGuard: .env already exists, skipping generation."
@@ -17,8 +17,8 @@ DEFGUARD_GATEWAY_SECRET=$(openssl rand -hex 32)
 DEFGUARD_YUBIBRIDGE_SECRET=$(openssl rand -hex 32)
 DB_PASSWORD=$(openssl rand -hex 16)
 
-if [ -f "/opt/defguard/.image-tags" ]; then
-  source "/opt/defguard/.image-tags"
+if [ -f "/opt/stacks/defguard/.image-tags" ]; then
+  source "/opt/stacks/defguard/.image-tags"
 fi
 
 : "${DEFGUARD_CORE_TAG:?DEFGUARD_CORE_TAG is required}"
