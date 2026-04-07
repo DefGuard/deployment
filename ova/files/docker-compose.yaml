@@ -37,22 +37,6 @@ services:
       HEALTH_PORT: 55003
     network_mode: "host"
 
-  npm:
-    image: "jc21/nginx-proxy-manager:2.14.0"
-    restart: unless-stopped
-
-    ports:
-      - "80:80" # HTTP Port
-      - "443:443" # HTTPS Port
-      - "81:81" # Admin Web Port
-
-    environment:
-      TZ: "UTC"
-
-    volumes:
-      - ./.volumes/npm/data:/data
-      - ./.volumes/npm/letsencrypt:/etc/letsencrypt
-
   dockge:
     image: louislam/dockge:1
     restart: unless-stopped
