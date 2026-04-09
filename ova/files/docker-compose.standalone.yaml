@@ -1,6 +1,6 @@
 services:
   core:
-    restart: always
+    restart: unless-stopped
     profiles: [core]
     image: ghcr.io/defguard/defguard:${DEFGUARD_CORE_TAG:?DEFGUARD_CORE_TAG is required}
     env_file: .env
@@ -13,7 +13,7 @@ services:
       - "8000:8000"
 
   edge:
-    restart: always
+    restart: unless-stopped
     profiles: [edge]
     image: ghcr.io/defguard/defguard-proxy:${DEFGUARD_PROXY_TAG:?DEFGUARD_PROXY_TAG is required}
     volumes:
@@ -23,7 +23,7 @@ services:
       - "50051:50051"
 
   gateway:
-    restart: always
+    restart: unless-stopped
     profiles: [gateway]
     image: ghcr.io/defguard/gateway:${DEFGUARD_GATEWAY_TAG:?DEFGUARD_GATEWAY_TAG is required}
     cap_add:
@@ -49,7 +49,7 @@ services:
       DOCKGE_STACKS_DIR: /opt/stacks
 
   db:
-    restart: always
+    restart: unless-stopped
     profiles: [core]
     image: postgres:18-alpine
     env_file: .env

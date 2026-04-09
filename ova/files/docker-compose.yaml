@@ -1,6 +1,6 @@
 services:
   core:
-    restart: always
+    restart: unless-stopped
     image: ghcr.io/defguard/defguard:${DEFGUARD_CORE_TAG:?DEFGUARD_CORE_TAG is required}
     env_file: .env
     environment:
@@ -18,7 +18,7 @@ services:
       - "8000:8000"
 
   edge:
-    restart: always
+    restart: unless-stopped
     image: ghcr.io/defguard/defguard-proxy:${DEFGUARD_PROXY_TAG:?DEFGUARD_PROXY_TAG is required}
     volumes:
       - ./.volumes/certs/edge:/etc/defguard/certs
@@ -26,7 +26,7 @@ services:
       - "8080:8080"
 
   gateway:
-    restart: always
+    restart: unless-stopped
     image: ghcr.io/defguard/gateway:${DEFGUARD_GATEWAY_TAG:?DEFGUARD_GATEWAY_TAG is required}
     cap_add:
       - NET_ADMIN
@@ -51,7 +51,7 @@ services:
       DOCKGE_STACKS_DIR: /opt/stacks
 
   db:
-    restart: always
+    restart: unless-stopped
     image: postgres:18-alpine
     env_file: .env
     volumes:
