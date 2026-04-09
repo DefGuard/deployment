@@ -230,11 +230,6 @@ POSTGRES_PASSWORD=${db_password}
 DEFGUARD_DB_NAME=defguard
 DEFGUARD_DB_USER=defguard
 DEFGUARD_DB_PASSWORD=${db_password}
-
-DEFGUARD_SECRET_KEY=${secret_key}
-DEFGUARD_AUTH_SECRET=${auth_secret}
-DEFGUARD_GATEWAY_SECRET=${gw_secret}
-DEFGUARD_YUBIBRIDGE_SECRET=${yubibridge_secret}
 EOF
 
   success ".env written."
