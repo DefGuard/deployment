@@ -11,9 +11,9 @@ set -euo pipefail
 #   --help          show this help and exit
 
 COMPOSE_FILE_URL="https://raw.githubusercontent.com/defguard/deployment/one-liner-2.0/docker-compose2.0/docker-compose.setup.yaml"
-COMPOSE_FILE="./docker-compose.setup.yaml"
+COMPOSE_FILE="./docker-compose.yaml"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd || pwd)"
-COMPOSE_FILE_LOCAL="${SCRIPT_DIR}/docker-compose.setup.yaml"
+COMPOSE_FILE_LOCAL="${SCRIPT_DIR}/docker-compose.yaml"
 
 DEFGUARD_CORE_TAG="pre-release"
 DEFGUARD_PROXY_TAG="pre-release"

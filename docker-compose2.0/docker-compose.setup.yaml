@@ -18,6 +18,7 @@ services:
   edge:
     restart: unless-stopped
     image: ghcr.io/defguard/defguard-proxy:${DEFGUARD_PROXY_TAG:?DEFGUARD_PROXY_TAG is required}
+    env_file: .env
     volumes:
       - ./.volumes/certs/edge:/etc/defguard/certs
     ports:
@@ -26,6 +27,7 @@ services:
   gateway:
     restart: unless-stopped
     image: ghcr.io/defguard/gateway:${DEFGUARD_GATEWAY_TAG:?DEFGUARD_GATEWAY_TAG is required}
+    env_file: .env
     cap_add:
       - NET_ADMIN
     volumes:
@@ -33,6 +35,8 @@ services:
     environment:
       DEFGUARD_STATS_PERIOD: 10
       HEALTH_PORT: 55003
+    ports:
+      - "51820:51820/udp"
 
   db:
     restart: unless-stopped
