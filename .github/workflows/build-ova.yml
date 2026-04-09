@@ -63,11 +63,14 @@ jobs:
         env:
           PACKER_LOG: 1
         run: |
+          CORE_TAG="${{ github.event.inputs.core_tag }}"
+          PROXY_TAG="${{ github.event.inputs.proxy_tag }}"
+          GATEWAY_TAG="${{ github.event.inputs.gateway_tag }}"
           packer build \
             -var "iso_url=file://$PWD/ubuntu-24.04.4-live-server-amd64.iso" \
-            -var "core_tag=${{ github.event.inputs.core_tag }}" \
-            -var "proxy_tag=${{ github.event.inputs.proxy_tag }}" \
-            -var "gateway_tag=${{ github.event.inputs.gateway_tag }}" \
+            -var "core_tag=${CORE_TAG}" \
+            -var "proxy_tag=${PROXY_TAG}" \
+            -var "gateway_tag=${GATEWAY_TAG}" \
             defguard.pkr.hcl
 
       - name: Upload OVA to S3
@@ -84,3 +87,5 @@ jobs:
           ls -lh output/defguard/defguard.ova
           aws s3 cp output/defguard/defguard.ova "s3://defguard-downloads/ova/${FILENAME}"
           echo "Uploaded: s3://defguard-downloads/ova/${FILENAME}"
+          aws s3 cp output/defguard/defguard.ova "s3://defguard-downloads/ova/defguard-latest.ova" \
+            --cache-control "no-cache"
