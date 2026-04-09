@@ -33,7 +33,7 @@ replicaCount: 1
 resources: {}
 # defguard-gateway persistent storage for certificates
 persistence:
-  size: 32Mi
+  size: "32Mi"
   storageClassName: ""
 # defguard-gateway pod security context
 podSecurityContext: {}

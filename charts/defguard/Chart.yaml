@@ -10,7 +10,7 @@ appVersion: 2.0.0
 dependencies:
   - name: postgresql
     condition: postgresql.enabled
-    version: 18.5.14
+    version: 18.5.16
     repository: https://charts.bitnami.com/bitnami
   - name: defguard-proxy
     condition: defguard-proxy.enabled

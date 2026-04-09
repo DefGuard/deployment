@@ -51,7 +51,7 @@ replicaCount: 1
 resources: {}
 # defguard-proxy persistent storage configuration
 persistence:
-  size: 32Mi
+  size: "32Mi"
   storageClassName: ""
 # defguard-proxy service configuration
 service:

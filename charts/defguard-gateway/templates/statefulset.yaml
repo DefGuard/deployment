@@ -53,8 +53,6 @@ spec:
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           {{- if .Values.healthCheck.enabled }}
-          securityContext:
-            {{- toYaml .Values.securityContext | nindent 12 }}
           livenessProbe:
             httpGet:
               path: /
@@ -72,6 +70,8 @@ spec:
             timeoutSeconds: {{ .Values.healthCheck.readinessProbe.timeoutSeconds }}
             failureThreshold: {{ .Values.healthCheck.readinessProbe.failureThreshold }}
           {{- end }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
           volumeMounts:
             - name: data
               mountPath: /etc/defguard
