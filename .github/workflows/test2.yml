@@ -1,0 +1,56 @@
+name: Test setup script 2.0
+
+on:
+  push:
+    branches:
+      - main
+      - one-liner-2.0
+    paths:
+      - 'docker-compose2.0/**'
+      - '.github/workflows/test2.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'docker-compose2.0/**'
+      - '.github/workflows/test2.yml'
+
+jobs:
+  test:
+    name: Test setup script 2.0
+    runs-on: [self-hosted, Linux, X64]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Login to GitHub container registry
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create working directory
+        run: mkdir temp
+
+      - name: Copy compose file
+        run: cp docker-compose2.0/docker-compose.setup.yaml temp/docker-compose.yaml
+
+      - name: Run setup script
+        working-directory: temp
+        run: bash ../docker-compose2.0/setup.sh
+
+      - name: Wait for stack to be ready
+        run: sleep 15s
+
+      - name: Test health endpoint
+        run: curl -f http://localhost:8000/api/v1/health
+
+      - name: Stop compose stack
+        if: always()
+        working-directory: temp
+        run: docker compose down -v
+
+      - name: Cleanup
+        if: always()
+        run: sudo rm -rf temp
