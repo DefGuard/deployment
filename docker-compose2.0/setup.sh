@@ -203,11 +203,7 @@ write_env() {
     return
   fi
 
-  local secret_key auth_secret gw_secret yubibridge_secret db_password
-  secret_key=$(gen_secret)
-  auth_secret=$(gen_secret)
-  gw_secret=$(gen_secret)
-  yubibridge_secret=$(gen_secret)
+  local db_password
   db_password=$(gen_secret | head -c 24)
 
   case "$IMAGE_MODE" in
