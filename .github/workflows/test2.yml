@@ -4,16 +4,15 @@ on:
   push:
     branches:
       - main
-      - one-liner-2.0
     paths:
-      - 'docker-compose2.0/**'
-      - '.github/workflows/test2.yml'
+      - "docker-compose2.0/**"
+      - ".github/workflows/test2.yml"
   pull_request:
     branches:
       - main
     paths:
-      - 'docker-compose2.0/**'
-      - '.github/workflows/test2.yml'
+      - "docker-compose2.0/**"
+      - ".github/workflows/test2.yml"
 
 jobs:
   test:
