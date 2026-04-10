@@ -47,14 +47,13 @@ jobs:
           fi
 
       - name: Setup Packer
-        uses: hashicorp/setup-packer@v3.1.0
+        uses: hashicorp/setup-packer@v3
         with:
           version: "1.11.2"
 
       - name: Download ISO
         run: |
-          curl -fL -o ubuntu-24.04.4-live-server-amd64.iso \
-            https://releases.ubuntu.com/24.04.4/ubuntu-24.04.4-live-server-amd64.iso
+          curl -fLO https://releases.ubuntu.com/24.04.4/ubuntu-24.04.4-live-server-amd64.iso
 
       - name: Packer init
         run: packer init defguard.pkr.hcl
