@@ -1,0 +1,46 @@
+services:
+  core:
+    restart: unless-stopped
+    image: ghcr.io/defguard/defguard:${DEFGUARD_CORE_TAG:?DEFGUARD_CORE_TAG is required}
+    env_file: .env
+    environment:
+      DEFGUARD_DB_HOST: db
+      DEFGUARD_DB_PORT: 5432
+      DEFGUARD_ADOPT_EDGE: "edge:50051"
+      DEFGUARD_ADOPT_GATEWAY: "gateway:50066"
+    depends_on:
+      - db
+      - edge
+      - gateway
+    ports:
+      - "8000:8000"
+
+  edge:
+    restart: unless-stopped
+    image: ghcr.io/defguard/defguard-proxy:${DEFGUARD_PROXY_TAG:?DEFGUARD_PROXY_TAG is required}
+    env_file: .env
+    volumes:
+      - ./.volumes/certs/edge:/etc/defguard/certs
+    ports:
+      - "8080:8080"
+
+  gateway:
+    restart: unless-stopped
+    image: ghcr.io/defguard/gateway:${DEFGUARD_GATEWAY_TAG:?DEFGUARD_GATEWAY_TAG is required}
+    env_file: .env
+    cap_add:
+      - NET_ADMIN
+    volumes:
+      - ./.volumes/certs/gateway:/etc/defguard/certs
+    environment:
+      DEFGUARD_STATS_PERIOD: 10
+      HEALTH_PORT: 55003
+    ports:
+      - "51820:51820/udp"
+
+  db:
+    restart: unless-stopped
+    image: postgres:18-alpine
+    env_file: .env
+    volumes:
+      - ./.volumes/db:/var/lib/postgresql
