@@ -96,16 +96,23 @@ usage() {
   echo "Usage: $(basename "$0") [OPTIONS]"
   echo
   echo "Available options:"
-  echo "  --dev           use development images"
-  echo "  --pre-release   use pre-release images"
-  echo "  --help          show this help and exit"
+  echo "  --dev             use development images"
+  echo "  --pre-release     use pre-release images"
+  echo "  --no-masquerade   disable IP masquerade on the gateway"
+  echo "  --help            show this help and exit"
   echo
   exit 0
 }
 
 parse_args() {
+    # Since the Gateway is running entirely in the Container,
+    # the masquerade is added by default to ensure it can access the host network.
+  MASQUERADE=true
   while [[ $# -gt 0 ]]; do
     case "$1" in
+      --no-masquerade)
+        MASQUERADE=false
+        shift ;;
       --dev)
         IMAGE_MODE="dev"
         DEFGUARD_CORE_TAG="dev"
@@ -226,9 +233,11 @@ POSTGRES_PASSWORD=${db_password}
 DEFGUARD_DB_NAME=defguard
 DEFGUARD_DB_USER=defguard
 DEFGUARD_DB_PASSWORD=${db_password}
+
+DEFGUARD_MASQUERADE=${MASQUERADE}
 EOF
 
-  success ".env written."
+    success ".env written"
 }
 
 launch() {
