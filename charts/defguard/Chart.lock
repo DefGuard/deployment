@@ -1,12 +1,12 @@
 dependencies:
 - name: postgresql
   repository: https://charts.bitnami.com/bitnami
-  version: 18.5.15
+  version: 18.5.16
 - name: defguard-proxy
   repository: https://defguard.github.io/deployment
-  version: 0.8.3
+  version: 2.0.0-beta.1
 - name: defguard-gateway
   repository: https://defguard.github.io/deployment
-  version: 0.5.4
-digest: sha256:81ada1063c54b6f4a429f40040a13f09a7c75896471407d2929a58fec7f439b2
-generated: "2026-04-02T11:26:55.131731+02:00"
+  version: 2.0.0-beta.1
+digest: sha256:6fc08c440c27bb4c9e90d030cae0fbc9c5a244196dff959a447cbb7c8682177e
+generated: "2026-04-10T10:04:56.454317+02:00"

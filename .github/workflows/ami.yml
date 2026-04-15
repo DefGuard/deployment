@@ -25,7 +25,7 @@ jobs:
           echo "Proxy version: $PROXY_VERSION"
           echo "Gateway version: $GATEWAY_VERSION"
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup `packer`
         uses: hashicorp/setup-packer@main
