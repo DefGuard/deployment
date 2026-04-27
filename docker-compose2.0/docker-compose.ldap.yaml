@@ -20,6 +20,7 @@ services:
       - edge1
     ports:
       - "8000:8000"
+      - "8443:443"
 
   edge1:
     image: ghcr.io/defguard/defguard-proxy:2.0.0-alpha2
@@ -27,6 +28,8 @@ services:
       - ./.volumes/certs2.0/edge1:/etc/defguard/certs
     ports:
       - "8080:8080"
+      - "80:80"
+      - "443:443"
 
   gateway1:
     image: ghcr.io/defguard/gateway:2.0.0-alpha2
@@ -53,8 +56,8 @@ services:
     image: axllent/mailpit:latest
     container_name: mailpit
     ports:
-      - "8025:8025"   # web UI
-      - "1025:1025"   # SMTP
+      - "8025:8025" # web UI
+      - "1025:1025" # SMTP
 
   openldap:
     image: bitnamilegacy/openldap:2.6
@@ -79,4 +82,4 @@ services:
       PHPLDAPADMIN_LDAP_HOSTS: "#PYTHON2BASH:[{'openldap': [{'server': [{'host': 'openldap', 'port': 1389}]}]}]"
       PHPLDAPADMIN_HTTPS: "false"
     ports:
-      - "8081:80"  
+      - "8081:80"
