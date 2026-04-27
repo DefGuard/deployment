@@ -11,6 +11,7 @@ services:
       - db
     ports:
       - "8000:8000"
+      - "8443:443"
 
   edge:
     restart: unless-stopped
@@ -21,6 +22,8 @@ services:
     ports:
       - "8080:8080"
       - "50051:50051"
+      - "443:443"
+      - "80:80"
 
   gateway:
     restart: unless-stopped
