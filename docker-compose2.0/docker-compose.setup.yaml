@@ -14,7 +14,6 @@ services:
       - gateway
     ports:
       - "8000:8000"
-      - "8443:443"
 
   edge:
     restart: unless-stopped

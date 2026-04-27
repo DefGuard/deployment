@@ -20,7 +20,6 @@ services:
       - edge1
     ports:
       - "8000:8000"
-      - "8443:443"
 
   edge1:
     image: ghcr.io/defguard/defguard-proxy:2.0.0-alpha2
