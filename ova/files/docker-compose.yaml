@@ -24,6 +24,8 @@ services:
       - ./.volumes/certs/edge:/etc/defguard/certs
     ports:
       - "8080:8080"
+      - "443:443"
+      - "80:80"
 
   gateway:
     restart: unless-stopped
