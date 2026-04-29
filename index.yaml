@@ -1114,6 +1114,17 @@ entries:
   defguard-gateway:
   - apiVersion: v2
     appVersion: 2.0.0-beta2
+    created: "2026-04-29T09:53:31.054690809+02:00"
+    description: Defguard Gateway is a public-facing VPN endpoint.
+    digest: 476427718483a43a8d9e820970dda5a0090bb5e562e1a79c559b266a472d8f22
+    icon: https://defguard.net/favicon/favicon-512x512.png
+    name: defguard-gateway
+    type: application
+    urls:
+    - https://github.com/DefGuard/deployment/releases/download/defguard-gateway-2.0.0-beta.2/defguard-gateway-2.0.0-beta.2.tgz
+    version: 2.0.0-beta.2
+  - apiVersion: v2
+    appVersion: 2.0.0-beta2
     created: "2026-04-29T10:53:15.618347323+02:00"
     description: Defguard Gateway is a public-facing VPN endpoint.
     digest: 7d556efaa7c25af1caa722b04923cc7b4bce86400f5f7b155095cdd4dd0f2744
@@ -1124,16 +1135,16 @@ entries:
     - https://github.com/DefGuard/deployment/releases/download/defguard-gateway-2.0.0-beta.2/defguard-gateway-2.0.0-beta.2.tgz
     version: 2.0.0-beta.2
   - apiVersion: v2
-    appVersion: 2.0.0-beta2
-    created: "2026-04-29T09:53:31.054690809+02:00"
+    appVersion: 1.6.5
+    created: "2026-04-29T10:59:14.896454599+02:00"
     description: Defguard Gateway is a public-facing VPN endpoint.
-    digest: 476427718483a43a8d9e820970dda5a0090bb5e562e1a79c559b266a472d8f22
+    digest: 38155485e958defb1d6da513f5c6130af779c2015c4910d95879729aff49f1e7
     icon: https://defguard.net/favicon/favicon-512x512.png
     name: defguard-gateway
     type: application
     urls:
-    - https://github.com/DefGuard/deployment/releases/download/defguard-gateway-2.0.0-beta.2/defguard-gateway-2.0.0-beta.2.tgz
-    version: 2.0.0-beta.2
+    - https://github.com/DefGuard/deployment/releases/download/defguard-gateway-1.6.0/defguard-gateway-1.6.0.tgz
+    version: 1.6.0
   - apiVersion: v2
     appVersion: 1.6.4
     created: "2026-04-02T11:22:55.706601952+02:00"
@@ -1537,4 +1548,4 @@ entries:
     urls:
     - https://github.com/DefGuard/deployment/releases/download/defguard-proxy-0.1.0/defguard-proxy-0.1.0.tgz
     version: 0.1.0
-generated: "2026-04-29T10:53:15.889985298+02:00"
+generated: "2026-04-29T10:59:14.896795283+02:00"
