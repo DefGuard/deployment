@@ -1,16 +1,14 @@
 apiVersion: apps/v1
-kind: StatefulSet
+kind: Deployment
 metadata:
   name: {{ include "defguard-gateway.fullname" . }}
   labels:
     {{- include "defguard-gateway.labels" . | nindent 4 }}
 spec:
-  podManagementPolicy: Parallel
   replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
       {{- include "defguard-gateway.selectorLabels" . | nindent 6 }}
-  serviceName: {{ include "defguard-gateway.fullname" . }}-grpc-headless
   template:
     metadata:
       {{- with .Values.podAnnotations }}
@@ -29,11 +27,6 @@ spec:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
       containers:
         - name: {{ .Chart.Name }}
-          {{- if .Values.healthCheck.enabled }}
-          env:
-            - name: HEALTH_PORT
-              value: {{ .Values.healthCheck.port }}
-          {{- end }}
           envFrom:
             - configMapRef:
                 name: {{ include "defguard-gateway.fullname" . }}-config
@@ -41,12 +34,11 @@ spec:
             - configMapRef:
                 name: {{ .Values.additionalEnvFromConfigMap }}
             {{- end }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
-            - name: grpc
-              containerPort: {{ .Values.service.grpc.port }}
-              protocol: TCP
             - name: wireguard
               containerPort: {{ .Values.service.wireguard.port }}
               protocol: UDP
@@ -70,11 +62,23 @@ spec:
             timeoutSeconds: {{ .Values.healthCheck.readinessProbe.timeoutSeconds }}
             failureThreshold: {{ .Values.healthCheck.readinessProbe.failureThreshold }}
           {{- end }}
-          securityContext:
-            {{- toYaml .Values.securityContext | nindent 12 }}
-          volumeMounts:
-            - name: data
-              mountPath: /etc/defguard
+          {{- if .Values.token }}
+          env:
+            - name: DEFGUARD_TOKEN
+              value: {{ .Values.token }}
+          {{- else if .Values.existingTokenSecret }}
+          env:
+            - name: DEFGUARD_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.existingTokenSecret }}
+                  key: {{ .Values.existingTokenSecretKey }}
+          {{- end }}
+          {{- if .Values.healthCheck.enabled }}
+          env:
+            - name: HEALTH_PORT
+              value: {{ .Values.healthCheck.port }}
+          {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
@@ -87,15 +91,3 @@ spec:
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-  volumeClaimTemplates:
-    - metadata:
-        name: data
-      spec:
-        accessModes:
-          - ReadWriteOnce
-        {{- with .Values.persistence.storageClassName }}
-        storageClassName: {{ . }}
-        {{- end }}
-        resources:
-          requests:
-            storage: {{ .Values.persistence.size }}

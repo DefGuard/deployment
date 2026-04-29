@@ -1,16 +1,16 @@
 apiVersion: apps/v1
-kind: StatefulSet
+kind: Deployment
 metadata:
   name: {{ include "defguard-proxy.fullname" . }}
   labels:
     {{- include "defguard-proxy.labels" . | nindent 4 }}
 spec:
-  podManagementPolicy: Parallel
+  {{- if not .Values.autoscaling.enabled }}
   replicas: {{ .Values.replicaCount }}
+  {{- end }}
   selector:
     matchLabels:
       {{- include "defguard-proxy.selectorLabels" . | nindent 6 }}
-  serviceName: {{ include "defguard-proxy.fullname" . }}-grpc-headless
   template:
     metadata:
       {{- with .Values.podAnnotations }}
@@ -36,6 +36,8 @@ spec:
             - configMapRef:
                 name: {{ .Values.additionalEnvFromConfigMap }}
             {{- end }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
@@ -55,11 +57,6 @@ spec:
               port: http
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
-          securityContext:
-            {{- toYaml .Values.securityContext | nindent 12 }}
-          volumeMounts:
-            - name: data
-              mountPath: /etc/defguard
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
@@ -72,15 +69,3 @@ spec:
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-  volumeClaimTemplates:
-    - metadata:
-        name: data
-      spec:
-        accessModes:
-          - ReadWriteOnce
-        {{- with .Values.persistence.storageClassName }}
-        storageClassName: {{ . }}
-        {{- end }}
-        resources:
-          requests:
-            storage: {{ .Values.persistence.size }}

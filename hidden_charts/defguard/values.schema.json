@@ -95,6 +95,20 @@
           "title": "enabled",
           "type": "boolean"
         },
+        "existingTokenSecret": {
+          "default": "",
+          "description": "Secret to get the token from",
+          "required": [],
+          "title": "existingTokenSecret",
+          "type": "string"
+        },
+        "existingTokenSecretKey": {
+          "default": "",
+          "description": "Key to extract the token from in existingTokenSecret",
+          "required": [],
+          "title": "existingTokenSecretKey",
+          "type": "string"
+        },
         "fullnameOverride": {
           "default": "",
           "description": "defguard-gateway full name override",
@@ -102,112 +116,12 @@
           "title": "fullnameOverride",
           "type": "string"
         },
-        "global": {
-          "additionalProperties": true,
-          "description": "Global values are values that can be accessed from any chart or subchart by exactly the same name.",
+        "grpcUrl": {
+          "default": "",
+          "description": "Defguard GRPC URL, e.g.: defguard-grpc.mycompany.com",
           "required": [],
-          "title": "global",
-          "type": "object"
-        },
-        "healthCheck": {
-          "additionalProperties": false,
-          "description": "defguard-gateway health check configuration",
-          "properties": {
-            "enabled": {
-              "default": false,
-              "required": [],
-              "title": "enabled",
-              "type": "boolean"
-            },
-            "livenessProbe": {
-              "additionalProperties": false,
-              "properties": {
-                "failureThreshold": {
-                  "default": 3,
-                  "required": [],
-                  "title": "failureThreshold",
-                  "type": "integer"
-                },
-                "initialDelaySeconds": {
-                  "default": 30,
-                  "required": [],
-                  "title": "initialDelaySeconds",
-                  "type": "integer"
-                },
-                "periodSeconds": {
-                  "default": 10,
-                  "required": [],
-                  "title": "periodSeconds",
-                  "type": "integer"
-                },
-                "timeoutSeconds": {
-                  "default": 5,
-                  "required": [],
-                  "title": "timeoutSeconds",
-                  "type": "integer"
-                }
-              },
-              "required": [
-                "initialDelaySeconds",
-                "periodSeconds",
-                "timeoutSeconds",
-                "failureThreshold"
-              ],
-              "title": "livenessProbe",
-              "type": "object"
-            },
-            "port": {
-              "default": 35053,
-              "required": [],
-              "title": "port",
-              "type": "integer"
-            },
-            "readinessProbe": {
-              "additionalProperties": false,
-              "properties": {
-                "failureThreshold": {
-                  "default": 3,
-                  "required": [],
-                  "title": "failureThreshold",
-                  "type": "integer"
-                },
-                "initialDelaySeconds": {
-                  "default": 10,
-                  "required": [],
-                  "title": "initialDelaySeconds",
-                  "type": "integer"
-                },
-                "periodSeconds": {
-                  "default": 10,
-                  "required": [],
-                  "title": "periodSeconds",
-                  "type": "integer"
-                },
-                "timeoutSeconds": {
-                  "default": 5,
-                  "required": [],
-                  "title": "timeoutSeconds",
-                  "type": "integer"
-                }
-              },
-              "required": [
-                "initialDelaySeconds",
-                "periodSeconds",
-                "timeoutSeconds",
-                "failureThreshold"
-              ],
-              "title": "readinessProbe",
-              "type": "object"
-            }
-          },
-          "required": [
-            "enabled",
-            "port",
-            "livenessProbe",
-            "readinessProbe"
-          ],
-          "title": "healthCheck",
-          "type": "object"
+          "title": "grpcUrl",
+          "type": "string"
         },
         "image": {
           "additionalProperties": false,
@@ -270,28 +184,6 @@
           "title": "nodeSelector",
           "type": "object"
         },
-        "persistence": {
-          "additionalProperties": false,
-          "description": "defguard-gateway persistent storage for certificates",
-          "properties": {
-            "size": {
-              "default": "32Mi",
-              "title": "size",
-              "type": "string"
-            },
-            "storageClassName": {
-              "default": "",
-              "title": "storageClassName",
-              "type": "string"
-            }
-          },
-          "required": [
-            "size",
-            "storageClassName"
-          ],
-          "title": "persistence",
-          "type": "object"
-        },
         "podAnnotations": {
           "additionalProperties": false,
           "description": "defguard-gateway pod annotations",
@@ -329,54 +221,8 @@
         },
         "securityContext": {
           "additionalProperties": false,
-          "description": "defguard-gateway container security context\nelevated priveleges are required for managing network interfaces",
-          "properties": {
-            "allowPrivilegeEscalation": {
-              "default": true,
-              "required": [],
-              "title": "allowPrivilegeEscalation",
-              "type": "boolean"
-            },
-            "capabilities": {
-              "additionalProperties": false,
-              "properties": {
-                "add": {
-                  "items": {
-                    "anyOf": [
-                      {
-                        "required": [],
-                        "type": "string"
-                      },
-                      {
-                        "required": [],
-                        "type": "string"
-                      }
-                    ],
-                    "required": []
-                  },
-                  "required": [],
-                  "title": "add",
-                  "type": "array"
-                }
-              },
-              "required": [
-                "add"
-              ],
-              "title": "capabilities",
-              "type": "object"
-            },
-            "privileged": {
-              "default": true,
-              "required": [],
-              "title": "privileged",
-              "type": "boolean"
-            }
-          },
-          "required": [
-            "allowPrivilegeEscalation",
-            "privileged",
-            "capabilities"
-          ],
+          "description": "defguard-gateway container security context",
+          "required": [],
           "title": "securityContext",
           "type": "object"
         },
@@ -384,53 +230,6 @@
           "additionalProperties": false,
           "description": "defguard-gateway service configuration",
           "properties": {
-            "grpc": {
-              "additionalProperties": false,
-              "properties": {
-                "annotations": {
-                  "additionalProperties": false,
-                  "properties": {
-                    "traefik.ingress.kubernetes.io/service.serversscheme": {
-                      "default": "h2c",
-                      "required": [],
-                      "title": "traefik.ingress.kubernetes.io/service.serversscheme",
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "traefik.ingress.kubernetes.io/service.serversscheme"
-                  ],
-                  "title": "annotations",
-                  "type": "object"
-                },
-                "labels": {
-                  "additionalProperties": false,
-                  "required": [],
-                  "title": "labels",
-                  "type": "object"
-                },
-                "port": {
-                  "default": 50066,
-                  "required": [],
-                  "title": "port",
-                  "type": "integer"
-                },
-                "type": {
-                  "default": "ClusterIP",
-                  "required": [],
-                  "title": "type",
-                  "type": "string"
-                }
-              },
-              "required": [
-                "annotations",
-                "labels",
-                "port",
-                "type"
-              ],
-              "title": "grpc",
-              "type": "object"
-            },
             "wireguard": {
               "additionalProperties": false,
               "properties": {
@@ -506,6 +305,13 @@
           "title": "statsPeriod",
           "type": "integer"
         },
+        "token": {
+          "default": "",
+          "description": "Token from Defguard app to secure gRPC connection, available on network page.\nIt is not recommended to use this. Create a secret yourself and use existingTokenSecret instead",
+          "required": [],
+          "title": "token",
+          "type": "string"
+        },
         "tolerations": {
           "description": "defguard-gateway pod tolerations",
           "items": {
@@ -517,7 +323,7 @@
         },
         "userspace": {
           "default": "false",
-          "description": "Use userspace WireGuard implementation, useful on systems without native wireguard support. Set to true/false",
+          "description": "Use userspace wireguard implementation, useful on systems without native wireguard support. Set to true/false",
           "required": [],
           "title": "userspace",
           "type": "string"
@@ -526,6 +332,10 @@
       "required": [
         "enabled",
         "userspace",
+        "grpcUrl",
+        "token",
+        "existingTokenSecret",
+        "existingTokenSecretKey",
         "statsPeriod",
         "logLevel",
         "fullnameOverride",
@@ -566,6 +376,37 @@
           "title": "affinity",
           "type": "object"
         },
+        "autoscaling": {
+          "additionalProperties": false,
+          "description": "defguard-proxy pod autoscaling configuration",
+          "properties": {
+            "enabled": {
+              "default": false,
+              "required": [],
+              "title": "enabled",
+              "type": "boolean"
+            },
+            "maxReplicas": {
+              "default": 10,
+              "required": [],
+              "title": "maxReplicas",
+              "type": "integer"
+            },
+            "minReplicas": {
+              "default": 1,
+              "required": [],
+              "title": "minReplicas",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "enabled",
+            "minReplicas",
+            "maxReplicas"
+          ],
+          "title": "autoscaling",
+          "type": "object"
+        },
         "enabled": {
           "default": false,
           "description": "defguard-proxy is turned off by default. enable to allow use of the enrollment interface",
@@ -579,13 +420,6 @@
           "required": [],
           "title": "fullnameOverride",
           "type": "string"
-        },
-        "global": {
-          "additionalProperties": true,
-          "description": "Global values are values that can be accessed from any chart or subchart by exactly the same name.",
-          "required": [],
-          "title": "global",
-          "type": "object"
         },
         "image": {
           "additionalProperties": false,
@@ -753,28 +587,6 @@
           "description": "defguard-proxy pod node selection",
           "required": [],
           "title": "nodeSelector",
-          "type": "object"
-        },
-        "persistence": {
-          "additionalProperties": false,
-          "description": "defguard-proxy persistent storage for configuration files",
-          "properties": {
-            "size": {
-              "default": "32Mi",
-              "title": "size",
-              "type": "string"
-            },
-            "storageClassName": {
-              "default": "",
-              "title": "storageClassName",
-              "type": "string"
-            }
-          },
-          "required": [
-            "size",
-            "storageClassName"
-          ],
-          "title": "persistence",
           "type": "object"
         },
         "podAnnotations": {
@@ -961,6 +773,7 @@
         "publicUrl",
         "fullnameOverride",
         "nameOverride",
+        "autoscaling",
         "image",
         "imagePullSecrets",
         "ingress",

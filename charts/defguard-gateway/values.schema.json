@@ -16,6 +16,20 @@
       "title": "affinity",
       "type": "object"
     },
+    "existingTokenSecret": {
+      "default": "",
+      "description": "Secret to get the token from",
+      "required": [],
+      "title": "existingTokenSecret",
+      "type": "string"
+    },
+    "existingTokenSecretKey": {
+      "default": "",
+      "description": "Key to extract the token from in existingTokenSecret",
+      "required": [],
+      "title": "existingTokenSecretKey",
+      "type": "string"
+    },
     "fullnameOverride": {
       "default": "",
       "description": "defguard-gateway full name override",
@@ -24,11 +38,17 @@
       "type": "string"
     },
     "global": {
-      "additionalProperties": true,
       "description": "Global values are values that can be accessed from any chart or subchart by exactly the same name.",
       "required": [],
       "title": "global",
       "type": "object"
+    },
+    "grpcUrl": {
+      "default": "",
+      "description": "Defguard GRPC URL, e.g.: defguard-grpc.mycompany.com",
+      "required": [],
+      "title": "grpcUrl",
+      "type": "string"
     },
     "healthCheck": {
       "additionalProperties": false,
@@ -191,28 +211,6 @@
       "title": "nodeSelector",
       "type": "object"
     },
-    "persistence": {
-      "additionalProperties": false,
-      "description": "defguard-gateway persistent storage for certificates",
-      "properties": {
-        "size": {
-          "default": "32Mi",
-          "title": "size",
-          "type": "string"
-        },
-        "storageClassName": {
-          "default": "",
-          "title": "storageClassName",
-          "type": "string"
-        }
-      },
-      "required": [
-        "size",
-        "storageClassName"
-      ],
-      "title": "persistence",
-      "type": "object"
-    },
     "podAnnotations": {
       "additionalProperties": false,
       "description": "defguard-gateway pod annotations",
@@ -305,53 +303,6 @@
       "additionalProperties": false,
       "description": "defguard-gateway service configuration",
       "properties": {
-        "grpc": {
-          "additionalProperties": false,
-          "properties": {
-            "annotations": {
-              "additionalProperties": false,
-              "properties": {
-                "traefik.ingress.kubernetes.io/service.serversscheme": {
-                  "default": "h2c",
-                  "required": [],
-                  "title": "traefik.ingress.kubernetes.io/service.serversscheme",
-                  "type": "string"
-                }
-              },
-              "required": [
-                "traefik.ingress.kubernetes.io/service.serversscheme"
-              ],
-              "title": "annotations",
-              "type": "object"
-            },
-            "labels": {
-              "additionalProperties": false,
-              "required": [],
-              "title": "labels",
-              "type": "object"
-            },
-            "port": {
-              "default": 50066,
-              "required": [],
-              "title": "port",
-              "type": "integer"
-            },
-            "type": {
-              "default": "ClusterIP",
-              "required": [],
-              "title": "type",
-              "type": "string"
-            }
-          },
-          "required": [
-            "annotations",
-            "labels",
-            "port",
-            "type"
-          ],
-          "title": "grpc",
-          "type": "object"
-        },
         "wireguard": {
           "additionalProperties": false,
           "properties": {
@@ -427,6 +378,13 @@
       "title": "statsPeriod",
       "type": "integer"
     },
+    "token": {
+      "default": "",
+      "description": "Token from Defguard app to secure gRPC connection, available on network page.\nIt is not recommended to use this. Create a secret yourself and use existingTokenSecret instead",
+      "required": [],
+      "title": "token",
+      "type": "string"
+    },
     "tolerations": {
       "description": "defguard-gateway pod tolerations",
       "items": {
@@ -438,7 +396,7 @@
     },
     "userspace": {
       "default": "false",
-      "description": "yaml-language-server: $schema=values.schema.json\nUse userspace WireGuard implementation, useful on systems without native wireguard support. Set to true/false",
+      "description": "yaml-language-server: $schema=values.schema.json\nUse userspace wireguard implementation, useful on systems without native wireguard support. Set to true/false",
       "required": [],
       "title": "userspace",
       "type": "string"
@@ -446,6 +404,10 @@
   },
   "required": [
     "userspace",
+    "grpcUrl",
+    "token",
+    "existingTokenSecret",
+    "existingTokenSecretKey",
     "statsPeriod",
     "logLevel",
     "fullnameOverride",
@@ -457,7 +419,6 @@
     "tolerations",
     "podAnnotations",
     "podLabels",
-    "persistence",
     "replicaCount",
     "resources",
     "podSecurityContext",

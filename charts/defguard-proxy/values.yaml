@@ -8,6 +8,11 @@ publicUrl: "http://enrollment.local"
 fullnameOverride: ""
 # defguard-proxy name override
 nameOverride: ""
+# defguard-proxy pod autoscaling configuration
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 10
 # defguard-proxy container image configuration
 image:
   pullPolicy: IfNotPresent
@@ -49,10 +54,6 @@ securityContext: {}
 replicaCount: 1
 # defguard-proxy pod resource configuration
 resources: {}
-# defguard-proxy persistent storage configuration
-persistence:
-  size: "32Mi"
-  storageClassName: ""
 # defguard-proxy service configuration
 service:
   grpc:
