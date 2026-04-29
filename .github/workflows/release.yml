@@ -7,9 +7,7 @@ on:
       - "release/**"
     paths:
       - ".github/workflows/release.yml"
-      # - "charts/defguard"
-      - "charts/defguard-gateway"
-      - "charts/defguard-proxy"
+      - "charts/**"
 
 jobs:
   release:
