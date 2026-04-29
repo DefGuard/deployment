@@ -1,8 +1,8 @@
 apiVersion: v2
 name: defguard-proxy
-description: Defguard Proxy is a public-facing proxy for Defguard Core.
+description: Defguard Edge is a public-facing proxy for Defguard Core.
 icon: https://defguard.net/favicon/favicon-512x512.png
 
 type: application
-version: 2.0.0-beta.1
-appVersion: 2.0.0-beta1
+version: 2.0.0-beta.2
+appVersion: 2.0.0-beta2

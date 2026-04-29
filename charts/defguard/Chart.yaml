@@ -4,21 +4,21 @@ description: Defguard is an open-source enterprise WireGuard VPN with MFA and SS
 icon: https://defguard.net/favicon/favicon-512x512.png
 
 type: application
-version: 2.0.0-beta.1
-appVersion: 2.0.0-beta1
+version: 2.0.0-beta.2
+appVersion: 2.0.0-beta2
 
 dependencies:
   - name: postgresql
     condition: postgresql.enabled
-    version: 18.5.16
+    version: 18.6.2
     repository: https://charts.bitnami.com/bitnami
   - name: defguard-proxy
     condition: defguard-proxy.enabled
-    version: 2.0.0-beta.1
+    version: 2.0.0-beta.2
     repository: https://defguard.github.io/deployment
     # repository: "file://../defguard-proxy"
   - name: defguard-gateway
     condition: defguard-gateway.enabled
-    version: 2.0.0-beta.1
+    version: 2.0.0-beta.2
     repository: https://defguard.github.io/deployment
     # repository: "file://../defguard-gateway"
