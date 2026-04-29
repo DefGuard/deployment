@@ -18,5 +18,4 @@ olcAccess: to *
   by * read
 EOF
 
-
 ldap_stop
