@@ -1,12 +1,8 @@
 services:
   core:
-    image: ghcr.io/defguard/defguard:dev
+    image: ghcr.io/defguard/defguard:2.0.0-beta2
     environment:
       DEFGUARD_COOKIE_INSECURE: "true"
-      DEFGUARD_SECRET_KEY: defguard-secret-key-defguard-secret-key-defguard-secret-key-defguard-secret-key
-      DEFGUARD_AUTH_SECRET: defguard-auth-secret
-      DEFGUARD_GATEWAY_SECRET: defguard-gateway-secret
-      DEFGUARD_YUBIBRIDGE_SECRET: defguard-yubibridge-secret
       DEFGUARD_DB_HOST: db
       DEFGUARD_DB_PORT: 5432
       DEFGUARD_DB_USER: defguard
@@ -25,7 +21,7 @@ services:
       - default
 
   edge1:
-    image: ghcr.io/defguard/defguard-proxy:2.0.0-alpha2
+    image: ghcr.io/defguard/defguard-proxy:2.0.0-beta2
     volumes:
       - ./.volumes/certs2.0/edge1:/etc/defguard/certs
     ports:
