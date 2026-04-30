@@ -15,10 +15,10 @@ COMPOSE_FILE="./docker-compose.yaml"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd || pwd)"
 COMPOSE_FILE_LOCAL="${SCRIPT_DIR}/docker-compose.yaml"
 
-DEFGUARD_CORE_TAG="pre-release"
-DEFGUARD_PROXY_TAG="pre-release"
-DEFGUARD_GATEWAY_TAG="pre-release"
-IMAGE_MODE="pre-release"
+DEFGUARD_CORE_TAG="2.0"
+DEFGUARD_PROXY_TAG="2.0"
+DEFGUARD_GATEWAY_TAG="2.0"
+IMAGE_MODE="2.0"
 
 check_character_support() {
   echo -e "$1" | grep -q "$1"
@@ -209,7 +209,7 @@ write_env() {
   case "$IMAGE_MODE" in
     dev)         info "Image mode: ${C_RED}development${C_END}" ;;
     pre-release) info "Image mode: ${C_YELLOW}pre-release${C_END}" ;;
-    *)           info "Image mode: ${C_GREEN}latest${C_END}" ;;
+    *)           info "Image mode: ${C_GREEN}latest 2.0${C_END}" ;;
   esac
 
   cat > .env << EOF
