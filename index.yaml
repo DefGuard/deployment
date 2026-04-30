@@ -1138,10 +1138,21 @@ entries:
     version: 0.3.1
   defguard-gateway:
   - apiVersion: v2
-    appVersion: 2.0.0-beta2
-    created: "2026-04-29T09:53:31.054690809+02:00"
+    appVersion: 2.0.0
+    created: "2026-04-30T14:40:39.159353744+02:00"
     description: Defguard Gateway is a public-facing VPN endpoint.
-    digest: 476427718483a43a8d9e820970dda5a0090bb5e562e1a79c559b266a472d8f22
+    digest: cd04eb95babc1538c37efb9170d2a14c01a0e8e685b8841baef65a5192ae0266
+    icon: https://defguard.net/favicon/favicon-512x512.png
+    name: defguard-gateway
+    type: application
+    urls:
+    - https://github.com/DefGuard/deployment/releases/download/defguard-gateway-2.0.0/defguard-gateway-2.0.0.tgz
+    version: 2.0.0
+  - apiVersion: v2
+    appVersion: 2.0.0-beta2
+    created: "2026-04-29T10:53:15.618347323+02:00"
+    description: Defguard Gateway is a public-facing VPN endpoint.
+    digest: 7d556efaa7c25af1caa722b04923cc7b4bce86400f5f7b155095cdd4dd0f2744
     icon: https://defguard.net/favicon/favicon-512x512.png
     name: defguard-gateway
     type: application
@@ -1150,9 +1161,9 @@ entries:
     version: 2.0.0-beta.2
   - apiVersion: v2
     appVersion: 2.0.0-beta2
-    created: "2026-04-29T10:53:15.618347323+02:00"
+    created: "2026-04-29T09:53:31.054690809+02:00"
     description: Defguard Gateway is a public-facing VPN endpoint.
-    digest: 7d556efaa7c25af1caa722b04923cc7b4bce86400f5f7b155095cdd4dd0f2744
+    digest: 476427718483a43a8d9e820970dda5a0090bb5e562e1a79c559b266a472d8f22
     icon: https://defguard.net/favicon/favicon-512x512.png
     name: defguard-gateway
     type: application
@@ -1301,6 +1312,17 @@ entries:
     - https://github.com/DefGuard/deployment/releases/download/defguard-gateway-0.1.2/defguard-gateway-0.1.2.tgz
     version: 0.1.2
   defguard-proxy:
+  - apiVersion: v2
+    appVersion: 2.0.0
+    created: "2026-04-30T14:40:39.443010611+02:00"
+    description: Defguard Edge is a public-facing proxy for Defguard Core.
+    digest: 1c81e1b0163961c2663afdb2582ceb1e5c5328886944832d5dc75b255cb77985
+    icon: https://defguard.net/favicon/favicon-512x512.png
+    name: defguard-proxy
+    type: application
+    urls:
+    - https://github.com/DefGuard/deployment/releases/download/defguard-proxy-2.0.0/defguard-proxy-2.0.0.tgz
+    version: 2.0.0
   - apiVersion: v2
     appVersion: 2.0.0-beta2
     created: "2026-04-29T09:53:31.504742871+02:00"
@@ -1573,4 +1595,4 @@ entries:
     urls:
     - https://github.com/DefGuard/deployment/releases/download/defguard-proxy-0.1.0/defguard-proxy-0.1.0.tgz
     version: 0.1.0
-generated: "2026-04-29T11:01:19.945835176+02:00"
+generated: "2026-04-30T14:40:39.443438247+02:00"
