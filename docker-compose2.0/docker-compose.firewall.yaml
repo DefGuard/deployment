@@ -1,6 +1,6 @@
 services:
   core:
-    image: ghcr.io/defguard/defguard:2.0.0-beta2
+    image: ghcr.io/defguard/defguard:2.0.0
     environment:
       DEFGUARD_COOKIE_INSECURE: "true"
       DEFGUARD_DB_HOST: db
@@ -21,7 +21,7 @@ services:
       - default
 
   edge1:
-    image: ghcr.io/defguard/defguard-proxy:2.0.0-beta2
+    image: ghcr.io/defguard/defguard-proxy:2.0.0
     volumes:
       - ./.volumes/certs2.0/edge1:/etc/defguard/certs
     ports:
