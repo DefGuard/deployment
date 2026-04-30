@@ -27,7 +27,7 @@ services:
   #     - "443:443"  # [PROXY]
 
   core:
-    image: ghcr.io/defguard/defguard:${CORE_IMAGE_TAG:-latest}
+    image: ghcr.io/defguard/defguard:${CORE_IMAGE_TAG:-1.6}
     restart: unless-stopped
     environment:
       DEFGUARD_AUTH_SECRET: ${DEFGUARD_AUTH_SECRET}
@@ -65,7 +65,7 @@ services:
       - ${VOLUME_DIR:-./.volumes}/core/rsakey.pem:/keys/rsakey.pem
 
   # proxy:  # [ENROLLMENT]
-  #   image: ghcr.io/defguard/defguard-proxy:${PROXY_IMAGE_TAG:-latest}  # [ENROLLMENT]
+  #   image: ghcr.io/defguard/defguard-proxy:${PROXY_IMAGE_TAG:-1.6}  # [ENROLLMENT]
   #   restart: unless-stopped  # [ENROLLMENT]
   #   environment:  # [ENROLLMENT]
   #     DEFGUARD_PROXY_GRPC_PORT: 50052  # [ENROLLMENT]
@@ -82,7 +82,7 @@ services:
   #     - core  # [ENROLLMENT]
 
   # gateway:  # [VPN]
-  #   image: ghcr.io/defguard/gateway:${GATEWAY_IMAGE_TAG:-latest}  # [VPN]
+  #   image: ghcr.io/defguard/gateway:${GATEWAY_IMAGE_TAG:-1.6}  # [VPN]
   #   restart: unless-stopped  # [VPN]
   #   network_mode: "host"  # [VPN]
   #   environment:  # [VPN]
