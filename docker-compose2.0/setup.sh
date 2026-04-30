@@ -15,10 +15,10 @@ COMPOSE_FILE="./docker-compose.yaml"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd || pwd)"
 COMPOSE_FILE_LOCAL="${SCRIPT_DIR}/docker-compose.yaml"
 
-DEFGUARD_CORE_TAG="2.0"
-DEFGUARD_PROXY_TAG="2.0"
-DEFGUARD_GATEWAY_TAG="2.0"
-IMAGE_MODE="2.0"
+DEFGUARD_CORE_TAG="2"
+DEFGUARD_PROXY_TAG="2"
+DEFGUARD_GATEWAY_TAG="2"
+IMAGE_MODE="2"
 
 check_character_support() {
   echo -e "$1" | grep -q "$1"
