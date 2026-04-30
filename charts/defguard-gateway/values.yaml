@@ -1,5 +1,7 @@
 ---
 # yaml-language-server: $schema=values.schema.json
+# defguard-gateway is turned off by default. enable to deploy the gateway
+enabled: false
 # Use userspace WireGuard implementation, useful on systems without native WireGuard support. Set to true/false
 userspace: "false"
 # Defines how often (in seconds) should interface statistics be sent to Defguard server

@@ -2,6 +2,13 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
   "properties": {
+    "enabled": {
+      "default": false,
+      "description": "defguard-gateway is turned off by default. enable to deploy the gateway",
+      "required": [],
+      "title": "enabled",
+      "type": "boolean"
+    },
     "additionalEnvFromConfigMap": {
       "default": "",
       "description": "defguard-gateway pod additional ENV from configmap",
