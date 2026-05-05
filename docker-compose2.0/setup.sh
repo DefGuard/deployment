@@ -15,6 +15,8 @@ COMPOSE_FILE="./docker-compose.yaml"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd || pwd)"
 COMPOSE_FILE_LOCAL="${SCRIPT_DIR}/docker-compose.yaml"
 
+VERSION="1.0.0"
+
 DEFGUARD_CORE_TAG="2"
 DEFGUARD_PROXY_TAG="2"
 DEFGUARD_GATEWAY_TAG="2"
@@ -88,6 +90,7 @@ print_header() {
 LOGO
   echo -e "${C_END}"
   echo "Defguard docker-compose 2.0 setup script"
+  echo "Version: ${VERSION}"
   echo -e "Copyright ©2023-2026 ${C_BOLD}defguard sp. z o.o.${C_END} <${C_BG_GREY}${C_YELLOW}https://defguard.net/${C_END}>"
   echo
 }
@@ -99,6 +102,7 @@ usage() {
   echo "  --dev             use development images"
   echo "  --pre-release     use pre-release images"
   echo "  --no-masquerade   disable IP masquerade on the gateway"
+  echo "  --version         show version and exit"
   echo "  --help            show this help and exit"
   echo
   exit 0
@@ -125,6 +129,9 @@ parse_args() {
         DEFGUARD_PROXY_TAG="pre-release"
         DEFGUARD_GATEWAY_TAG="pre-release"
         shift ;;
+      --version)
+        echo "$(basename "$0") version $VERSION"
+        exit 0 ;;
       --help|-h)
         usage ;;
       *)
