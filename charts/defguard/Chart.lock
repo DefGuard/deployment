@@ -7,6 +7,6 @@ dependencies:
   version: 2.0.0
 - name: defguard-gateway
   repository: https://defguard.github.io/deployment
-  version: 2.0.0
-digest: sha256:99959681524b647c6daccdcc7453fff4ea1ed923ac2a5380ca1f8c1dcd91c9c6
-generated: "2026-04-30T14:46:45.734169+02:00"
+  version: 2.0.1
+digest: sha256:0de72842e142f210004aa252a4693af2b3f84cb97af4fa0c0eb7f86abb4a95a7
+generated: "2026-05-05T12:52:33.156043+02:00"
