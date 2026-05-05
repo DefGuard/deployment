@@ -2,7 +2,7 @@
 set -e
 
 apt-get update
-apt-get upgrade -y
+apt-get full-upgrade -y
 apt-get install -y ca-certificates curl
 install -m 0755 -d /etc/apt/keyrings
 curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
