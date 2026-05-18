@@ -1,0 +1,28 @@
+services:
+  core:
+    image: ghcr.io/defguard/defguard:2
+    environment:    
+      # If you are accessing the dashboard via HTTP instead of HTTPS, set this to true.
+      DEFGUARD_COOKIE_INSECURE: "true"
+      DEFGUARD_DB_HOST: db
+      DEFGUARD_DB_PORT: 5432
+
+      # Make sure to change these credentials in production!
+      DEFGUARD_DB_USER: defguard
+      DEFGUARD_DB_PASSWORD: defguard
+      DEFGUARD_DB_NAME: defguard
+    depends_on:
+      - db
+    ports:
+      # HTTP port for the web UI
+      - "8000:8000"
+
+  db:
+    image: postgres:18-alpine
+    environment:
+      # Make sure to change these credentials in production!
+      POSTGRES_DB: defguard
+      POSTGRES_USER: defguard
+      POSTGRES_PASSWORD: defguard
+    volumes:
+      - ./.volumes/db:/var/lib/postgresql

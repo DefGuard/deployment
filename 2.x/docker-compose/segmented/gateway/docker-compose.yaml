@@ -1,0 +1,10 @@
+services:
+  gateway:
+    image: ghcr.io/defguard/gateway:2
+    restart: unless-stopped
+    container_name: "defguard-gateway"
+    network_mode: "host"
+    cap_add:
+      - NET_ADMIN
+    volumes:
+      - ./.volumes/certs/gateway:/etc/defguard/certs
