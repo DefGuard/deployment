@@ -2,8 +2,6 @@ services:
   core:
     image: ghcr.io/defguard/defguard:2
     environment:    
-      # If you are accessing the dashboard via HTTP instead of HTTPS, set this to true.
-      DEFGUARD_COOKIE_INSECURE: "true"
       DEFGUARD_DB_HOST: db
       DEFGUARD_DB_PORT: 5432
 
