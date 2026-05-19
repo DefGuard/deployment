@@ -1,0 +1,14 @@
+services:
+  edge:
+    image: ghcr.io/defguard/defguard-proxy:2
+    restart: unless-stopped
+    container_name: "defguard-proxy"
+    ports:
+      # gRPC port for the Core to connect to
+      - "50051:50051"
+      # HTTP port for the web UI
+      - "8080:8080"
+      # HTTPS if you want to use the built-in TLS termination of the Proxy https://docs.defguard.net/tutorials/initial-setup-wizard-setting-up-from-scratch#configure-ssl-for-edge
+      # - "443:443"
+    volumes:
+      - ./.volumes/certs/edge:/etc/defguard/certs
