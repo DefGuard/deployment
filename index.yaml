@@ -1374,6 +1374,17 @@ entries:
     version: 0.1.2
   defguard-proxy:
   - apiVersion: v2
+    appVersion: 2.0.1
+    created: "2026-05-22T07:57:43.150014346+02:00"
+    description: Defguard Edge is a public-facing proxy for Defguard Core.
+    digest: 7f645e13b0a4ee80d2118eeefdcb68ce5f5d38bcd2a832d06b95de8c9916b842
+    icon: https://defguard.net/favicon/favicon-512x512.png
+    name: defguard-proxy
+    type: application
+    urls:
+    - https://github.com/DefGuard/deployment/releases/download/defguard-proxy-2.0.1/defguard-proxy-2.0.1.tgz
+    version: 2.0.1
+  - apiVersion: v2
     appVersion: 2.0.0
     created: "2026-04-30T14:40:39.443010611+02:00"
     description: Defguard Edge is a public-facing proxy for Defguard Core.
@@ -1656,4 +1667,4 @@ entries:
     urls:
     - https://github.com/DefGuard/deployment/releases/download/defguard-proxy-0.1.0/defguard-proxy-0.1.0.tgz
     version: 0.1.0
-generated: "2026-05-05T19:21:52.364947595+02:00"
+generated: "2026-05-22T07:57:43.150420122+02:00"
