@@ -4,9 +4,9 @@ dependencies:
   version: 18.6.2
 - name: defguard-proxy
   repository: https://defguard.github.io/deployment
-  version: 2.0.0
+  version: 2.0.1
 - name: defguard-gateway
   repository: https://defguard.github.io/deployment
   version: 2.0.1
-digest: sha256:0de72842e142f210004aa252a4693af2b3f84cb97af4fa0c0eb7f86abb4a95a7
-generated: "2026-05-05T12:52:33.156043+02:00"
+digest: sha256:bdef1ac59c4038205a84587717c66dff28efb50e6fa66990da57b9c530c0cbcf
+generated: "2026-05-22T08:04:37.842492048+02:00"
