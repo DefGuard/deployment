@@ -109,6 +109,7 @@ build {
       "sudo mv /tmp/defguard-init.service /etc/systemd/system/defguard-init.service",
       "sudo systemctl daemon-reload",
       "sudo systemctl enable docker.service",
+      "sudo systemctl enable defguard-init.service",
       "sudo chown -R ubuntu:ubuntu /opt/stacks/defguard",
       "sudo rm -f /etc/netplan/00-installer-config.yaml /etc/netplan/50-cloud-init.yaml",
       "sudo cloud-init clean --logs",

@@ -10,3 +10,6 @@ StandardOutput=append:/var/log/defguard-startup.log
 StandardError=append:/var/log/defguard-startup.log
 ExecStart=/bin/bash /opt/stacks/defguard/generate-env.sh
 ExecStart=/bin/bash /opt/stacks/defguard/start.sh
+
+[Install]
+WantedBy=multi-user.target

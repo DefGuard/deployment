@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# Records `docker compose` invocations instead of running them, so start.sh's
+# profile selection can be asserted without a daemon.
+log="${DOCKER_STUB_LOG:?DOCKER_STUB_LOG must be set}"
+{
+  printf 'compose_profiles=%s\n' "${COMPOSE_PROFILES-<unset>}"
+  printf 'args=%s\n' "$*"
+} >> "$log"
+exit 0
