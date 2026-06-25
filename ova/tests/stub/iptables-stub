@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# Records iptables/ip6tables calls without touching the host. Copy onto PATH as
+# both `iptables` and `ip6tables` (it reports $0). Toggle simulated state with:
+#   IPT_CHAIN_EXISTS=1  -> `-L DOCKER-USER` probe succeeds (default)
+#   IPT_RULE_EXISTS=0   -> `-C` rule check fails, i.e. rule absent (default)
+name="$(basename "$0")"
+log="${IPT_STUB_LOG:?IPT_STUB_LOG must be set}"
+printf '%s %s\n' "$name" "$*" >> "$log"
+
+case "$*" in
+  *"-L DOCKER-USER"*) [ "${IPT_CHAIN_EXISTS:-1}" = "1" ] && exit 0 || exit 1 ;;
+  *"-C "*)            [ "${IPT_RULE_EXISTS:-0}" = "1" ] && exit 0 || exit 1 ;;
+esac
+exit 0

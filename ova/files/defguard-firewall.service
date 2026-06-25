@@ -1,0 +1,13 @@
+[Unit]
+Description=DefGuard host forwarding rules for the WireGuard gateway
+After=docker.service
+Wants=docker.service
+
+[Service]
+Type=oneshot
+StandardOutput=append:/var/log/defguard-startup.log
+StandardError=append:/var/log/defguard-startup.log
+ExecStart=/bin/bash /opt/stacks/defguard/defguard-firewall.sh
+
+[Install]
+WantedBy=multi-user.target

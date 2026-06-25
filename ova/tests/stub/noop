@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# On PATH as `sysctl`/`sleep`: swallow the call so tests neither touch the host
+# nor wait on the retry loop.
+exit 0
