@@ -1,13 +1,6 @@
 name: Build OVF Image
 
 on:
-  # Push to this branch builds a test OVA (tags default to "2", never publishes latest).
-  push:
-    branches:
-      - ova-enhancements
-    paths:
-      - "ova/**"
-      - ".github/workflows/build-ova.yml"
   workflow_dispatch:
     inputs:
       core_tag:
