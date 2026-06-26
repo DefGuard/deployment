@@ -2,7 +2,8 @@
 # Generates /opt/stacks/defguard/.env with random secrets on first boot.
 # If .env already exists (e.g. provided via cloud-init), this script does nothing.
 
-ENV_FILE="/opt/stacks/defguard/.env"
+STACK_DIR="${DEFGUARD_STACK_DIR:-/opt/stacks/defguard}"
+ENV_FILE="$STACK_DIR/.env"
 
 if [ -f "$ENV_FILE" ]; then
   echo "DefGuard: .env already exists, skipping generation."
@@ -13,8 +14,8 @@ echo "DefGuard: generating .env with random secrets..."
 
 DB_PASSWORD=$(openssl rand -hex 16)
 
-if [ -f "/opt/stacks/defguard/.image-tags" ]; then
-  source "/opt/stacks/defguard/.image-tags"
+if [ -f "$STACK_DIR/.image-tags" ]; then
+  source "$STACK_DIR/.image-tags"
 fi
 
 : "${DEFGUARD_CORE_TAG:?DEFGUARD_CORE_TAG is required}"

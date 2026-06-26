@@ -92,6 +92,16 @@ build {
     destination = "/tmp/defguard-init.service"
   }
 
+  provisioner "file" {
+    source      = "files/defguard-firewall.sh"
+    destination = "/tmp/defguard-firewall.sh"
+  }
+
+  provisioner "file" {
+    source      = "files/defguard-firewall.service"
+    destination = "/tmp/defguard-firewall.service"
+  }
+
   provisioner "shell" {
     inline = [
       "sudo bash /tmp/docker-setup.sh",
@@ -107,8 +117,13 @@ build {
       "echo 'DEFGUARD_GATEWAY_TAG=${var.gateway_tag}' | sudo tee -a /opt/stacks/defguard/.image-tags > /dev/null",
       "sudo mv /tmp/99-defguard.cfg /etc/cloud/cloud.cfg.d/99-defguard.cfg",
       "sudo mv /tmp/defguard-init.service /etc/systemd/system/defguard-init.service",
+      "sudo mv /tmp/defguard-firewall.sh /opt/stacks/defguard/defguard-firewall.sh",
+      "sudo chmod +x /opt/stacks/defguard/defguard-firewall.sh",
+      "sudo mv /tmp/defguard-firewall.service /etc/systemd/system/defguard-firewall.service",
       "sudo systemctl daemon-reload",
       "sudo systemctl enable docker.service",
+      "sudo systemctl enable defguard-init.service",
+      "sudo systemctl enable defguard-firewall.service",
       "sudo chown -R ubuntu:ubuntu /opt/stacks/defguard",
       "sudo rm -f /etc/netplan/00-installer-config.yaml /etc/netplan/50-cloud-init.yaml",
       "sudo cloud-init clean --logs",

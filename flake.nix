@@ -21,6 +21,7 @@
           kubectl
           kubernetes-helm
           kubeconform
+          bats
         ];
       };
     });
