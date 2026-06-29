@@ -6,6 +6,12 @@ terraform/**/terraform.tfstate
 terraform/**/terraform.tfstate.backup
 terraform/**/.*
 terraform/**/*.tfvars
+terraform2.0/**/terraform.tfstate
+terraform2.0/**/terraform.tfstate.backup
+terraform2.0/**/.*
+terraform2.0/**/*.tfvars
+terraform2.0/examples/basic/main.tf
+terraform2.0/examples/existing-vpc/main.tf
 .direnv/
 .envrc
 .venv/

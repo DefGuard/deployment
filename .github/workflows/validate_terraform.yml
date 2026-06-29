@@ -1,0 +1,63 @@
+name: Validate Terraform
+
+on:
+  pull_request:
+    paths:
+      - 'terraform2.0/**'
+
+  push:
+    branches:
+      - main
+    paths:
+      - 'terraform2.0/**'
+
+jobs:
+  validate:
+    runs-on: [self-hosted, Linux, X64]
+
+    defaults:
+      run:
+        working-directory: terraform2.0
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.15.5"
+
+      # The .example files are skipped on purpose: their dual-source comment
+      # pattern (commented local path above the live remote source) makes
+      # `terraform fmt` always want to realign the block.
+      - name: Check module formatting
+        run: terraform fmt -check -recursive modules
+
+      - name: Validate modules
+        run: |
+          for module in modules/*/; do
+            echo "::group::validate $module"
+            terraform -chdir="$module" init -backend=false -input=false
+            terraform -chdir="$module" validate
+            echo "::endgroup::"
+          done
+
+      - name: Validate examples
+        run: |
+          for example in examples/basic examples/existing-vpc; do
+            echo "::group::validate $example"
+            cp "$example/main.tf.example" "$example/main.tf"
+            # Validate against the modules in this checkout rather than the
+            # published ?ref=main source. A Terraform override file merges into
+            # the matching module blocks and replaces only their source.
+            cat > "$example/ci_local_modules_override.tf" <<'EOF'
+          module "defguard_core" { source = "../../modules/core" }
+          module "defguard_edge" { source = "../../modules/edge" }
+          module "defguard_gateway" { source = "../../modules/gateway" }
+          module "network" { source = "../../modules/network" }
+          EOF
+            terraform -chdir="$example" init -backend=false -input=false
+            terraform -chdir="$example" validate
+            echo "::endgroup::"
+          done
