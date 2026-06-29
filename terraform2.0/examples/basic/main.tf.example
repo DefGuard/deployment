@@ -192,8 +192,8 @@ provider "aws" {
 ###########################################################################
 
 module "defguard_core" {
-  source = "../../modules/core"
-  # source          = "github.com/DefGuard/deployment//terraform2.0/modules/core?ref=main"
+  # source = "../../modules/core"
+  source = "github.com/DefGuard/deployment//terraform2.0/modules/core?ref=main"
   instance_type   = local.core_instance_type
   package_version = local.core_package_version
   arch            = local.core_arch
@@ -222,8 +222,8 @@ module "defguard_core" {
 }
 
 module "defguard_edge" {
-  source = "../../modules/edge"
-  # source = "github.com/DefGuard/deployment//terraform2.0/modules/edge?ref=main"
+  # source = "../../modules/edge"
+  source = "github.com/DefGuard/deployment//terraform2.0/modules/edge?ref=main"
 
   instance_type   = local.edge_instance_type
   package_version = local.edge_package_version
@@ -239,8 +239,8 @@ module "defguard_edge" {
 }
 
 module "defguard_gateway" {
-  source = "../../modules/gateway"
-  # source = "github.com/DefGuard/deployment//terraform2.0/modules/gateway?ref=main"
+  # source = "../../modules/gateway"
+  source = "github.com/DefGuard/deployment//terraform2.0/modules/gateway?ref=main"
 
   ami             = data.aws_ami.ubuntu[local.gateway_arch].id
   instance_type   = local.gateway_instance_type
@@ -282,7 +282,8 @@ module "vpc" {
 # modules/network submodule, fed by the VPC created above. The same submodule is reused by
 # examples/existing-vpc, where the vpc_id and subnet IDs come from a customer's own VPC.
 module "network" {
-  source = "../../modules/network"
+  # source = "../../modules/network"
+  source = "github.com/DefGuard/deployment//terraform2.0/modules/network?ref=main"
 
   vpc_id           = module.vpc.vpc_id
   vpc_cidr         = local.vpc_cidr
