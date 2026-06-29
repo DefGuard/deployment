@@ -38,7 +38,7 @@ locals {
 
   # The deb package version of the Defguard Core that will be installed on the instance.
   # Must be a valid, released 2.x version of Defguard Core.
-  core_package_version = "2.0.0"
+  core_package_version = "2.0.1"
 
   # The architecture of the Defguard Core server instance.
   # Supported values: "x86_64", "aarch64"
@@ -60,7 +60,7 @@ locals {
 
   # The deb package version of the edge that will be installed on the instance.
   # Must be a valid, released 2.x version of Defguard Proxy (edge).
-  edge_package_version = "2.0.0"
+  edge_package_version = "2.0.1"
 
   # The architecture of the Defguard Edge server instance.
   # Supported values: "x86_64", "aarch64"
@@ -85,7 +85,7 @@ locals {
 
   # The gateway deb package version that will be installed on the instance.
   # Must be a valid, released 2.x version of Defguard Gateway.
-  gateway_package_version = "2.0.0"
+  gateway_package_version = "2.0.1"
 
   # The architecture of the Defguard Gateway server instance.
   # Supported values: "x86_64", "aarch64"

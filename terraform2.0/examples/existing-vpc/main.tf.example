@@ -20,7 +20,7 @@ locals {
   core_grpc_port       = 50055
   core_http_port       = 8000
   core_cookie_insecure = false
-  core_package_version = "2.0.0"
+  core_package_version = "2.0.1"
   core_arch            = "x86_64"
   core_instance_type   = "t3.micro"
 
@@ -28,7 +28,7 @@ locals {
   edge_grpc_port       = 50051
   edge_http_port       = 8080
   edge_https_port      = 443
-  edge_package_version = "2.0.0"
+  edge_package_version = "2.0.1"
   edge_arch            = "x86_64"
   edge_instance_type   = "t3.micro"
 
@@ -36,7 +36,7 @@ locals {
   gateway_grpc_port       = 50066
   wireguard_port          = 51820
   gateway_nat             = true
-  gateway_package_version = "2.0.0"
+  gateway_package_version = "2.0.1"
   gateway_arch            = "x86_64"
   gateway_instance_type   = "t3.micro"
 
