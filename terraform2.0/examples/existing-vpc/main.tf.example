@@ -1,0 +1,276 @@
+# Deploy Defguard 2.0 into an EXISTING VPC.
+#
+# Unlike examples/basic (which creates its own VPC + subnets + NAT), this example takes a
+# VPC and subnets you already run and places the Defguard components into them. It creates
+# only the security groups, network interfaces, EIPs and the RDS database (via the shared
+# modules/network submodule) plus the three component instances.
+#
+# Your network must satisfy these requirements:
+#   - core_subnet_id    : a PRIVATE subnet with outbound internet (a NAT gateway/instance).
+#                         Core has no public IP and must download its deb + reach the license
+#                         server on first boot.
+#   - public_subnet_id  : a PUBLIC subnet (internet gateway route) so the Gateway and Edge
+#                         EIPs work. Gateway needs inbound UDP; Edge needs inbound HTTPS. To put
+#                         them in separate subnets, also set gateway_subnet_id / edge_subnet_id.
+#   - db_subnet_ids     : at least TWO subnets in DIFFERENT availability zones (RDS subnet
+#                         group requirement). Private subnets recommended.
+
+locals {
+  ############################ Core configuration ###########################
+  core_grpc_port       = 50055
+  core_http_port       = 8000
+  core_cookie_insecure = false
+  core_package_version = "2.0.0"
+  core_arch            = "x86_64"
+  core_instance_type   = "t3.micro"
+
+  ############################ Edge configuration ###########################
+  edge_grpc_port       = 50051
+  edge_http_port       = 8080
+  edge_https_port      = 443
+  edge_package_version = "2.0.0"
+  edge_arch            = "x86_64"
+  edge_instance_type   = "t3.micro"
+
+  ###################### VPN and Gateway configuration ######################
+  gateway_grpc_port       = 50066
+  wireguard_port          = 51820
+  gateway_nat             = true
+  gateway_package_version = "2.0.0"
+  gateway_arch            = "x86_64"
+  gateway_instance_type   = "t3.micro"
+
+  ########################## Database configuration #########################
+  db_engine_version = "18"
+  db_name           = "defguard"
+  db_username       = "defguard"
+  db_password       = "defguard"
+  db_port           = 5432
+  db_storage        = 20
+  db_instance_class = "db.t3.micro"
+}
+
+variable "region" {
+  description = "AWS region the existing VPC lives in"
+  type        = string
+}
+
+variable "vpc_id" {
+  description = "ID of your existing VPC"
+  type        = string
+}
+
+variable "public_subnet_id" {
+  description = "Existing PUBLIC subnet (IGW route) for the Gateway and Edge. Used for whichever of the two is not given its own subnet below."
+  type        = string
+}
+
+variable "gateway_subnet_id" {
+  description = "Optional separate PUBLIC subnet for the Gateway. Defaults to public_subnet_id when null."
+  type        = string
+  default     = null
+}
+
+variable "edge_subnet_id" {
+  description = "Optional separate PUBLIC subnet for the Edge. Defaults to public_subnet_id when null."
+  type        = string
+  default     = null
+}
+
+variable "core_subnet_id" {
+  description = "Existing PRIVATE subnet with NAT egress for the Core"
+  type        = string
+}
+
+variable "db_subnet_ids" {
+  description = "At least two existing subnets in different AZs for the RDS subnet group"
+  type        = list(string)
+}
+
+variable "ssh_key_name" {
+  description = "Existing EC2 key pair (in this region) attached to all components for SSH. null (default) launches without a key. Required if you enable SSH via ssh_admin_cidr."
+  type        = string
+  default     = null
+}
+
+variable "ssh_admin_cidr" {
+  description = "CIDR allowed to SSH into the components. null (default) disables SSH entirely (no port-22 ingress). Set a /32 to allow a single host; avoid 0.0.0.0/0."
+  type        = string
+  default     = null
+}
+
+terraform {
+  required_version = ">= 1.5.0"
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 6.0"
+    }
+  }
+}
+
+# Credentials come from the standard AWS provider chain (environment variables, a shared
+# profile, SSO, or an instance role). Set e.g. AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY or
+# AWS_PROFILE before running terraform.
+provider "aws" {
+  region = var.region
+}
+
+# The VPC CIDR is read from the existing VPC and used for the VPC-internal security group
+# rules (Core UI/SSH, Edge HTTP).
+data "aws_vpc" "selected" {
+  id = var.vpc_id
+}
+
+# Maps the deb package architecture (x86_64/aarch64) to the Ubuntu AMI name token
+# (amd64/arm64), so the AMI a component boots matches the package its setup.sh downloads.
+locals {
+  ubuntu_ami_arch = {
+    x86_64  = "amd64"
+    aarch64 = "arm64"
+  }
+}
+
+# One lookup per distinct component architecture; each component picks
+# data.aws_ami.ubuntu[<its arch>] below. When using aarch64, also set that component's
+# instance_type to an arm64 type (e.g. t4g.micro).
+data "aws_ami" "ubuntu" {
+  for_each    = toset([local.core_arch, local.edge_arch, local.gateway_arch])
+  most_recent = true
+  owners      = ["099720109477"]
+
+  filter {
+    name   = "name"
+    values = ["ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-${local.ubuntu_ami_arch[each.value]}-server-*"]
+  }
+}
+
+###########################################################################
+############### Network, security groups and database #####################
+###########################################################################
+
+module "network" {
+  source = "../../modules/network"
+
+  vpc_id            = var.vpc_id
+  vpc_cidr          = data.aws_vpc.selected.cidr_block
+  public_subnet_id  = var.public_subnet_id
+  gateway_subnet_id = var.gateway_subnet_id
+  edge_subnet_id    = var.edge_subnet_id
+  core_subnet_id    = var.core_subnet_id
+  db_subnet_ids     = var.db_subnet_ids
+
+  ssh_admin_cidr    = var.ssh_admin_cidr
+  core_http_port    = local.core_http_port
+  gateway_grpc_port = local.gateway_grpc_port
+  wireguard_port    = local.wireguard_port
+  edge_grpc_port    = local.edge_grpc_port
+  edge_http_port    = local.edge_http_port
+  edge_https_port   = local.edge_https_port
+
+  db_name           = local.db_name
+  db_username       = local.db_username
+  db_password       = local.db_password
+  db_port           = local.db_port
+  db_engine_version = local.db_engine_version
+  db_storage        = local.db_storage
+  db_instance_class = local.db_instance_class
+}
+
+###########################################################################
+########################## Defguard components ############################
+###########################################################################
+
+module "defguard_core" {
+  source = "../../modules/core"
+  # source          = "github.com/DefGuard/deployment//terraform2.0/modules/core?ref=main"
+  instance_type   = local.core_instance_type
+  package_version = local.core_package_version
+  arch            = local.core_arch
+  ami             = data.aws_ami.ubuntu[local.core_arch].id
+
+  grpc_port       = local.core_grpc_port
+  http_port       = local.core_http_port
+  cookie_insecure = local.core_cookie_insecure
+
+  gateway_address   = module.network.gateway_private_ip
+  gateway_grpc_port = local.gateway_grpc_port
+  edge_address      = module.network.edge_private_ip
+  edge_grpc_port    = local.edge_grpc_port
+
+  db_details           = module.network.db_details
+  key_name             = var.ssh_key_name
+  network_interface_id = module.network.core_network_interface_id
+
+  # Gateway and edge must be listening before Core runs its one-shot adoption.
+  depends_on = [
+    module.defguard_gateway,
+    module.defguard_edge,
+  ]
+}
+
+module "defguard_edge" {
+  source = "../../modules/edge"
+  # source = "github.com/DefGuard/deployment//terraform2.0/modules/edge?ref=main"
+
+  instance_type   = local.edge_instance_type
+  package_version = local.edge_package_version
+  arch            = local.edge_arch
+  grpc_port       = local.edge_grpc_port
+  http_port       = local.edge_http_port
+  https_port      = local.edge_https_port
+
+  ami                  = data.aws_ami.ubuntu[local.edge_arch].id
+  key_name             = var.ssh_key_name
+  network_interface_id = module.network.edge_network_interface_id
+}
+
+module "defguard_gateway" {
+  source = "../../modules/gateway"
+  # source = "github.com/DefGuard/deployment//terraform2.0/modules/gateway?ref=main"
+
+  ami             = data.aws_ami.ubuntu[local.gateway_arch].id
+  instance_type   = local.gateway_instance_type
+  package_version = local.gateway_package_version
+  arch            = local.gateway_arch
+
+  grpc_port            = local.gateway_grpc_port
+  nat                  = local.gateway_nat
+  key_name             = var.ssh_key_name
+  network_interface_id = module.network.gateway_network_interface_id
+}
+
+###########################################################################
+################################# Outputs #################################
+###########################################################################
+# Core is private: if you already have access to
+# the private network (VPN, peering, bastion) open http://<core_private>:8000 directly,
+# otherwise enable SSH (set ssh_admin_cidr + ssh_key_name) and tunnel through the public
+# Gateway (ssh -L 8000:<core_private>:8000 ubuntu@<gateway_public>).
+# Then complete the setup wizard, set the enrollment URL to the Edge public address, and adopt
+# a WireGuard location whose CIDR does NOT overlap your VPC CIDR.
+
+output "defguard_core_private_address" {
+  description = "Private IP of the Defguard Core instance"
+  value       = module.network.core_private_ip
+}
+
+output "defguard_edge_public_address" {
+  description = "Public IP of the Defguard Edge instance"
+  value       = module.network.edge_public_ip
+}
+
+output "defguard_edge_private_address" {
+  description = "Private IP of the Defguard Edge instance"
+  value       = module.network.edge_private_ip
+}
+
+output "defguard_gateway_public_address" {
+  description = "Public IP of the Defguard Gateway instance"
+  value       = module.network.gateway_public_ip
+}
+
+output "defguard_gateway_private_address" {
+  description = "Private IP of the Defguard Gateway instance"
+  value       = module.network.gateway_private_ip
+}

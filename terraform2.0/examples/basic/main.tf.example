@@ -1,0 +1,348 @@
+# Deploy Defguard 2.0 into a NEW, self-contained VPC.
+#
+# This example creates everything from scratch: a VPC with public/private subnets and a NAT
+# gateway, the security groups, network interfaces, EIPs and the RDS database (via the shared
+# modules/network submodule), plus the three component instances. Edit the locals below and
+# apply. To deploy into a VPC you already run instead, use examples/existing-vpc.
+#
+# Layout: the Core and database stay private (egress via NAT); the Gateway and Edge sit in the
+# public subnet with EIPs. First-access steps are documented above the outputs at the bottom.
+
+locals {
+  ############################ AWS configuration ############################
+
+  # The AWS region where the Defguard infrastructure will be deployed.
+  region = "us-east-1"
+
+  ############################ SSH / access configuration ###################
+
+  # SSH is OFF by default: with ssh_admin_cidr = null no port-22 ingress is created at all.
+  # To enable SSH (e.g. to tunnel to the private Core via the Gateway), set BOTH:
+  #   - ssh_admin_cidr to your own public IP as a /32 (find it: curl -s https://checkip.amazonaws.com);
+  #     avoid 0.0.0.0/0, which exposes SSH to the whole internet.
+  #   - ssh_key_name to an existing EC2 key pair in this region.
+  ssh_admin_cidr = null
+  ssh_key_name   = null
+
+  ############################ Core configuration ###########################
+
+  # The gRPC port for the Defguard Core.
+  core_grpc_port = 50055
+
+  # The HTTP(S) port for the Defguard Core web UI.
+  core_http_port = 8000
+
+  # Whether to allow insecure cookies for the Defguard Core web UI. Set to true if you
+  # are using HTTP to access the Defguard Core web UI.
+  core_cookie_insecure = false
+
+  # The deb package version of the Defguard Core that will be installed on the instance.
+  # Must be a valid, released 2.x version of Defguard Core.
+  core_package_version = "2.0.0"
+
+  # The architecture of the Defguard Core server instance.
+  # Supported values: "x86_64", "aarch64"
+  core_arch = "x86_64"
+
+  # The instance type for the Defguard Core server.
+  core_instance_type = "t3.micro"
+
+  ############################ Edge configuration ###########################
+
+  # The gRPC port the Defguard Edge listens on. Core dials this to adopt and manage the edge.
+  edge_grpc_port = 50051
+
+  # The HTTP port the Defguard Edge listens on for enrollment and client communication.
+  edge_http_port = 8080
+
+  # The HTTPS port the Defguard Edge listens on (used after Core provisions TLS).
+  edge_https_port = 443
+
+  # The deb package version of the edge that will be installed on the instance.
+  # Must be a valid, released 2.x version of Defguard Proxy (edge).
+  edge_package_version = "2.0.0"
+
+  # The architecture of the Defguard Edge server instance.
+  # Supported values: "x86_64", "aarch64"
+  edge_arch = "x86_64"
+
+  # The instance type for the Defguard Edge server.
+  edge_instance_type = "t3.micro"
+
+  ###################### VPN and Gateway configuration ######################
+
+  # The gRPC port the Defguard Gateway listens on. Core dials this to adopt and manage
+  # the gateway (initial adoption and the ongoing control stream).
+  gateway_grpc_port = 50066
+
+  # The UDP port for the WireGuard VPN. The gateway listens on this port for incoming VPN
+  # connections. Must match the port of the location auto-created during adoption (51820).
+  wireguard_port = 51820
+
+  # Whether to enable NAT (masquerade) on the gateway, allowing VPN clients to reach the
+  # internet and other resources through the gateway.
+  gateway_nat = true
+
+  # The gateway deb package version that will be installed on the instance.
+  # Must be a valid, released 2.x version of Defguard Gateway.
+  gateway_package_version = "2.0.0"
+
+  # The architecture of the Defguard Gateway server instance.
+  # Supported values: "x86_64", "aarch64"
+  gateway_arch = "x86_64"
+
+  # The instance type for the Defguard Gateway server.
+  gateway_instance_type = "t3.micro"
+
+  ########################## Database configuration #########################
+
+  # The major PostgreSQL engine version for the RDS instance. The parameter group family
+  # (postgres<version>) is derived from this, so the two always match.
+  db_engine_version = "18"
+
+  # The name of the database that will be created for the Defguard Core.
+  db_name = "defguard"
+
+  # The username for the database that will be created for the Defguard Core.
+  db_username = "defguard"
+
+  # The port on which the database will listen for incoming connections.
+  db_port = 5432
+
+  # The password for the database user. This will be used by the Defguard Core to connect to the database.
+  db_password = "defguard"
+
+  # The amount of storage allocated for the database in GB. The minimum amount for this example required by AWS is 20 GB.
+  db_storage = 20 # GB
+
+  # The instance class for the database. This defines the performance characteristics of the database instance.
+  db_instance_class = "db.t3.micro"
+
+  ############################ VPC configuration ############################
+
+  # The name of the VPC that will be created for the Defguard infrastructure.
+  vpc_name = "defguard-vpc"
+
+  # The CIDR block for the VPC. This defines the IP address range for the VPC and its subnets.
+  # Deliberately off 10.0.0.0/16 so it does NOT overlap the default WireGuard location range
+  # (10.0.0.1/24) that auto-adoption creates.
+  vpc_cidr = "10.20.0.0/16"
+
+  # The tags to be applied to the Defguard VPC.
+  vpc_tags = {
+    Name = local.vpc_name
+  }
+
+  # The private subnets for the VPC. The Core runs in the first one (no public IP, egress via
+  # NAT); both are used by the RDS subnet group. Note: 2 subnets in different AZs are required
+  # for the database subnet group.
+  vpc_private_subnets = ["10.20.2.0/24", "10.20.3.0/24"]
+
+  # The public subnet for the internet-facing components: the Gateway (WireGuard UDP) and the
+  # Edge (HTTPS enrollment). The Core stays private (see vpc_private_subnets above) and is
+  # reached only from within the VPC.
+  vpc_public_subnets = ["10.20.1.0/24"]
+
+  # The availability zones for the VPC. This is used mainly for the database instance to ensure high availability.
+  azs = ["us-east-1a", "us-east-1b"]
+}
+
+terraform {
+  required_version = ">= 1.5.0"
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 6.0"
+    }
+  }
+}
+
+# Maps the deb package architecture (x86_64/aarch64) to the Ubuntu AMI name token
+# (amd64/arm64), so the AMI a component boots matches the package its setup.sh downloads.
+locals {
+  ubuntu_ami_arch = {
+    x86_64  = "amd64"
+    aarch64 = "arm64"
+  }
+}
+
+# One lookup per distinct component architecture; each component picks
+# data.aws_ami.ubuntu[<its arch>] below. When using aarch64, also set that component's
+# instance_type to an arm64 type (e.g. t4g.micro).
+data "aws_ami" "ubuntu" {
+  for_each    = toset([local.core_arch, local.edge_arch, local.gateway_arch])
+  most_recent = true
+  owners      = ["099720109477"]
+
+  filter {
+    name   = "name"
+    values = ["ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-${local.ubuntu_ami_arch[each.value]}-server-*"]
+  }
+}
+
+# Credentials come from the standard AWS provider chain (environment variables, a shared
+# profile, SSO, or an instance role). Set e.g. AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY or
+# AWS_PROFILE before running terraform; do not hardcode keys here.
+provider "aws" {
+  region = local.region
+}
+
+###########################################################################
+########################## Defguard components ############################
+###########################################################################
+
+module "defguard_core" {
+  source = "../../modules/core"
+  # source          = "github.com/DefGuard/deployment//terraform2.0/modules/core?ref=main"
+  instance_type   = local.core_instance_type
+  package_version = local.core_package_version
+  arch            = local.core_arch
+  ami             = data.aws_ami.ubuntu[local.core_arch].id
+
+  grpc_port       = local.core_grpc_port
+  http_port       = local.core_http_port
+  cookie_insecure = local.core_cookie_insecure
+
+  gateway_address   = module.network.gateway_private_ip
+  gateway_grpc_port = local.gateway_grpc_port
+
+  edge_address   = module.network.edge_private_ip
+  edge_grpc_port = local.edge_grpc_port
+
+  db_details           = module.network.db_details
+  key_name             = local.ssh_key_name
+  network_interface_id = module.network.core_network_interface_id
+  # log_level            = "info"
+
+  # Gateway and edge must be listening before Core's one-shot adoption runs.
+  depends_on = [
+    module.defguard_gateway,
+    module.defguard_edge,
+  ]
+}
+
+module "defguard_edge" {
+  source = "../../modules/edge"
+  # source = "github.com/DefGuard/deployment//terraform2.0/modules/edge?ref=main"
+
+  instance_type   = local.edge_instance_type
+  package_version = local.edge_package_version
+  arch            = local.edge_arch
+  grpc_port       = local.edge_grpc_port
+  http_port       = local.edge_http_port
+  https_port      = local.edge_https_port
+  # log_level       = "info"
+
+  ami                  = data.aws_ami.ubuntu[local.edge_arch].id
+  key_name             = local.ssh_key_name
+  network_interface_id = module.network.edge_network_interface_id
+}
+
+module "defguard_gateway" {
+  source = "../../modules/gateway"
+  # source = "github.com/DefGuard/deployment//terraform2.0/modules/gateway?ref=main"
+
+  ami             = data.aws_ami.ubuntu[local.gateway_arch].id
+  instance_type   = local.gateway_instance_type
+  package_version = local.gateway_package_version
+  arch            = local.gateway_arch
+
+  grpc_port            = local.gateway_grpc_port
+  nat                  = local.gateway_nat
+  key_name             = local.ssh_key_name
+  network_interface_id = module.network.gateway_network_interface_id
+  # log_level            = "info"
+}
+
+module "vpc" {
+  source  = "terraform-aws-modules/vpc/aws"
+  version = "~> 5.0"
+
+  name            = local.vpc_name
+  cidr            = local.vpc_cidr
+  azs             = local.azs
+  private_subnets = local.vpc_private_subnets
+  public_subnets  = local.vpc_public_subnets
+
+  enable_dns_hostnames = true
+
+  # Private Core needs NAT for outbound (deb download at boot, license checks). Gateway/Edge
+  # are public and egress via their own EIPs.
+  enable_nat_gateway = true
+  single_nat_gateway = true
+
+  tags = local.vpc_tags
+}
+
+###########################################################################
+############### Network, security groups and database #####################
+###########################################################################
+
+# All networking (security groups, NICs, EIPs) and the RDS database live in the shared
+# modules/network submodule, fed by the VPC created above. The same submodule is reused by
+# examples/existing-vpc, where the vpc_id and subnet IDs come from a customer's own VPC.
+module "network" {
+  source = "../../modules/network"
+
+  vpc_id           = module.vpc.vpc_id
+  vpc_cidr         = local.vpc_cidr
+  public_subnet_id = module.vpc.public_subnets[0]
+  core_subnet_id   = module.vpc.private_subnets[0]
+  db_subnet_ids    = module.vpc.private_subnets
+
+  ssh_admin_cidr    = local.ssh_admin_cidr
+  core_http_port    = local.core_http_port
+  gateway_grpc_port = local.gateway_grpc_port
+  wireguard_port    = local.wireguard_port
+  edge_grpc_port    = local.edge_grpc_port
+  edge_http_port    = local.edge_http_port
+  edge_https_port   = local.edge_https_port
+
+  db_name           = local.db_name
+  db_username       = local.db_username
+  db_password       = local.db_password
+  db_port           = local.db_port
+  db_engine_version = local.db_engine_version
+  db_storage        = local.db_storage
+  db_instance_class = local.db_instance_class
+}
+
+###########################################################################
+################################# Outputs #################################
+###########################################################################
+# First-access steps after apply:
+#   1. Core is private; reach its web UI and finish the setup wizard (2.0 has no admin-password
+#      env var). If you already have access to the private network (VPN, peering, bastion),
+#      open http://<defguard_core_private_address>:<core_http_port> directly. Otherwise enable
+#      SSH (set ssh_admin_cidr + ssh_key_name above) and tunnel through the gateway:
+#        ssh -L 8000:<defguard_core_private_address>:<core_http_port> ubuntu@<defguard_gateway_public_address>
+#        open http://localhost:8000
+#   2. In Core, set the WireGuard location endpoint to defguard_gateway_public_address
+#      (adoption stores the gateway's private IP) so external clients can connect.
+#   3. In Core settings, set the enrollment URL to the edge public address; users enroll via
+#      the public Edge with an admin-generated token (no Core access needed).
+
+output "defguard_core_private_address" {
+  description = "IP address of Defguard Core instance in the internal network"
+  value       = module.network.core_private_ip
+}
+
+output "defguard_edge_public_address" {
+  description = "Public IP address of Defguard Edge instance"
+  value       = module.network.edge_public_ip
+}
+
+output "defguard_edge_private_address" {
+  description = "Private IP address of Defguard Edge instance"
+  value       = module.network.edge_private_ip
+}
+
+output "defguard_gateway_public_address" {
+  description = "Public IP address of Defguard Gateway instance"
+  value       = module.network.gateway_public_ip
+}
+
+output "defguard_gateway_private_address" {
+  description = "Private IP address of Defguard Gateway instance"
+  value       = module.network.gateway_private_ip
+}
