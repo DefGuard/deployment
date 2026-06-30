@@ -8,18 +8,31 @@ log() {
 }
 
 (
-log "Updating apt repositories..."
+log "Installing prerequisites..."
+apt update
+apt install -y ca-certificates curl
+
+log "Adding the Defguard APT repository..."
+# The repo serves two suites: trixie (glibc >= 2.39, e.g. Ubuntu 24.04 / Debian 13) and
+# bookworm (older glibc, e.g. Ubuntu 22.04 / Debian 12). Pick the one matching this host to
+# avoid the known GLIBC_2.39 incompatibility.
+. /etc/os-release
+case "$VERSION_CODENAME" in
+    noble | trixie) apt_dist="trixie" ;;
+    *) apt_dist="bookworm" ;;
+esac
+install -m 0755 -d /etc/apt/keyrings
+curl -fsSL https://apt.defguard.net/defguard.asc -o /etc/apt/keyrings/defguard.asc
+chmod a+r /etc/apt/keyrings/defguard.asc
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/defguard.asc] https://apt.defguard.net/ $apt_dist release-2.0" >/etc/apt/sources.list.d/defguard.list
 apt update
 
-log "Installing curl..."
-apt install -y curl
-
-log "Downloading defguard-proxy package..."
-curl -fsSL -o /tmp/defguard-proxy.deb https://github.com/DefGuard/proxy/releases/download/v${package_version}/defguard-proxy-${package_version}-${arch}-unknown-linux-gnu.deb
-
 log "Installing defguard-proxy package..."
-# apt-get resolves the deb's dependencies (dpkg -i would not).
-apt-get install -y /tmp/defguard-proxy.deb
+%{ if package_version != "" ~}
+apt install -y defguard-proxy=${package_version}
+%{ else ~}
+apt install -y defguard-proxy
+%{ endif ~}
 
 # The edge runs as the 'defguard' user, so the cert dir must be writable by it.
 log "Ensuring certificate directory exists..."
@@ -52,9 +65,6 @@ systemctl enable defguard-proxy
 
 log "Starting defguard-proxy service..."
 systemctl start defguard-proxy
-
-log "Cleaning up after installing Defguard Edge..."
-rm -f /tmp/defguard-proxy.deb
 
 log "Setup completed."
 ) 2>&1 | tee -a "$LOG_FILE"
