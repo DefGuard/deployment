@@ -1,12 +1,6 @@
 name: Build OVF Image
 
 on:
-  push:
-    branches:
-      - ova-tuning
-    paths:
-      - "ova/**"
-      - ".github/workflows/build-ova.yml"
   workflow_dispatch:
     inputs:
       core_tag:
