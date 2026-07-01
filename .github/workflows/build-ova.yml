@@ -97,6 +97,30 @@ jobs:
           aws s3 cp output/defguard/defguard.ova "s3://defguard-downloads/ova/${FILENAME}"
           echo "Uploaded: s3://defguard-downloads/ova/${FILENAME}"
 
+      - name: Test deployment modes on Proxmox
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        env:
+          PROXMOX_HOST: ${{ secrets.PROXMOX_HOST }}
+          PROXMOX_SSH_KEY: ${{ secrets.PROXMOX_SSH_KEY }}
+          PVE_STORAGE: ${{ secrets.PVE_STORAGE }}
+          SNIPPET_STORAGE: ${{ secrets.SNIPPET_STORAGE }}
+          TEST_IP_PREFIX: ${{ secrets.TEST_IP_PREFIX }}
+          TEST_GW: ${{ secrets.TEST_GW }}
+          VMID_BASE: ${{ secrets.VMID_BASE }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          printf '%s\n' "$PROXMOX_SSH_KEY" > ~/.ssh/proxmox_ci
+          chmod 600 ~/.ssh/proxmox_ci
+          SSHOPT="-i $HOME/.ssh/proxmox_ci -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=$HOME/.ssh/known_hosts"
+          scp $SSHOPT output/defguard/defguard.ova test/test-deployment-modes.sh "ovaci@${PROXMOX_HOST}:/tmp/"
+          # Forward only the secrets that are set; unset ones fall back to the script's defaults.
+          REMOTE_ENV="STACK_TIMEOUT=1200"
+          for v in PVE_STORAGE SNIPPET_STORAGE TEST_IP_PREFIX TEST_GW VMID_BASE; do
+            [ -n "${!v}" ] && REMOTE_ENV="$REMOTE_ENV $v='${!v}'"
+          done
+          ssh $SSHOPT "ovaci@${PROXMOX_HOST}" "$REMOTE_ENV bash /tmp/test-deployment-modes.sh /tmp/defguard.ova"
+
       - name: Publish as latest
         if: ${{ inputs.publish_latest }}
         env:
