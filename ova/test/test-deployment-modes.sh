@@ -152,7 +152,7 @@ import_template() {
 write_snippets() {
   local m
   for m in core edge gateway; do
-    cat > "$SNIPPET_DIR/defguard-test-$m.yaml" <<EOF
+    sudo tee "$SNIPPET_DIR/defguard-test-$m.yaml" >/dev/null <<EOF
 #cloud-config
 write_files:
   - path: /opt/stacks/defguard/active-profiles
