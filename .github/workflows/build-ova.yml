@@ -104,7 +104,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p ~/.ssh
-          printf '%s\n' "$PROXMOX_SSH_KEY" > ~/.ssh/proxmox_ci
+          echo "${PROXMOX_SSH_KEY}" > ~/.ssh/proxmox_ci
           chmod 600 ~/.ssh/proxmox_ci
           SSHOPT="-i $HOME/.ssh/proxmox_ci -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=$HOME/.ssh/known_hosts"
           scp $SSHOPT output/defguard/defguard.ova test/test-deployment-modes.sh "ovaci@${PROXMOX_HOST}:/tmp/"
