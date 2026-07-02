@@ -28,18 +28,31 @@ wait_for_port() {
 }
 
 (
-log "Updating apt repositories..."
+log "Installing prerequisites..."
+apt update
+apt install -y ca-certificates curl
+
+log "Adding the Defguard APT repository..."
+# The repo serves two suites: trixie (glibc >= 2.39, e.g. Ubuntu 24.04 / Debian 13) and
+# bookworm (older glibc, e.g. Ubuntu 22.04 / Debian 12). Pick the one matching this host to
+# avoid the known GLIBC_2.39 incompatibility.
+. /etc/os-release
+case "$VERSION_CODENAME" in
+	noble | trixie) apt_dist="trixie" ;;
+	*) apt_dist="bookworm" ;;
+esac
+install -m 0755 -d /etc/apt/keyrings
+curl -fsSL https://apt.defguard.net/defguard.asc -o /etc/apt/keyrings/defguard.asc
+chmod a+r /etc/apt/keyrings/defguard.asc
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/defguard.asc] https://apt.defguard.net/ $apt_dist release-2.0" >/etc/apt/sources.list.d/defguard.list
 apt update
 
-log "Installing curl..."
-apt install -y curl
-
-log "Downloading defguard-core package..."
-curl -fsSL -o /tmp/defguard-core.deb https://github.com/DefGuard/defguard/releases/download/v${package_version}/defguard-${package_version}-${arch}-unknown-linux-gnu.deb
-
 log "Installing defguard-core package..."
-# apt-get resolves the deb's dependencies (dpkg -i would not).
-apt-get install -y /tmp/defguard-core.deb
+%{ if package_version != "" ~}
+apt install -y defguard=${package_version}
+%{ else ~}
+apt install -y defguard
+%{ endif ~}
 
 log "Writing Core configuration to /etc/defguard/core.conf..."
 tee /etc/defguard/core.conf <<EOF
@@ -77,9 +90,6 @@ systemctl enable defguard
 
 log "Starting Defguard service..."
 systemctl start defguard
-
-log "Cleaning up after installing Defguard Core..."
-rm -f /tmp/defguard-core.deb
 
 log "Setup completed."
 ) 2>&1 | tee -a "$LOG_FILE"

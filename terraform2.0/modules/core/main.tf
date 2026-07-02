@@ -16,7 +16,6 @@ resource "aws_instance" "defguard_core" {
     edge_address      = var.edge_address
     edge_grpc_port    = var.edge_grpc_port
     package_version   = var.package_version
-    arch              = var.arch
     cookie_insecure   = var.cookie_insecure
     log_level         = var.log_level
   })

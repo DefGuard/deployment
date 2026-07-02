@@ -5,9 +5,8 @@ resource "aws_instance" "defguard_gateway" {
 
   user_data = templatefile("${path.module}/setup.sh", {
     grpc_port       = var.grpc_port
-    package_version = var.package_version
     nat             = var.nat
-    arch            = var.arch
+    package_version = var.package_version
     log_level       = var.log_level
   })
   user_data_replace_on_change = true

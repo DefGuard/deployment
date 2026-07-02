@@ -21,13 +21,9 @@ variable "network_interface_id" {
 }
 
 variable "package_version" {
-  description = "Version of the Defguard Gateway package to be installed"
+  description = "Version of the Defguard Gateway package to install (e.g. \"2.0.1\"). Leave empty to install the latest version available in the APT repository."
   type        = string
-}
-
-variable "arch" {
-  description = "Architecture of the Defguard Gateway package to be installed"
-  type        = string
+  default     = ""
 }
 
 variable "nat" {

@@ -7,8 +7,8 @@
 #
 # Your network must satisfy these requirements:
 #   - core_subnet_id    : a PRIVATE subnet with outbound internet (a NAT gateway/instance).
-#                         Core has no public IP and must download its deb + reach the license
-#                         server on first boot.
+#                         Core has no public IP and must reach the Defguard APT repo +
+#                         the license server on first boot.
 #   - public_subnet_id  : a PUBLIC subnet (internet gateway route) so the Gateway and Edge
 #                         EIPs work. Gateway needs inbound UDP; Edge needs inbound HTTPS. To put
 #                         them in separate subnets, also set gateway_subnet_id / edge_subnet_id.
@@ -20,7 +20,8 @@ locals {
   core_grpc_port       = 50055
   core_http_port       = 8000
   core_cookie_insecure = false
-  core_package_version = "2.0.1"
+  # Pin a version (e.g. "2.0.1") or leave empty ("") to install the latest from the APT repo.
+  core_package_version = ""
   core_arch            = "x86_64"
   core_instance_type   = "t3.micro"
 
@@ -28,7 +29,7 @@ locals {
   edge_grpc_port       = 50051
   edge_http_port       = 8080
   edge_https_port      = 443
-  edge_package_version = "2.0.1"
+  edge_package_version = ""
   edge_arch            = "x86_64"
   edge_instance_type   = "t3.micro"
 
@@ -36,7 +37,7 @@ locals {
   gateway_grpc_port       = 50066
   wireguard_port          = 51820
   gateway_nat             = true
-  gateway_package_version = "2.0.1"
+  gateway_package_version = ""
   gateway_arch            = "x86_64"
   gateway_instance_type   = "t3.micro"
 
@@ -123,7 +124,7 @@ data "aws_vpc" "selected" {
 }
 
 # Maps the deb package architecture (x86_64/aarch64) to the Ubuntu AMI name token
-# (amd64/arm64), so the AMI a component boots matches the package its setup.sh downloads.
+# (amd64/arm64), so the AMI a component boots matches the package apt installs.
 locals {
   ubuntu_ami_arch = {
     x86_64  = "amd64"
@@ -184,10 +185,9 @@ module "network" {
 
 module "defguard_core" {
   # source = "../../modules/core"
-  source = "github.com/DefGuard/deployment//terraform2.0/modules/core?ref=main"
+  source          = "github.com/DefGuard/deployment//terraform2.0/modules/core?ref=main"
   instance_type   = local.core_instance_type
   package_version = local.core_package_version
-  arch            = local.core_arch
   ami             = data.aws_ami.ubuntu[local.core_arch].id
 
   grpc_port       = local.core_grpc_port
@@ -216,7 +216,6 @@ module "defguard_edge" {
 
   instance_type   = local.edge_instance_type
   package_version = local.edge_package_version
-  arch            = local.edge_arch
   grpc_port       = local.edge_grpc_port
   http_port       = local.edge_http_port
   https_port      = local.edge_https_port
@@ -233,7 +232,6 @@ module "defguard_gateway" {
   ami             = data.aws_ami.ubuntu[local.gateway_arch].id
   instance_type   = local.gateway_instance_type
   package_version = local.gateway_package_version
-  arch            = local.gateway_arch
 
   grpc_port            = local.gateway_grpc_port
   nat                  = local.gateway_nat
