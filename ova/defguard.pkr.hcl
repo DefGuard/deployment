@@ -102,6 +102,16 @@ build {
     destination = "/tmp/defguard-firewall.service"
   }
 
+  provisioner "file" {
+    source      = "files/99-wireguard-tuning.conf"
+    destination = "/tmp/99-wireguard-tuning.conf"
+  }
+
+  provisioner "file" {
+    source      = "files/defguard-modules.conf"
+    destination = "/tmp/defguard-modules.conf"
+  }
+
   provisioner "shell" {
     inline = [
       "sudo bash /tmp/docker-setup.sh",
@@ -120,6 +130,10 @@ build {
       "sudo mv /tmp/defguard-firewall.sh /opt/stacks/defguard/defguard-firewall.sh",
       "sudo chmod +x /opt/stacks/defguard/defguard-firewall.sh",
       "sudo mv /tmp/defguard-firewall.service /etc/systemd/system/defguard-firewall.service",
+      "sudo mv /tmp/99-wireguard-tuning.conf /etc/sysctl.d/99-wireguard-tuning.conf",
+      "sudo chown root:root /etc/sysctl.d/99-wireguard-tuning.conf",
+      "sudo mv /tmp/defguard-modules.conf /etc/modules-load.d/defguard.conf",
+      "sudo chown root:root /etc/modules-load.d/defguard.conf",
       "sudo systemctl daemon-reload",
       "sudo systemctl enable docker.service",
       "sudo systemctl enable defguard-init.service",
