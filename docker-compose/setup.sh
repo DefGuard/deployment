@@ -369,9 +369,9 @@ setup_docker_image_version() {
 		PROXY_IMAGE_TAG="pre-release"
 	else
 		IMAGE_TYPE_NAME="${C_GREEN}latest production${C_END}"
-		CORE_IMAGE_TAG="${CORE_IMAGE_TAG:-latest}"
-		GATEWAY_IMAGE_TAG="${GATEWAY_IMAGE_TAG:-latest}"
-		PROXY_IMAGE_TAG="${PROXY_IMAGE_TAG:-latest}"
+		CORE_IMAGE_TAG="${CORE_IMAGE_TAG:-1.6}"
+		GATEWAY_IMAGE_TAG="${GATEWAY_IMAGE_TAG:-1.6}"
+		PROXY_IMAGE_TAG="${PROXY_IMAGE_TAG:-1.6}"
 	fi
 
 	echo -e " ${TXT_BEGIN} ${IMAGE_TYPE_NAME} Docker images will be used"
