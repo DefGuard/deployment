@@ -144,7 +144,7 @@ gen_secret() {
   if command -v openssl &>/dev/null; then
     openssl rand -hex 32
   else
-    tr -dc 'a-f0-9' </dev/urandom 2>/dev/null | head -c 64
+    tr -dc 'a-f0-9' </dev/urandom 2>/dev/null | head -c 64 || true
   fi
 }
 
