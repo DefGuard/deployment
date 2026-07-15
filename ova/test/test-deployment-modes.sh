@@ -30,7 +30,7 @@ MODES=(full core edge gateway)
 declare -A VMID=(       [full]=$((VMID_BASE+1)) [core]=$((VMID_BASE+2)) [edge]=$((VMID_BASE+3)) [gateway]=$((VMID_BASE+4)) )
 declare -A IP_LAST=(    [full]=150  [core]=151  [edge]=152  [gateway]=153  )
 declare -A PROFILE=(    [full]=""   [core]=core [edge]=edge [gateway]=gateway )
-# Ground truth from ova/files/docker-compose.standalone.yaml (full uses the all-in-one).
+# Ground truth from ova/files/docker-compose.template.yaml.
 declare -A EXPECT=(     [full]="core db edge gateway" [core]="core db"      [edge]="edge"          [gateway]="gateway" )
 declare -A FORBID=(     [full]=""                     [core]="edge gateway" [edge]="core db gateway" [gateway]="core db edge" )
 
@@ -106,16 +106,12 @@ wait_services() {
 }
 
 verify_mode() {
-  local mode="$1" ip="$2" profile="${PROFILE[$mode]}" names actual
+  local mode="$1" ip="$2" names actual
 
-  if [ -z "$profile" ]; then
-    vm_ssh "$ip" "test ! -e /opt/stacks/defguard/active-profiles" \
-      || { log "$mode: active-profiles unexpectedly present"; return 1; }
-  else
-    actual="$(vm_ssh "$ip" "cat /opt/stacks/defguard/active-profiles 2>/dev/null" | tr -d '[:space:]')"
-    [ "$actual" = "$profile" ] \
-      || { log "$mode: active-profiles is '$actual', expected '$profile'"; return 1; }
-  fi
+  # active-profiles is consumed and deleted by generate-compose.sh once
+  # docker-compose.yml is materialized
+  vm_ssh "$ip" "test ! -e /opt/stacks/defguard/active-profiles" \
+    || { log "$mode: active-profiles unexpectedly present (should be consumed and deleted)"; return 1; }
 
   names="$(wait_services "$ip" "${EXPECT[$mode]}")" \
     || { log "$mode: expected services did not all start; running: $(tr '\n' ' ' <<<"$names")"; return 1; }
@@ -125,6 +121,11 @@ verify_mode() {
     has_service "$names" "$svc" \
       && { log "$mode: unexpected service '$svc' is running"; return 1; }
   done
+
+  actual="$(vm_ssh "$ip" "ls -A /opt/stacks/defguard" | sort | tr '\n' ' ' | sed 's/ $//')"
+  [ "$actual" = ".env .volumes docker-compose.yml" ] \
+    || { log "$mode: /opt/stacks/defguard contains '$actual', expected only docker-compose.yml, .env, .volumes"; return 1; }
+
   return 0
 }
 

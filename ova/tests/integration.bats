@@ -11,19 +11,22 @@ setup() {
   [ "${RUN_INTEGRATION:-0}" = "1" ] || skip "set RUN_INTEGRATION=1 to run real bring-up"
   command -v docker >/dev/null 2>&1 || skip "docker not installed"
   docker compose version >/dev/null 2>&1 || skip "docker compose v2 not available"
+  command -v jq >/dev/null 2>&1 || skip "jq not installed"
   make_stack
   write_image_tags "${CORE_TAG:-2}" "${PROXY_TAG:-2}" "${GATEWAY_TAG:-2}"
-  bash "$FILES_DIR/generate-env.sh"
 }
 
 teardown() {
   if [ "${RUN_INTEGRATION:-0}" = "1" ] && [ -n "${STACK_DIR:-}" ] && command -v docker >/dev/null 2>&1; then
-    COMPOSE_PROFILES="core,edge,gateway,dockge" \
-      docker compose -f "$STACK_DIR/docker-compose.standalone.yaml" down -v >/dev/null 2>&1 || true
-    COMPOSE_PROFILES="dockge" \
-      docker compose -f "$STACK_DIR/docker-compose.yaml" down -v >/dev/null 2>&1 || true
+    docker compose -f "$STACK_DIR/docker-compose.yml" down -v >/dev/null 2>&1 || true
   fi
   teardown_stack
+}
+
+bring_up() {
+  bash "$FILES_DIR/generate-env.sh"
+  bash "$FILES_DIR/generate-compose.sh"
+  docker compose -f "$STACK_DIR/docker-compose.yml" up -d
 }
 
 wait_for_health() {
@@ -35,17 +38,17 @@ wait_for_health() {
     sleep 2
   done
   echo "core health endpoint never came up; recent logs:" >&2
-  docker compose -f "$STACK_DIR/docker-compose.yaml" logs --tail 50 core >&2 2>&1 || true
+  docker compose -f "$STACK_DIR/docker-compose.yml" logs --tail 50 core >&2 2>&1 || true
   return 1
 }
 
 @test "all-in-one stack serves the core health endpoint" {
-  ( cd "$STACK_DIR" && bash "$FILES_DIR/start.sh" )
+  bring_up
   wait_for_health
 }
 
 @test "standalone core-only profile serves the core health endpoint" {
   echo "core" > "$STACK_DIR/active-profiles"
-  ( cd "$STACK_DIR" && bash "$FILES_DIR/start.sh" )
+  bring_up
   wait_for_health
 }

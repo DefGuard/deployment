@@ -50,3 +50,34 @@ teardown() {
   [[ "$output" == *"DEFGUARD_CORE_TAG is required"* ]]
   [ ! -f "$STACK_DIR/.env" ]
 }
+
+@test "no active-profiles -> full stack -> ADOPT_EDGE/ADOPT_GATEWAY defaulted" {
+  write_image_tags
+  bash "$FILES_DIR/generate-env.sh"
+  grep -qx 'DEFGUARD_ADOPT_EDGE=edge:50051' "$STACK_DIR/.env"
+  grep -qx 'DEFGUARD_ADOPT_GATEWAY=host.docker.internal:50066' "$STACK_DIR/.env"
+}
+
+@test "active-profiles=core only -> ADOPT_EDGE/ADOPT_GATEWAY left blank" {
+  echo "core" > "$STACK_DIR/active-profiles"
+  write_image_tags
+  bash "$FILES_DIR/generate-env.sh"
+  grep -qx 'DEFGUARD_ADOPT_EDGE=' "$STACK_DIR/.env"
+  grep -qx 'DEFGUARD_ADOPT_GATEWAY=' "$STACK_DIR/.env"
+}
+
+@test "active-profiles='core edge gateway' -> ADOPT_EDGE/ADOPT_GATEWAY defaulted" {
+  printf 'core\nedge\ngateway\n' > "$STACK_DIR/active-profiles"
+  write_image_tags
+  bash "$FILES_DIR/generate-env.sh"
+  grep -qx 'DEFGUARD_ADOPT_EDGE=edge:50051' "$STACK_DIR/.env"
+  grep -qx 'DEFGUARD_ADOPT_GATEWAY=host.docker.internal:50066' "$STACK_DIR/.env"
+}
+
+@test "active-profiles='core gateway' (no edge) -> ADOPT_EDGE/ADOPT_GATEWAY left blank" {
+  printf 'core gateway\n' > "$STACK_DIR/active-profiles"
+  write_image_tags
+  bash "$FILES_DIR/generate-env.sh"
+  grep -qx 'DEFGUARD_ADOPT_EDGE=' "$STACK_DIR/.env"
+  grep -qx 'DEFGUARD_ADOPT_GATEWAY=' "$STACK_DIR/.env"
+}

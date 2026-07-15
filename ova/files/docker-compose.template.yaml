@@ -7,6 +7,10 @@ services:
     environment:
       DEFGUARD_DB_HOST: db
       DEFGUARD_DB_PORT: 5432
+      DEFGUARD_ADOPT_EDGE: ${DEFGUARD_ADOPT_EDGE:-}
+      DEFGUARD_ADOPT_GATEWAY: ${DEFGUARD_ADOPT_GATEWAY:-}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       - db
     ports:
@@ -20,9 +24,11 @@ services:
       - ./.volumes/certs/edge:/etc/defguard/certs
     ports:
       - "8080:8080"
-      - "50051:50051"
       - "443:443"
       - "80:80"
+    # 50051 is added conditionally by generate-compose.sh: exposed for segmented
+    # deployments (core reaches edge from another host), omitted for the full
+    # all-in-one stack (core reaches edge via the docker-internal network).
 
   gateway:
     restart: unless-stopped
