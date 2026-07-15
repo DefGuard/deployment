@@ -5,11 +5,10 @@ FILES_DIR="$OVA_DIR/files"
 STUB_DIR="$OVA_DIR/tests/stub"
 
 # DEFGUARD_STACK_DIR/DEFGUARD_INIT_DIR redirect the scripts at temp dirs.
-# STACK_DIR starts genuinely empty (matching real first-boot state); INIT_DIR
-# gets a copy of the generator machinery so tests never write into the repo.
 make_stack() {
   STACK_DIR="$(mktemp -d)"
-  INIT_DIR="$(mktemp -d)"
+  INIT_DIR="$STACK_DIR/init"
+  mkdir -p "$INIT_DIR"
   export DEFGUARD_STACK_DIR="$STACK_DIR"
   export DEFGUARD_INIT_DIR="$INIT_DIR"
   cp "$FILES_DIR/docker-compose.template.yaml" "$INIT_DIR/"
@@ -18,7 +17,6 @@ make_stack() {
 
 teardown_stack() {
   [ -n "${STACK_DIR:-}" ] && rm -rf "$STACK_DIR"
-  [ -n "${INIT_DIR:-}" ] && rm -rf "$INIT_DIR"
   return 0
 }
 

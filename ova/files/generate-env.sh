@@ -3,7 +3,7 @@
 # If .env already exists (e.g. provided via cloud-init), this script does nothing.
 
 STACK_DIR="${DEFGUARD_STACK_DIR:-/opt/stacks/defguard}"
-INIT_DIR="${DEFGUARD_INIT_DIR:-/opt/defguard/init}"
+INIT_DIR="${DEFGUARD_INIT_DIR:-$STACK_DIR/init}"
 ENV_FILE="$STACK_DIR/.env"
 
 if [ -f "$ENV_FILE" ]; then

@@ -96,13 +96,14 @@ generated_json() {
   [ "$(cat "$STACK_DIR/docker-compose.yml")" = "$before" ]
 }
 
-@test "flag files are removed after a successful run" {
+@test "flag files and the init dir are removed after a successful run" {
   echo "core" > "$STACK_DIR/active-profiles"
   touch "$STACK_DIR/enable-docker-management"
   run bash "$FILES_DIR/generate-compose.sh"
   [ "$status" -eq 0 ]
   [ ! -f "$STACK_DIR/active-profiles" ]
   [ ! -f "$STACK_DIR/enable-docker-management" ]
+  [ ! -d "$INIT_DIR" ]
 }
 
 @test "empty/whitespace active-profiles falls back to full stack" {
