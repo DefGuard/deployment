@@ -81,3 +81,11 @@ teardown() {
   grep -qx 'DEFGUARD_ADOPT_EDGE=' "$STACK_DIR/.env"
   grep -qx 'DEFGUARD_ADOPT_GATEWAY=' "$STACK_DIR/.env"
 }
+
+@test "fails and writes nothing when lib.sh is missing" {
+  rm -f "$INIT_DIR/lib.sh"
+  write_image_tags
+  run bash "$FILES_DIR/generate-env.sh"
+  [ "$status" -ne 0 ]
+  [ ! -f "$STACK_DIR/.env" ]
+}

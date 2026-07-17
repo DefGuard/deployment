@@ -96,14 +96,33 @@ generated_json() {
   [ "$(cat "$STACK_DIR/docker-compose.yml")" = "$before" ]
 }
 
-@test "flag files and the init dir are removed after a successful run" {
+@test "flag files are removed after a successful run, init dir is kept" {
   echo "core" > "$STACK_DIR/active-profiles"
   touch "$STACK_DIR/enable-docker-management"
   run bash "$FILES_DIR/generate-compose.sh"
   [ "$status" -eq 0 ]
   [ ! -f "$STACK_DIR/active-profiles" ]
   [ ! -f "$STACK_DIR/enable-docker-management" ]
-  [ ! -d "$INIT_DIR" ]
+  [ -d "$INIT_DIR" ]
+  [ -f "$INIT_DIR/lib.sh" ]
+}
+
+@test "failed run leaves no docker-compose.yml behind" {
+  rm -f "$INIT_DIR/docker-compose.template.yaml"
+  run bash "$FILES_DIR/generate-compose.sh"
+  [ "$status" -ne 0 ]
+  [ ! -e "$STACK_DIR/docker-compose.yml" ]
+  [ ! -e "$STACK_DIR/docker-compose.yml.tmp" ]
+}
+
+@test "manual rm docker-compose.yml + rerun re-provisions" {
+  run bash "$FILES_DIR/generate-compose.sh"
+  [ "$status" -eq 0 ]
+  rm "$STACK_DIR/docker-compose.yml"
+  echo "core" > "$STACK_DIR/active-profiles"
+  run bash "$FILES_DIR/generate-compose.sh"
+  [ "$status" -eq 0 ]
+  [ "$(generated_services)" = "core db" ]
 }
 
 @test "empty/whitespace active-profiles falls back to full stack" {

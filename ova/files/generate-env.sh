@@ -1,6 +1,7 @@
 #!/bin/bash
 # Generates /opt/stacks/defguard/.env with random secrets on first boot.
 # If .env already exists (e.g. provided via cloud-init), this script does nothing.
+set -euo pipefail
 
 STACK_DIR="${DEFGUARD_STACK_DIR:-/opt/stacks/defguard}"
 INIT_DIR="${DEFGUARD_INIT_DIR:-$STACK_DIR/init}"
