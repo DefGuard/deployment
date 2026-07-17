@@ -108,11 +108,6 @@ wait_services() {
 verify_mode() {
   local mode="$1" ip="$2" names actual
 
-  # active-profiles is consumed and deleted by generate-compose.sh once
-  # docker-compose.yml is materialized
-  vm_ssh "$ip" "test ! -e /opt/stacks/defguard/active-profiles" \
-    || { log "$mode: active-profiles unexpectedly present (should be consumed and deleted)"; return 1; }
-
   names="$(wait_services "$ip" "${EXPECT[$mode]}")" \
     || { log "$mode: expected services did not all start; running: $(tr '\n' ' ' <<<"$names")"; return 1; }
 
@@ -122,7 +117,10 @@ verify_mode() {
       && { log "$mode: unexpected service '$svc' is running"; return 1; }
   done
 
-  actual="$(vm_ssh "$ip" "ls -A /opt/stacks/defguard" | sort | tr '\n' ' ' | sed 's/ $//')"
+  vm_ssh "$ip" "test ! -e /opt/stacks/defguard/active-profiles" \
+    || { log "$mode: active-profiles unexpectedly present (should be consumed and deleted)"; return 1; }
+
+  actual="$(vm_ssh "$ip" "ls -A /opt/stacks/defguard" | LC_ALL=C sort | tr '\n' ' ' | sed 's/ $//')"
   [ "$actual" = ".env .volumes defguard-firewall.sh docker-compose.yml init" ] \
     || { log "$mode: /opt/stacks/defguard contains '$actual', expected only docker-compose.yml, .env, .volumes, defguard-firewall.sh, init"; return 1; }
 
