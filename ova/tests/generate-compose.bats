@@ -139,3 +139,20 @@ generated_json() {
   [ "$status" -eq 0 ]
   head -n2 "$STACK_DIR/docker-compose.yml" | grep -q '# Selected profiles: core gateway'
 }
+
+@test "image tags stay live \${VAR} refs, not baked-in literal tags" {
+  run bash "$FILES_DIR/generate-compose.sh"
+  [ "$status" -eq 0 ]
+  grep -q 'image: ghcr.io/defguard/defguard:${DEFGUARD_CORE_TAG}' "$STACK_DIR/docker-compose.yml"
+  grep -q 'image: ghcr.io/defguard/defguard-proxy:${DEFGUARD_PROXY_TAG}' "$STACK_DIR/docker-compose.yml"
+  grep -q 'image: ghcr.io/defguard/gateway:${DEFGUARD_GATEWAY_TAG}' "$STACK_DIR/docker-compose.yml"
+  ! grep 'image:' "$STACK_DIR/docker-compose.yml" | grep -q 'test-core\|test-proxy\|test-gateway'
+}
+
+@test "editing .env after generation changes the tag a plain docker compose sees, without regenerating" {
+  run bash "$FILES_DIR/generate-compose.sh"
+  [ "$status" -eq 0 ]
+  write_env new-core-tag new-proxy-tag new-gateway-tag
+  image="$(unset COMPOSE_PROFILES; docker compose -f "$STACK_DIR/docker-compose.yml" --project-directory "$STACK_DIR" config --format json | jq -r '.services.core.image')"
+  [ "$image" = "ghcr.io/defguard/defguard:new-core-tag" ]
+}

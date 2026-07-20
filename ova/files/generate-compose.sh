@@ -54,6 +54,13 @@ trap 'rm -f "$TMP_COMPOSE_FILE"' EXIT
       ' \
     | docker compose -f - -p defguard --project-directory "$STACK_DIR" config
 } > "$TMP_COMPOSE_FILE"
+
+sed -i \
+  -e "s/__DEFGUARD_CORE_TAG__/\${DEFGUARD_CORE_TAG}/" \
+  -e "s/__DEFGUARD_PROXY_TAG__/\${DEFGUARD_PROXY_TAG}/" \
+  -e "s/__DEFGUARD_GATEWAY_TAG__/\${DEFGUARD_GATEWAY_TAG}/" \
+  "$TMP_COMPOSE_FILE"
+
 mv "$TMP_COMPOSE_FILE" "$COMPOSE_FILE"
 
 rm -f "$PROFILES_FILE" "$ENABLE_DOCKER_MGMT_FILE"
