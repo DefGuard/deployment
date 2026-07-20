@@ -68,13 +68,13 @@ build {
   }
 
   provisioner "file" {
-    source      = "files/docker-compose.yaml"
-    destination = "/tmp/docker-compose.yaml"
+    source      = "files/docker-compose.template.yaml"
+    destination = "/tmp/docker-compose.template.yaml"
   }
 
   provisioner "file" {
-    source      = "files/docker-compose.standalone.yaml"
-    destination = "/tmp/docker-compose.standalone.yaml"
+    source      = "files/lib.sh"
+    destination = "/tmp/lib.sh"
   }
 
   provisioner "file" {
@@ -83,8 +83,8 @@ build {
   }
 
   provisioner "file" {
-    source      = "files/start.sh"
-    destination = "/tmp/start.sh"
+    source      = "files/generate-compose.sh"
+    destination = "/tmp/generate-compose.sh"
   }
 
   provisioner "file" {
@@ -115,16 +115,15 @@ build {
   provisioner "shell" {
     inline = [
       "sudo bash /tmp/docker-setup.sh",
-      "sudo mkdir -p /opt/stacks/defguard",
-      "sudo mv /tmp/docker-compose.yaml /opt/stacks/defguard/docker-compose.yaml",
-      "sudo mv /tmp/docker-compose.standalone.yaml /opt/stacks/defguard/docker-compose.standalone.yaml",
-      "sudo mv /tmp/generate-env.sh /opt/stacks/defguard/generate-env.sh",
-      "sudo chmod +x /opt/stacks/defguard/generate-env.sh",
-      "sudo mv /tmp/start.sh /opt/stacks/defguard/start.sh",
-      "sudo chmod +x /opt/stacks/defguard/start.sh",
-      "echo 'DEFGUARD_CORE_TAG=${var.core_tag}' | sudo tee /opt/stacks/defguard/.image-tags > /dev/null",
-      "echo 'DEFGUARD_PROXY_TAG=${var.proxy_tag}' | sudo tee -a /opt/stacks/defguard/.image-tags > /dev/null",
-      "echo 'DEFGUARD_GATEWAY_TAG=${var.gateway_tag}' | sudo tee -a /opt/stacks/defguard/.image-tags > /dev/null",
+      "sudo mkdir -p /opt/stacks/defguard/init",
+      "sudo mv /tmp/docker-compose.template.yaml /opt/stacks/defguard/init/docker-compose.template.yaml",
+      "sudo mv /tmp/lib.sh /opt/stacks/defguard/init/lib.sh",
+      "sudo mv /tmp/generate-env.sh /opt/stacks/defguard/init/generate-env.sh",
+      "sudo mv /tmp/generate-compose.sh /opt/stacks/defguard/init/generate-compose.sh",
+      "sudo chmod +x /opt/stacks/defguard/init/generate-env.sh /opt/stacks/defguard/init/generate-compose.sh",
+      "echo 'DEFGUARD_CORE_TAG=${var.core_tag}' | sudo tee /opt/stacks/defguard/init/.image-tags > /dev/null",
+      "echo 'DEFGUARD_PROXY_TAG=${var.proxy_tag}' | sudo tee -a /opt/stacks/defguard/init/.image-tags > /dev/null",
+      "echo 'DEFGUARD_GATEWAY_TAG=${var.gateway_tag}' | sudo tee -a /opt/stacks/defguard/init/.image-tags > /dev/null",
       "sudo mv /tmp/99-defguard.cfg /etc/cloud/cloud.cfg.d/99-defguard.cfg",
       "sudo mv /tmp/defguard-init.service /etc/systemd/system/defguard-init.service",
       "sudo mv /tmp/defguard-firewall.sh /opt/stacks/defguard/defguard-firewall.sh",
@@ -139,6 +138,8 @@ build {
       "sudo systemctl enable defguard-init.service",
       "sudo systemctl enable defguard-firewall.service",
       "sudo chown -R ubuntu:ubuntu /opt/stacks/defguard",
+      "sudo chown -R root:root /opt/stacks/defguard/init",
+      "sudo chmod -R go-w /opt/stacks/defguard/init",
       "sudo rm -f /etc/netplan/00-installer-config.yaml /etc/netplan/50-cloud-init.yaml",
       "sudo cloud-init clean --logs",
       "sudo rm -f /etc/ssh/ssh_host_*",

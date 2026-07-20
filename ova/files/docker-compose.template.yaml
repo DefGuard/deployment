@@ -2,11 +2,15 @@ services:
   core:
     restart: unless-stopped
     profiles: [core]
-    image: ghcr.io/defguard/defguard:${DEFGUARD_CORE_TAG:?DEFGUARD_CORE_TAG is required}
+    image: ghcr.io/defguard/defguard:__DEFGUARD_CORE_TAG__
     env_file: .env
     environment:
       DEFGUARD_DB_HOST: db
       DEFGUARD_DB_PORT: 5432
+      DEFGUARD_ADOPT_EDGE: ${DEFGUARD_ADOPT_EDGE:-}
+      DEFGUARD_ADOPT_GATEWAY: ${DEFGUARD_ADOPT_GATEWAY:-}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       - db
     ports:
@@ -15,19 +19,21 @@ services:
   edge:
     restart: unless-stopped
     profiles: [edge]
-    image: ghcr.io/defguard/defguard-proxy:${DEFGUARD_PROXY_TAG:?DEFGUARD_PROXY_TAG is required}
+    image: ghcr.io/defguard/defguard-proxy:__DEFGUARD_PROXY_TAG__
     volumes:
       - ./.volumes/certs/edge:/etc/defguard/certs
     ports:
       - "8080:8080"
-      - "50051:50051"
       - "443:443"
       - "80:80"
+    # 50051 is added conditionally by generate-compose.sh: exposed for segmented
+    # deployments (core reaches edge from another host), omitted for the full
+    # all-in-one stack (core reaches edge via the docker-internal network).
 
   gateway:
     restart: unless-stopped
     profiles: [gateway]
-    image: ghcr.io/defguard/gateway:${DEFGUARD_GATEWAY_TAG:?DEFGUARD_GATEWAY_TAG is required}
+    image: ghcr.io/defguard/gateway:__DEFGUARD_GATEWAY_TAG__
     cap_add:
       - NET_ADMIN
     volumes:

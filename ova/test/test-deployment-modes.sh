@@ -30,7 +30,7 @@ MODES=(full core edge gateway)
 declare -A VMID=(       [full]=$((VMID_BASE+1)) [core]=$((VMID_BASE+2)) [edge]=$((VMID_BASE+3)) [gateway]=$((VMID_BASE+4)) )
 declare -A IP_LAST=(    [full]=150  [core]=151  [edge]=152  [gateway]=153  )
 declare -A PROFILE=(    [full]=""   [core]=core [edge]=edge [gateway]=gateway )
-# Ground truth from ova/files/docker-compose.standalone.yaml (full uses the all-in-one).
+# Ground truth from ova/files/docker-compose.template.yaml.
 declare -A EXPECT=(     [full]="core db edge gateway" [core]="core db"      [edge]="edge"          [gateway]="gateway" )
 declare -A FORBID=(     [full]=""                     [core]="edge gateway" [edge]="core db gateway" [gateway]="core db edge" )
 
@@ -106,16 +106,7 @@ wait_services() {
 }
 
 verify_mode() {
-  local mode="$1" ip="$2" profile="${PROFILE[$mode]}" names actual
-
-  if [ -z "$profile" ]; then
-    vm_ssh "$ip" "test ! -e /opt/stacks/defguard/active-profiles" \
-      || { log "$mode: active-profiles unexpectedly present"; return 1; }
-  else
-    actual="$(vm_ssh "$ip" "cat /opt/stacks/defguard/active-profiles 2>/dev/null" | tr -d '[:space:]')"
-    [ "$actual" = "$profile" ] \
-      || { log "$mode: active-profiles is '$actual', expected '$profile'"; return 1; }
-  fi
+  local mode="$1" ip="$2" names actual
 
   names="$(wait_services "$ip" "${EXPECT[$mode]}")" \
     || { log "$mode: expected services did not all start; running: $(tr '\n' ' ' <<<"$names")"; return 1; }
@@ -125,6 +116,47 @@ verify_mode() {
     has_service "$names" "$svc" \
       && { log "$mode: unexpected service '$svc' is running"; return 1; }
   done
+
+  vm_ssh "$ip" "test ! -e /opt/stacks/defguard/active-profiles" \
+    || { log "$mode: active-profiles unexpectedly present (should be consumed and deleted)"; return 1; }
+
+  actual="$(vm_ssh "$ip" "ls -A /opt/stacks/defguard" | LC_ALL=C sort | tr '\n' ' ' | sed 's/ $//')"
+  [ "$actual" = ".env .volumes defguard-firewall.sh docker-compose.yml init" ] \
+    || { log "$mode: /opt/stacks/defguard contains '$actual', expected only docker-compose.yml, .env, .volumes, defguard-firewall.sh, init"; return 1; }
+
+  reprovision_mode "$mode" "$ip" || return 1
+
+  return 0
+}
+
+# Exercises the manual recovery path: an operator deletes a
+# broken/stale docker-compose.yml and restarts defguard-init.service to
+# regenerate it.
+reprovision_mode() {
+  local mode="$1" ip="$2" profile="${PROFILE[$mode]}" names
+
+  log "$mode: exercising recovery (rm docker-compose.yml + restart defguard-init)"
+
+  if [ -n "$profile" ]; then
+    vm_ssh "$ip" "echo '$profile' | sudo tee /opt/stacks/defguard/active-profiles >/dev/null"
+  fi
+  vm_ssh "$ip" "sudo rm -f /opt/stacks/defguard/docker-compose.yml"
+  vm_ssh "$ip" "sudo systemctl restart defguard-init.service"
+
+  vm_ssh "$ip" "test -e /opt/stacks/defguard/docker-compose.yml" \
+    || { log "$mode: recovery did not recreate docker-compose.yml"; return 1; }
+  vm_ssh "$ip" "test ! -e /opt/stacks/defguard/active-profiles" \
+    || { log "$mode: recovery left active-profiles behind"; return 1; }
+
+  names="$(wait_services "$ip" "${EXPECT[$mode]}")" \
+    || { log "$mode: recovery: expected services did not come back; running: $(tr '\n' ' ' <<<"$names")"; return 1; }
+
+  local svc
+  for svc in ${FORBID[$mode]}; do
+    has_service "$names" "$svc" \
+      && { log "$mode: recovery: unexpected service '$svc' is running"; return 1; }
+  done
+
   return 0
 }
 

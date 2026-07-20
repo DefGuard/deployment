@@ -92,7 +92,6 @@ jobs:
           echo "Uploaded: s3://defguard-downloads/ova/${FILENAME}"
 
       - name: Test deployment modes on Proxmox
-        if: ${{ github.event_name == 'workflow_dispatch' }}
         env:
           PROXMOX_HOST: ${{ secrets.PROXMOX_HOST }}
           PROXMOX_SSH_KEY: ${{ secrets.PROXMOX_SSH_KEY }}
