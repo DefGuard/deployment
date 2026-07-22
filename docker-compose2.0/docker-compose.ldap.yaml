@@ -1,5 +1,11 @@
+x-logging: &default-logging
+  driver: journald
+  options:
+    tag: "defguard-{{.Name}}"
+
 services:
   core:
+    logging: *default-logging
     image: ghcr.io/defguard/defguard:2
     environment:
       DEFGUARD_COOKIE_INSECURE: "true"
@@ -18,6 +24,7 @@ services:
       - "8000:8000"
 
   edge1:
+    logging: *default-logging
     image: ghcr.io/defguard/defguard-proxy:2
     volumes:
       - ./.volumes/certs2.0/edge1:/etc/defguard/certs
@@ -27,6 +34,7 @@ services:
       - "443:443"
 
   gateway1:
+    logging: *default-logging
     image: ghcr.io/defguard/gateway:2
     cap_add:
       - NET_ADMIN
@@ -39,6 +47,7 @@ services:
       HEALTH_PORT: 55003
 
   db:
+    logging: *default-logging
     image: postgres:18-alpine
     environment:
       POSTGRES_DB: defguard
@@ -48,6 +57,7 @@ services:
       - ./.volumes/db2.0:/var/lib/postgresql
 
   mailpit:
+    logging: *default-logging
     image: axllent/mailpit:latest
     container_name: mailpit
     ports:
@@ -55,6 +65,7 @@ services:
       - "1025:1025" # SMTP
 
   openldap:
+    logging: *default-logging
     image: bitnamilegacy/openldap:2.6
     user: root
     restart: unless-stopped
@@ -69,6 +80,7 @@ services:
       - ./volumes/openldap:/bitnami/openldap
 
   phpldapadmin:
+    logging: *default-logging
     image: osixia/phpldapadmin:0.9.0
     restart: unless-stopped
     depends_on:

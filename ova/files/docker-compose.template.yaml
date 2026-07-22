@@ -1,7 +1,13 @@
+x-logging: &default-logging
+  driver: journald
+  options:
+    tag: "defguard-{{.Name}}"
+
 services:
   core:
     restart: unless-stopped
     profiles: [core]
+    logging: *default-logging
     image: ghcr.io/defguard/defguard:__DEFGUARD_CORE_TAG__
     env_file: .env
     environment:
@@ -19,6 +25,7 @@ services:
   edge:
     restart: unless-stopped
     profiles: [edge]
+    logging: *default-logging
     image: ghcr.io/defguard/defguard-proxy:__DEFGUARD_PROXY_TAG__
     volumes:
       - ./.volumes/certs/edge:/etc/defguard/certs
@@ -33,6 +40,7 @@ services:
   gateway:
     restart: unless-stopped
     profiles: [gateway]
+    logging: *default-logging
     image: ghcr.io/defguard/gateway:__DEFGUARD_GATEWAY_TAG__
     cap_add:
       - NET_ADMIN
@@ -47,6 +55,7 @@ services:
     image: louislam/dockge:1
     restart: unless-stopped
     profiles: [dockge]
+    logging: *default-logging
     ports:
       - "5001:5001"
     volumes:
@@ -59,6 +68,7 @@ services:
   db:
     restart: unless-stopped
     profiles: [core]
+    logging: *default-logging
     image: postgres:18-alpine
     env_file: .env
     volumes:
