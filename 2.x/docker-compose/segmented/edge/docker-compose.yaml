@@ -1,5 +1,11 @@
+x-logging: &default-logging
+  driver: journald
+  options:
+    tag: "defguard-{{.Name}}"
+
 services:
   edge:
+    logging: *default-logging
     image: ghcr.io/defguard/defguard-proxy:2
     restart: unless-stopped
     container_name: "defguard-proxy"
