@@ -1,11 +1,9 @@
-x-logging: &default-logging
-  driver: journald
-  options:
-    tag: "defguard-{{.Name}}"
-
 services:
   gateway:
-    logging: *default-logging
+    logging:
+      driver: journald
+      options:
+        tag: "defguard-gateway"
     image: ghcr.io/defguard/gateway:2
     restart: unless-stopped
     container_name: "defguard-gateway"
