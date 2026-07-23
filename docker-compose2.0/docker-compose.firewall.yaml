@@ -1,11 +1,5 @@
-x-logging: &default-logging
-  driver: journald
-  options:
-    tag: "defguard-{{.Name}}"
-
 services:
   core:
-    logging: *default-logging
     image: ghcr.io/defguard/defguard:2
     environment:
       DEFGUARD_COOKIE_INSECURE: "true"
@@ -27,7 +21,6 @@ services:
       - default
 
   edge1:
-    logging: *default-logging
     image: ghcr.io/defguard/defguard-proxy:2
     volumes:
       - ./.volumes/certs2.0/edge1:/etc/defguard/certs
@@ -39,7 +32,6 @@ services:
       - default
 
   gateway1:
-    logging: *default-logging
     image: ghcr.io/defguard/gateway:2
     cap_add:
       - NET_ADMIN
@@ -56,7 +48,6 @@ services:
         ipv4_address: 10.10.20.2
 
   db:
-    logging: *default-logging
     image: postgres:18-alpine
     environment:
       POSTGRES_DB: defguard
@@ -70,7 +61,6 @@ services:
       - default
 
   protected_app1:
-    logging: *default-logging
     image: hashicorp/http-echo:1.0
     command: ["-text=Protected App #1"]
     networks:
@@ -78,7 +68,6 @@ services:
         ipv4_address: 10.10.20.20
 
   protected_app2:
-    logging: *default-logging
     image: hashicorp/http-echo:1.0
     command: ["-text=Protected App #2"]
     networks:
