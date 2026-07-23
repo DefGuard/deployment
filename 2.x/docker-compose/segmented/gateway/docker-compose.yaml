@@ -1,5 +1,9 @@
 services:
   gateway:
+    logging:
+      driver: journald
+      options:
+        tag: "defguard-gateway"
     image: ghcr.io/defguard/gateway:2
     restart: unless-stopped
     container_name: "defguard-gateway"

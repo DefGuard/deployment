@@ -1,5 +1,9 @@
 services:
   edge:
+    logging:
+      driver: journald
+      options:
+        tag: "defguard-edge"
     image: ghcr.io/defguard/defguard-proxy:2
     restart: unless-stopped
     container_name: "defguard-proxy"
