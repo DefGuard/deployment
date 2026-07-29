@@ -3,5 +3,5 @@
   "core_tag": "2",
   "proxy_tag": "2",
   "gateway_tag": "2",
-  "template_ref": "main"
+  "template_ref": "ova-upgrade-process"
 }

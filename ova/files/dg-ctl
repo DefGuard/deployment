@@ -15,7 +15,7 @@ INIT_DIR="$STACK_DIR/init"
 APPLIED_PROFILES_FILE="$INIT_DIR/.applied-profiles"
 
 OVA_REPO="${DEFGUARD_OVA_REPO:-DefGuard/deployment}"
-MANIFEST_URL="${DEFGUARD_OVA_MANIFEST_URL:-https://raw.githubusercontent.com/$OVA_REPO/main/ova/manifest.json}"
+MANIFEST_URL="${DEFGUARD_OVA_MANIFEST_URL:-https://raw.githubusercontent.com/$OVA_REPO/ova-upgrade-process/ova/manifest.json}"
 SOURCE_DIR="${DEFGUARD_OVA_SOURCE_DIR:-}"
 
 KEEP_BACKUPS="${KEEP_BACKUPS:-3}"
@@ -556,7 +556,7 @@ usage: dg-ctl <command> [options]
   help                  this text
 
 environment:
-  DEFGUARD_OVA_MANIFEST_URL  release manifest (default: $OVA_REPO@main)
+  DEFGUARD_OVA_MANIFEST_URL  release manifest (default: $OVA_REPO@ova-upgrade-process)
   DEFGUARD_OVA_SOURCE_DIR    take ova/files/* from a local checkout
   KEEP_BACKUPS               backups to keep after an upgrade (default 3)
 EOF

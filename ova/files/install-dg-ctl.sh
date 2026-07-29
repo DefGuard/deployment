@@ -8,7 +8,7 @@ set -euo pipefail
 STACK_DIR="${DEFGUARD_STACK_DIR:-/opt/stacks/defguard}"
 OVA_DIR="${DEFGUARD_OVA_DIR:-/opt/defguard}"
 OVA_REPO="${DEFGUARD_OVA_REPO:-DefGuard/deployment}"
-MANIFEST_URL="${DEFGUARD_OVA_MANIFEST_URL:-https://raw.githubusercontent.com/$OVA_REPO/main/ova/manifest.json}"
+MANIFEST_URL="${DEFGUARD_OVA_MANIFEST_URL:-https://raw.githubusercontent.com/$OVA_REPO/ova-upgrade-process/ova/manifest.json}"
 SOURCE_DIR="${DEFGUARD_OVA_SOURCE_DIR:-}"
 
 log() { echo "[dg-ctl-install] $*"; }
