@@ -55,13 +55,18 @@ trap 'rm -f "$TMP_COMPOSE_FILE"' EXIT
     | docker compose -f - -p defguard --project-directory "$STACK_DIR" config
 } > "$TMP_COMPOSE_FILE"
 
-sed -i \
+sed -i.bak \
   -e "s/__DEFGUARD_CORE_TAG__/\${DEFGUARD_CORE_TAG}/" \
   -e "s/__DEFGUARD_PROXY_TAG__/\${DEFGUARD_PROXY_TAG}/" \
   -e "s/__DEFGUARD_GATEWAY_TAG__/\${DEFGUARD_GATEWAY_TAG}/" \
-  "$TMP_COMPOSE_FILE"
+  "$TMP_COMPOSE_FILE" && rm -f "$TMP_COMPOSE_FILE.bak"
 
 mv "$TMP_COMPOSE_FILE" "$COMPOSE_FILE"
+
+# The generated file carries no profiles: keys, so record the selection for
+# later regeneration (see /opt/defguard/dg-ctl upgrade).
+mkdir -p "$INIT_DIR"
+printf '%s\n' "${_profiles[@]}" > "$INIT_DIR/.applied-profiles"
 
 rm -f "$PROFILES_FILE" "$ENABLE_DOCKER_MGMT_FILE"
 echo "DefGuard: generated $COMPOSE_FILE for profiles: ${_profiles[*]}"

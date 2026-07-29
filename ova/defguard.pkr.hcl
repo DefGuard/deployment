@@ -93,6 +93,21 @@ build {
   }
 
   provisioner "file" {
+    source      = "files/dg-ctl"
+    destination = "/tmp/dg-ctl"
+  }
+
+  provisioner "file" {
+    source      = "files/install-dg-ctl.sh"
+    destination = "/tmp/install-dg-ctl.sh"
+  }
+
+  provisioner "file" {
+    source      = "manifest.json"
+    destination = "/tmp/manifest.json"
+  }
+
+  provisioner "file" {
     source      = "files/defguard-firewall.sh"
     destination = "/tmp/defguard-firewall.sh"
   }
@@ -126,6 +141,13 @@ build {
       "echo 'DEFGUARD_GATEWAY_TAG=${var.gateway_tag}' | sudo tee -a /opt/stacks/defguard/init/.image-tags > /dev/null",
       "sudo mv /tmp/99-defguard.cfg /etc/cloud/cloud.cfg.d/99-defguard.cfg",
       "sudo mv /tmp/defguard-init.service /etc/systemd/system/defguard-init.service",
+      "sudo mkdir -p /opt/defguard/backups",
+      "sudo install -m 750 -o root -g root /tmp/dg-ctl /opt/defguard/dg-ctl",
+      "sudo install -m 750 -o root -g root /tmp/install-dg-ctl.sh /opt/defguard/install-dg-ctl.sh",
+      "sudo ln -sf /opt/defguard/dg-ctl /usr/local/bin/dg-ctl",
+      "jq -n --arg v \"$(jq -r .ova_version /tmp/manifest.json)\" --arg ref \"$(jq -r .template_ref /tmp/manifest.json)\" --arg core '${var.core_tag}' --arg proxy '${var.proxy_tag}' --arg gateway '${var.gateway_tag}' '{ova_version: $v, template_ref: $ref, tags: {core: $core, proxy: $proxy, gateway: $gateway}}' | sudo tee /opt/defguard/state.json > /dev/null",
+      "sudo chmod 600 /opt/defguard/state.json",
+      "rm -f /tmp/manifest.json",
       "sudo mv /tmp/defguard-firewall.sh /opt/stacks/defguard/defguard-firewall.sh",
       "sudo chmod +x /opt/stacks/defguard/defguard-firewall.sh",
       "sudo mv /tmp/defguard-firewall.service /etc/systemd/system/defguard-firewall.service",

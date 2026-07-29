@@ -1,0 +1,7 @@
+{
+  "ova_version": "2.1.0",
+  "core_tag": "2",
+  "proxy_tag": "2",
+  "gateway_tag": "2",
+  "template_ref": "main"
+}

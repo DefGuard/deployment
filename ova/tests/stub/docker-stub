@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+# On PATH as `docker`: `compose config` and `compose version` are handed to the
+# real binary (they are pure YAML evaluation, no daemon), anything that would
+# start, pull or inspect containers is faked so dg-ctl can be tested offline.
+#   DOCKER_STUB_STATE=exited   -> `compose ps` reports services not running
+#   DOCKER_STUB_RESTARTS=2     -> `inspect` reports that many restarts
+#   DOCKER_STUB_PULL_FAIL=1    -> `compose pull` exits non-zero
+set -uo pipefail
+
+: "${DOCKER_REAL:?DOCKER_REAL must point at the real docker binary}"
+[ -n "${DOCKER_STUB_LOG:-}" ] && printf '%s\n' "$*" >> "$DOCKER_STUB_LOG"
+
+passthrough() { exec "$DOCKER_REAL" "$@"; }
+
+verb=""
+skip_next=0
+seen_compose=0
+for a in "$@"; do
+  if [ "$skip_next" = 1 ]; then skip_next=0; continue; fi
+  case "$a" in
+    compose) seen_compose=1; continue ;;
+    -f|--project-directory|--env-file|--profile|-p) skip_next=1; continue ;;
+    -*) continue ;;
+    *) verb="$a"; break ;;
+  esac
+done
+
+if [ "$seen_compose" != 1 ]; then
+  case "${1:-}" in
+    inspect)
+      printf '%s\n' "${DOCKER_STUB_RESTARTS:-0}"
+      exit 0
+      ;;
+    *) passthrough "$@" ;;
+  esac
+fi
+
+case "$verb" in
+  version|config) passthrough "$@" ;;
+  pull)           exit "${DOCKER_STUB_PULL_FAIL:-0}" ;;
+  up|stop|down|start|restart) exit 0 ;;
+  images)         echo '[]'; exit 0 ;;
+  port)           exit 1 ;;
+  exec)           exit "${DOCKER_STUB_EXEC_FAIL:-0}" ;;
+  ps)
+    # -q asks for container ids; --format json asks for state.
+    if [[ " $* " == *" -q "* ]]; then
+      echo "stubcontainerid"
+    else
+      printf '{"Service":"stub","State":"%s"}\n' "${DOCKER_STUB_STATE:-running}"
+    fi
+    exit 0
+    ;;
+  *) exit 0 ;;
+esac

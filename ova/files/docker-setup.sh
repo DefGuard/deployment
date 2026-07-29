@@ -5,7 +5,8 @@ apt-get update
 apt-get full-upgrade -y
 # open-vm-tools: graceful shutdown, guest IP reporting, and time sync under VMware.
 # jq: strips profiles from generate-compose.sh's flattened docker-compose.yml
-apt-get install -y ca-certificates curl open-vm-tools jq
+# zstd: compresses stack backups taken by /opt/defguard/dg-ctl
+apt-get install -y ca-certificates curl open-vm-tools jq zstd
 install -m 0755 -d /etc/apt/keyrings
 curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
 chmod a+r /etc/apt/keyrings/docker.asc

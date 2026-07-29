@@ -125,6 +125,52 @@ verify_mode() {
     || { log "$mode: /opt/stacks/defguard contains '$actual', expected only docker-compose.yml, .env, .volumes, defguard-firewall.sh, init"; return 1; }
 
   reprovision_mode "$mode" "$ip" || return 1
+  upgrade_mode "$mode" "$ip" || return 1
+
+  return 0
+}
+
+upgrade_mode() {
+  local mode="$1" ip="$2" names probe
+  [ "${SKIP_UPGRADE_TEST:-0}" = "1" ] && { log "$mode: skipping upgrade test"; return 0; }
+
+  log "$mode: exercising /opt/defguard/dg-ctl upgrade"
+
+  local has_db=0
+  case " ${EXPECT[$mode]} " in *" db "*) has_db=1 ;; esac
+  if [ "$has_db" = 1 ]; then
+    vm_ssh "$ip" "sudo docker compose -f /opt/stacks/defguard/docker-compose.yml exec -T db \
+      psql -qtAX -U defguard -d defguard -c \"CREATE TABLE IF NOT EXISTS ova_upgrade_probe (v text); \
+      INSERT INTO ova_upgrade_probe VALUES ('survived');\"" \
+      || { log "$mode: could not seed the upgrade probe row"; return 1; }
+  fi
+
+  vm_ssh "$ip" "sudo ${UPGRADE_ENV:-} /opt/defguard/dg-ctl upgrade --yes" \
+    || { log "$mode: dg-ctl upgrade failed"; return 1; }
+
+  vm_ssh "$ip" "sudo test -f /opt/defguard/state.json" \
+    || { log "$mode: upgrade did not record /opt/defguard/state.json"; return 1; }
+  vm_ssh "$ip" "sudo /opt/defguard/dg-ctl list-backups | grep -q Z" \
+    || { log "$mode: upgrade left no backup behind"; return 1; }
+
+  names="$(wait_services "$ip" "${EXPECT[$mode]}")" \
+    || { log "$mode: upgrade: expected services did not come back; running: $(tr '\n' ' ' <<<"$names")"; return 1; }
+
+  local svc
+  for svc in ${FORBID[$mode]}; do
+    has_service "$names" "$svc" \
+      && { log "$mode: upgrade: unexpected service '$svc' is running"; return 1; }
+  done
+
+  if [ "$has_db" = 1 ]; then
+    probe="$(vm_ssh "$ip" "sudo docker compose -f /opt/stacks/defguard/docker-compose.yml exec -T db \
+      psql -qtAX -U defguard -d defguard -c 'SELECT v FROM ova_upgrade_probe;'" | tr -d '[:space:]')"
+    [ "$probe" = "survived" ] \
+      || { log "$mode: upgrade lost database state (probe returned '$probe')"; return 1; }
+  fi
+
+  vm_ssh "$ip" "sudo /opt/defguard/dg-ctl test" \
+    || { log "$mode: post-upgrade health checks failed"; return 1; }
 
   return 0
 }
