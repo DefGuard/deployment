@@ -83,6 +83,34 @@ state_value() {
   jq -r --arg k "$1" '.[$k] // "unknown"' "$STATE_FILE" 2>/dev/null || echo "unknown"
 }
 
+# "unknown" / "2.0-unknown" (state.json seeded before this field existed) sorts
+# as the oldest possible version, so every migration is considered pending.
+normalize_version() {
+  case "$1" in
+    ""|unknown|*-unknown) echo "0.0.0" ;;
+    *) echo "$1" ;;
+  esac
+}
+
+version_le() {
+  [ "$1" = "$(printf '%s\n%s\n' "$1" "$2" | sort -V | head -n1)" ]
+}
+
+# resolve_pending_migrations FROM TO MANIFEST - prints, one per line, the
+# migration versions in MANIFEST's "migrations" array with FROM < v <= TO.
+resolve_pending_migrations() {
+  local from to manifest v
+  from="$(normalize_version "$1")"
+  to="$(normalize_version "$2")"
+  manifest="$3"
+  while IFS= read -r v; do
+    [ -n "$v" ] || continue
+    if ! version_le "$v" "$from" && version_le "$v" "$to"; then
+      echo "$v"
+    fi
+  done < <(jq -r '.migrations[]? // empty' <<<"$manifest" | sort -V)
+}
+
 # Prints the profiles this stack was generated with, one per line. The
 # generated compose file has no profiles: key left in it, so this has to come
 # from what generate-compose.sh recorded.
@@ -131,7 +159,14 @@ do_backup() {
   local label="${1:-}" id dir profiles digests checksum
   id="$(backup_id_now "$label")"
   dir="$BACKUPS_DIR/$id"
-  [ -e "$dir" ] && die "backup $id already exists"
+  # Same-second backups (e.g. two upgrades run back to back) would otherwise
+  # collide on the timestamp-only id; disambiguate instead of failing.
+  if [ -e "$dir" ]; then
+    local n=2
+    while [ -e "$BACKUPS_DIR/$id-$n" ]; do n=$((n + 1)); done
+    id="$id-$n"
+    dir="$BACKUPS_DIR/$id"
+  fi
   mkdir -p "$BACKUPS_DIR"
 
   local free_kb need_kb
@@ -431,6 +466,21 @@ EOF
     fetch_ova_file "$ref" "$f" "$new_init/$f" || die "could not fetch ova/files/$f at ref $ref"
   done
 
+  local from_version
+  from_version="$(state_value ova_version)"
+  local -a pending_migrations
+  mapfile -t pending_migrations < <(resolve_pending_migrations "$from_version" "$ova_version" "$manifest")
+  if [ "${#pending_migrations[@]}" -gt 0 ]; then
+    log "fetching migrations: ${pending_migrations[*]}"
+    mkdir -p "$work/migrations"
+    local m
+    for m in "${pending_migrations[@]}"; do
+      fetch_ova_file "$ref" "migrations/$m.sh" "$work/migrations/$m.sh" \
+        || die "could not fetch migration $m at ref $ref"
+      bash -n "$work/migrations/$m.sh" || die "migration $m does not parse; nothing was changed"
+    done
+  fi
+
   # Validate before touching the stack: a broken template must not cost downtime.
   local -a profile_args=()
   for f in "${profiles[@]}"; do profile_args+=(--profile "$f"); done
@@ -448,6 +498,18 @@ EOF
 
   local started_at
   started_at="$(date -u +'%Y-%m-%d %H:%M:%S')"
+
+  if [ "${#pending_migrations[@]}" -gt 0 ]; then
+    local m
+    for m in "${pending_migrations[@]}"; do
+      log "running migration $m"
+      if ! STACK_DIR="$STACK_DIR" OVA_DIR="$OVA_DIR" ENV_FILE="$ENV_FILE" \
+           FROM_VERSION="$from_version" TO_VERSION="$ova_version" \
+           bash "$work/migrations/$m.sh"; then
+        die "migration $m failed; stack left as-is. Restore data with: $0 rollback $backup_id"
+      fi
+    done
+  fi
 
   log "updating image tags in $ENV_FILE"
   set_env_tag DEFGUARD_CORE_TAG "$core_tag"
@@ -492,9 +554,10 @@ EOF
     --arg upgraded_at "$(date -u +%FT%TZ)" \
     --arg backup "$backup_id" \
     --arg cli "$DG_CTL_VERSION" \
+    --argjson migrations "$(printf '%s\n' "${pending_migrations[@]:-}" | jq -R 'select(length > 0)' | jq -s .)" \
     '{ova_version: $ova_version, template_ref: $ref, cli_version: $cli,
       tags: {core: $core, proxy: $proxy, gateway: $gateway},
-      upgraded_at: $upgraded_at, backup_id: $backup}' > "$STATE_FILE"
+      upgraded_at: $upgraded_at, backup_id: $backup, migrations_applied: $migrations}' > "$STATE_FILE"
 
   if [ "$skip_tests" = 1 ]; then
     log "--skip-tests given; run '$0 test' when the stack has settled"
@@ -518,6 +581,9 @@ do_version() {
   echo "core tag:       $(env_value DEFGUARD_CORE_TAG)"
   echo "proxy tag:      $(env_value DEFGUARD_PROXY_TAG)"
   echo "gateway tag:    $(env_value DEFGUARD_GATEWAY_TAG)"
+  local applied
+  applied="$(jq -r '.migrations_applied // [] | join(", ")' "$STATE_FILE" 2>/dev/null)" || applied=""
+  [ -n "$applied" ] && echo "migrations:     $applied"
   local manifest
   if manifest="$(read_manifest 2>/dev/null)"; then
     echo "available:      $(jq -r '.ova_version // "unknown"' <<<"$manifest") (core $(jq -r '.core_tag' <<<"$manifest"), proxy $(jq -r '.proxy_tag' <<<"$manifest"), gateway $(jq -r '.gateway_tag' <<<"$manifest"))"
@@ -544,8 +610,8 @@ usage: dg-ctl <command> [options]
 
   upgrade [--ref REF] [--core-tag T] [--proxy-tag T] [--gateway-tag T]
           [--yes] [--no-backup] [--skip-tests]
-                        back up, refresh the stack from the release manifest,
-                        then health-test it
+                        back up, run any pending structural migrations, refresh
+                        the stack from the release manifest, then health-test it
   backup [--label L]    cold full backup of volumes, .env and compose file
   list-backups          show local backups
   rollback [--skip-tests] <id>

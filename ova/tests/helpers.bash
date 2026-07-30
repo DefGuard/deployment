@@ -73,6 +73,7 @@ seed_stack() {
 }
 
 # A file:// manifest, so upgrades can be exercised without network access.
+# $5, if given, is a JSON array literal for the "migrations" field.
 write_manifest() {
   cat > "$STACK_DIR/manifest.json" <<EOF
 {
@@ -80,11 +81,31 @@ write_manifest() {
   "core_tag": "${2:-9}",
   "proxy_tag": "${3:-9}",
   "gateway_tag": "${4:-9}",
-  "template_ref": "test-ref"
+  "template_ref": "test-ref",
+  "migrations": ${5:-[]}
 }
 EOF
   export DEFGUARD_OVA_MANIFEST_URL="file://$STACK_DIR/manifest.json"
   export DEFGUARD_OVA_SOURCE_DIR="$(cd "$OVA_DIR/.." && pwd)"
+}
+
+# Copies the real ova/files/* alongside a fake migrations/<version>.sh so
+# do_upgrade's fetch_ova_file picks it up, and points DEFGUARD_OVA_SOURCE_DIR
+# at the copy. Caller must write_manifest with matching "migrations" first (or
+# after - only DEFGUARD_OVA_SOURCE_DIR needs to be set last).
+stage_migration() {
+  local version="$1" body="$2"
+  MIGRATION_SOURCE_DIR="$(mktemp -d)"
+  mkdir -p "$MIGRATION_SOURCE_DIR/ova/files/migrations"
+  cp "$FILES_DIR/docker-compose.template.yaml" "$FILES_DIR/lib.sh" "$FILES_DIR/generate-compose.sh" \
+    "$MIGRATION_SOURCE_DIR/ova/files/"
+  printf '%s\n' "$body" > "$MIGRATION_SOURCE_DIR/ova/files/migrations/$version.sh"
+  export DEFGUARD_OVA_SOURCE_DIR="$MIGRATION_SOURCE_DIR"
+}
+
+teardown_migration_source() {
+  [ -n "${MIGRATION_SOURCE_DIR:-}" ] && rm -rf "$MIGRATION_SOURCE_DIR"
+  return 0
 }
 
 # Minimal .env so compose interpolation of the *_TAG variables succeeds.

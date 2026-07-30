@@ -23,6 +23,7 @@ teardown() {
   teardown_stub_docker
   teardown_ova_home
   teardown_stack
+  teardown_migration_source
 }
 
 @test "backup captures volumes, env, compose file and a matching checksum" {
@@ -196,6 +197,54 @@ teardown() {
   [ "$status" -eq 0 ]
   [ "$(ls -1 "$OVA_HOME/backups" | wc -l)" -eq 0 ]
   [ "$(jq -r '.backup_id' "$OVA_HOME/state.json")" = "none" ]
+}
+
+@test "upgrade runs a pending migration and records it in state.json" {
+  seed_stack core
+  write_manifest 5.0.0 5 5 5 '["5.0.0"]'
+  stage_migration 5.0.0 'echo "migrated $FROM_VERSION -> $TO_VERSION" > "$STACK_DIR/migration-ran"'
+
+  run bash "$CLI" upgrade --yes --skip-tests
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"running migration 5.0.0"* ]]
+  [ -f "$STACK_DIR/migration-ran" ]
+  [[ "$(cat "$STACK_DIR/migration-ran")" == "migrated unknown -> 5.0.0" ]]
+  [ "$(jq -r '.migrations_applied | join(",")' "$OVA_HOME/state.json")" = "5.0.0" ]
+}
+
+@test "upgrade does not re-run a migration already covered by the current version" {
+  seed_stack core
+  write_manifest 5.0.0 5 5 5 '["5.0.0"]'
+  stage_migration 5.0.0 'echo ran >> "$STACK_DIR/migration-ran"'
+  run bash "$CLI" upgrade --yes --skip-tests
+  [ "$status" -eq 0 ]
+  [ "$(wc -l < "$STACK_DIR/migration-ran")" -eq 1 ]
+  teardown_migration_source
+
+  write_manifest 6.0.0 6 6 6 '["5.0.0","6.0.0"]'
+  # Only 6.0.0.sh is staged; if 5.0.0 were (wrongly) re-fetched, the upgrade
+  # would fail outright since no such file exists here.
+  stage_migration 6.0.0 'echo ran >> "$STACK_DIR/migration-ran"'
+  run bash "$CLI" upgrade --yes --skip-tests
+  [ "$status" -eq 0 ]
+  [ "$(wc -l < "$STACK_DIR/migration-ran")" -eq 2 ]
+  [ "$(jq -r '.migrations_applied | join(",")' "$OVA_HOME/state.json")" = "6.0.0" ]
+}
+
+@test "a failing migration aborts the upgrade before tags or compose change" {
+  seed_stack core
+  write_manifest 5.0.0 5 5 5 '["5.0.0"]'
+  stage_migration 5.0.0 'exit 1'
+  before="$(sha256sum "$STACK_DIR/docker-compose.yml" | awk '{print $1}')"
+
+  run bash "$CLI" upgrade --yes --skip-tests
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"migration 5.0.0 failed"* ]]
+  [[ "$output" == *"rollback"* ]]
+  [ "$(sed -n 's/^DEFGUARD_CORE_TAG=//p' "$STACK_DIR/.env")" = "2" ] # untouched, seeded before the manifest's "5"
+  [ "$(sha256sum "$STACK_DIR/docker-compose.yml" | awk '{print $1}')" = "$before" ]
+  # a backup was taken before the migration ran, so rollback is possible
+  [ "$(ls -1 "$OVA_HOME/backups" | wc -l)" -eq 1 ]
 }
 
 @test "version reports installed and available versions" {
