@@ -137,6 +137,16 @@ teardown() {
   [ "$(cat "$INIT_DIR/.applied-profiles")" = "core" ]
 }
 
+@test "upgrade keeps certificate bind paths relative to the live stack" {
+  seed_stack
+  write_manifest
+  run bash "$CLI" upgrade --yes --skip-tests
+  [ "$status" -eq 0 ]
+  grep -Fq 'source: ./.volumes/certs/edge' "$STACK_DIR/docker-compose.yml"
+  grep -Fq 'source: ./.volumes/certs/gateway' "$STACK_DIR/docker-compose.yml"
+  ! grep -Fq '/staged-stack/.volumes/certs' "$STACK_DIR/docker-compose.yml"
+}
+
 @test "upgrade migrates a pre-simplification full OVA" {
   seed_legacy_stack full
   write_manifest 3.0.0 3 3 3
