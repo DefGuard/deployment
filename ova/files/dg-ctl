@@ -22,9 +22,55 @@ KEEP_BACKUPS="${KEEP_BACKUPS:-3}"
 HEALTH_TIMEOUT="${HEALTH_TIMEOUT:-180}"
 # Window used to catch a service that starts and then crash-loops.
 HEALTH_SETTLE="${HEALTH_SETTLE:-15}"
+FETCH_CONNECT_TIMEOUT="${FETCH_CONNECT_TIMEOUT:-10}"
+FETCH_TIMEOUT="${FETCH_TIMEOUT:-60}"
 
 WORK_DIR=""
-cleanup() { [ -n "$WORK_DIR" ] && rm -rf "$WORK_DIR"; return 0; }
+LOCK_FILE="$OVA_DIR/.dg-ctl.lock"
+LOCK_FD=""
+LOCK_DIR="$OVA_DIR/.dg-ctl.lock.d"
+LOCK_MODE=""
+ACTIVE_BACKUP_DIR=""
+BACKUP_ID_RESULT=""
+STACK_WAS_RUNNING=0
+STACK_QUIESCED=0
+LEAVE_STACK_STOPPED=0
+RECOVERY_BACKUP_ID=""
+RECOVERY_ACTIVE=0
+RECOVERY_IN_PROGRESS=0
+RESTORE_START_STACK=1
+
+cleanup() {
+  local status=$?
+  trap - EXIT
+
+  if [ "$status" -ne 0 ] && [ "$STACK_QUIESCED" = 1 ] && [ "$RECOVERY_IN_PROGRESS" = 0 ]; then
+    RECOVERY_IN_PROGRESS=1
+    if [ "$RECOVERY_ACTIVE" = 1 ] && [ -n "$RECOVERY_BACKUP_ID" ] && [ "$RECOVERY_BACKUP_ID" != "none" ]; then
+      warn "operation failed; attempting automatic rollback to $RECOVERY_BACKUP_ID"
+      RESTORE_START_STACK="$STACK_WAS_RUNNING"
+      if ( restore_backup "$RECOVERY_BACKUP_ID" ); then
+        STACK_QUIESCED=0
+      else
+        warn "automatic rollback failed; the stack may be stopped. Inspect Docker and the backup before retrying."
+      fi
+    elif [ "$STACK_WAS_RUNNING" = 1 ]; then
+      warn "operation failed; attempting to restart the previously running stack"
+      if ! compose up -d --remove-orphans; then
+        warn "could not restart the stack after the failed operation"
+      else
+        STACK_QUIESCED=0
+      fi
+    fi
+  fi
+
+  [ -n "$WORK_DIR" ] && rm -rf "$WORK_DIR"
+  [ "$LOCK_MODE" = mkdir ] && rm -rf "$LOCK_DIR"
+  if [ "$status" -ne 0 ] && [ -n "$ACTIVE_BACKUP_DIR" ] && [ ! -f "$ACTIVE_BACKUP_DIR/meta.json" ]; then
+    rm -rf "$ACTIVE_BACKUP_DIR"
+  fi
+  return "$status"
+}
 trap cleanup EXIT
 
 log()  { echo "[dg-ctl] $*"; }
@@ -40,11 +86,88 @@ need_root() {
   [ "$(id -u)" = "0" ] || die "must run as root (try: sudo $0 $*)"
 }
 
+acquire_lock() {
+  mkdir -p "$OVA_DIR"
+  if command -v flock >/dev/null 2>&1; then
+    exec {LOCK_FD}>"$LOCK_FILE"
+    flock -n "$LOCK_FD" || die "another dg-ctl operation is already running"
+    LOCK_MODE=flock
+  else
+    if ! mkdir "$LOCK_DIR" 2>/dev/null; then
+      local owner=""
+      [ -f "$LOCK_DIR/pid" ] && owner="$(cat "$LOCK_DIR/pid" 2>/dev/null || true)"
+      if [[ "$owner" =~ ^[0-9]+$ ]] && ! kill -0 "$owner" 2>/dev/null; then
+        rm -rf "$LOCK_DIR"
+        mkdir "$LOCK_DIR" 2>/dev/null \
+          || die "another dg-ctl operation is already running"
+      else
+        die "another dg-ctl operation is already running"
+      fi
+    fi
+    LOCK_MODE="mkdir"
+    printf '%s\n' "$$" >"$LOCK_DIR/pid"
+  fi
+}
+
+canonicalize_path() {
+  local suffix="" current="$1" parent base resolved
+  while [ "$current" != "/" ] && [[ "$current" == */ ]]; do current="${current%/}"; done
+  [ -n "$current" ] || current="/"
+  while [ ! -e "$current" ]; do
+    parent="$(dirname "$current")"
+    base="$(basename "$current")"
+    [ "$parent" != "$current" ] || return 1
+    suffix="/$base$suffix"
+    current="$parent"
+  done
+  [ -d "$current" ] || return 1
+  resolved="$(cd -P "$current" && pwd -P)" || return 1
+  printf '%s%s\n' "$resolved" "$suffix"
+}
+
+validate_safe_paths() {
+  [ ! -L "$STACK_DIR" ] || die "DEFGUARD_STACK_DIR may not be a symlink"
+  [ ! -L "$OVA_DIR" ] || die "DEFGUARD_OVA_DIR may not be a symlink"
+
+  local stack_real ova_real
+  stack_real="$(canonicalize_path "$STACK_DIR")" \
+    || die "DEFGUARD_STACK_DIR does not resolve to an existing directory"
+  ova_real="$(canonicalize_path "$OVA_DIR")" \
+    || die "DEFGUARD_OVA_DIR is not a valid path"
+  [ -d "$stack_real" ] || die "DEFGUARD_STACK_DIR is not a directory"
+  [ ! -e "$OVA_DIR" ] || [ -d "$ova_real" ] \
+    || die "DEFGUARD_OVA_DIR is not a directory"
+  [ "$stack_real" != "/" ] || die "DEFGUARD_STACK_DIR may not resolve to /"
+  [ "$ova_real" != "/" ] || die "DEFGUARD_OVA_DIR may not resolve to /"
+  case "$stack_real/" in
+    "$ova_real/"*) die "DEFGUARD_STACK_DIR and DEFGUARD_OVA_DIR may not overlap" ;;
+  esac
+  case "$ova_real/" in
+    "$stack_real/"*) die "DEFGUARD_STACK_DIR and DEFGUARD_OVA_DIR may not overlap" ;;
+  esac
+
+  STACK_DIR="$stack_real"
+  OVA_DIR="$ova_real"
+  BACKUPS_DIR="$OVA_DIR/backups"
+  STATE_FILE="$OVA_DIR/state.json"
+  COMPOSE_FILE="$STACK_DIR/docker-compose.yml"
+  ENV_FILE="$STACK_DIR/.env"
+  INIT_DIR="$STACK_DIR/init"
+  APPLIED_PROFILES_FILE="$INIT_DIR/.applied-profiles"
+  LOCK_FILE="$OVA_DIR/.dg-ctl.lock"
+  LOCK_DIR="$OVA_DIR/.dg-ctl.lock.d"
+}
+
 need_stack() {
   [ -f "$COMPOSE_FILE" ] || die "$COMPOSE_FILE not found; this does not look like a defguard OVA host"
   [ -f "$ENV_FILE" ] || die "$ENV_FILE not found"
   docker compose version >/dev/null 2>&1 || die "docker compose v2 is not available"
   command -v jq >/dev/null 2>&1 || die "jq is required"
+  command -v curl >/dev/null 2>&1 || die "curl is required"
+}
+
+need_zstd() {
+  command -v zstd >/dev/null 2>&1 || die "zstd is required for backups (apt-get install zstd)"
 }
 
 env_value() {
@@ -57,7 +180,8 @@ fetch() {
   case "$src" in
     file://*) cp "${src#file://}" "$dest" ;;
     /*)       cp "$src" "$dest" ;;
-    *)        curl -fsSL --retry 3 -o "$dest" "$src" ;;
+    *)        curl -fsSL --retry 3 --connect-timeout "$FETCH_CONNECT_TIMEOUT" \
+                --max-time "$FETCH_TIMEOUT" -o "$dest" "$src" ;;
   esac
 }
 
@@ -83,6 +207,69 @@ state_value() {
   jq -r --arg k "$1" '.[$k] // "unknown"' "$STATE_FILE" 2>/dev/null || echo "unknown"
 }
 
+valid_version() {
+  [[ "$1" =~ ^[0-9]+\.[0-9]+\.[0-9]+([-.][0-9A-Za-z.-]+)?$ ]]
+}
+
+valid_tag() {
+  [[ "$1" =~ ^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$ ]]
+}
+
+valid_ref() {
+  local ref="$1"
+  [[ "$ref" =~ ^[A-Za-z0-9._/@+-]+$ ]] || return 1
+  [[ "$ref" != /* && "$ref" != */ ]] || return 1
+  [[ "$ref" != *..* && "$ref" != *//* && "$ref" != *"@{"* ]] || return 1
+  [[ "$ref" != .* && "$ref" != */.* && "$ref" != *.lock ]] || return 1
+}
+
+valid_backup_id() {
+  [[ "$1" =~ ^[0-9]{8}-[0-9]{6}Z(-[A-Za-z0-9._-]+)*$ ]]
+}
+
+validate_manifest() {
+  local manifest="$1" v previous="" duplicate
+  jq -e '
+    type == "object" and
+    (.ova_version | type == "string") and
+    (.ova_version | test("^[0-9]+\\.[0-9]+\\.[0-9]+([-.][0-9A-Za-z.-]+)?$")) and
+    (.template_ref | type == "string") and
+    ((.migrations // []) | type == "array") and
+    all((.migrations // [])[]; type == "string" and test("^[0-9]+\\.[0-9]+\\.[0-9]+([-.][0-9A-Za-z.-]+)?$"))
+  ' <<<"$manifest" >/dev/null || die "manifest has an invalid schema or version"
+
+  while IFS= read -r v; do
+    [ -n "$v" ] || continue
+    valid_version "$v" || die "manifest contains invalid migration version: $v"
+    [ -z "$previous" ] || version_le "$previous" "$v" \
+      || die "manifest migrations are not in ascending order"
+    duplicate="$(jq -r --arg v "$v" '[.migrations[] | select(. == $v)] | length' <<<"$manifest")"
+    [ "$duplicate" = 1 ] || die "manifest contains duplicate migration: $v"
+    previous="$v"
+  done < <(jq -r '.migrations[]? // empty' <<<"$manifest")
+
+  local ref
+  ref="$(jq -r '.template_ref' <<<"$manifest")"
+  valid_ref "$ref" || die "manifest contains an invalid template ref"
+}
+
+resolve_template_ref() {
+  local ref="$1" response
+  valid_ref "$ref" || die "invalid template ref: $ref"
+  [[ "$OVA_REPO" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]] \
+    || die "invalid GitHub repository: $OVA_REPO"
+  if [ -n "$SOURCE_DIR" ] || [[ "$ref" =~ ^[0-9a-fA-F]{40}$ ]]; then
+    echo "$ref"
+    return 0
+  fi
+  response="$(curl -fsSL --retry 3 --connect-timeout "$FETCH_CONNECT_TIMEOUT" \
+    --max-time "$FETCH_TIMEOUT" -H 'Accept: application/vnd.github+json' \
+    "https://api.github.com/repos/$OVA_REPO/commits/$ref")" \
+    || die "could not resolve template ref $ref to an immutable commit"
+  jq -er '.sha | select(test("^[0-9a-fA-F]{40}$"))' <<<"$response" \
+    || die "GitHub returned no immutable commit for template ref $ref"
+}
+
 # "unknown" / "2.0-unknown" (state.json seeded before this field existed) sorts
 # as the oldest possible version, so every migration is considered pending.
 normalize_version() {
@@ -92,8 +279,87 @@ normalize_version() {
   esac
 }
 
+numeric_cmp() {
+  local left="$1" right="$2"
+  local LC_ALL=C
+
+  while [ "$left" != "0" ] && [ "${left#0}" != "$left" ]; do left="${left#0}"; done
+  while [ "$right" != "0" ] && [ "${right#0}" != "$right" ]; do right="${right#0}"; done
+  if [ "${#left}" -lt "${#right}" ]; then
+    echo -1
+  elif [ "${#left}" -gt "${#right}" ]; then
+    echo 1
+  elif [[ "$left" < "$right" ]]; then
+    echo -1
+  elif [[ "$left" > "$right" ]]; then
+    echo 1
+  else
+    echo 0
+  fi
+}
+
+version_cmp() {
+  local left="$1" right="$2" left_base right_base left_pre right_pre
+  local i max li ri cmp
+  local -a lparts=() rparts=()
+
+  left_base="${left%%-*}"
+  right_base="${right%%-*}"
+  left_pre=""
+  right_pre=""
+  [[ "$left" == *-* ]] && left_pre="${left#*-}"
+  [[ "$right" == *-* ]] && right_pre="${right#*-}"
+
+  IFS=. read -r -a lparts <<<"$left_base"
+  IFS=. read -r -a rparts <<<"$right_base"
+  for i in 0 1 2; do
+    cmp="$(numeric_cmp "${lparts[$i]}" "${rparts[$i]}")"
+    if [ "$cmp" -lt 0 ]; then
+      echo -1
+      return 0
+    elif [ "$cmp" -gt 0 ]; then
+      echo 1
+      return 0
+    fi
+  done
+
+  # A release is newer than any pre-release of the same core version.
+  if [ -z "$left_pre" ] && [ -n "$right_pre" ]; then echo 1; return 0; fi
+  if [ -n "$left_pre" ] && [ -z "$right_pre" ]; then echo -1; return 0; fi
+  [ -z "$left_pre" ] && { echo 0; return 0; }
+
+  IFS=. read -r -a lparts <<<"$left_pre"
+  IFS=. read -r -a rparts <<<"$right_pre"
+  max="${#lparts[@]}"
+  [ "${#rparts[@]}" -gt "$max" ] && max="${#rparts[@]}"
+  for ((i = 0; i < max; i++)); do
+    [ "$i" -lt "${#lparts[@]}" ] || { echo -1; return 0; }
+    [ "$i" -lt "${#rparts[@]}" ] || { echo 1; return 0; }
+    li="${lparts[$i]}"
+    ri="${rparts[$i]}"
+    if [[ "$li" =~ ^[0-9]+$ && "$ri" =~ ^[0-9]+$ ]]; then
+      cmp="$(numeric_cmp "$li" "$ri")"
+      if [ "$cmp" -lt 0 ]; then echo -1; return 0; fi
+      if [ "$cmp" -gt 0 ]; then echo 1; return 0; fi
+    elif [[ "$li" =~ ^[0-9]+$ ]]; then
+      echo -1
+      return 0
+    elif [[ "$ri" =~ ^[0-9]+$ ]]; then
+      echo 1
+      return 0
+    elif [[ "$li" < "$ri" ]]; then
+      echo -1
+      return 0
+    elif [[ "$li" > "$ri" ]]; then
+      echo 1
+      return 0
+    fi
+  done
+  echo 0
+}
+
 version_le() {
-  [ "$1" = "$(printf '%s\n%s\n' "$1" "$2" | sort -V | head -n1)" ]
+  [ "$(version_cmp "$1" "$2")" -le 0 ]
 }
 
 # resolve_pending_migrations FROM TO MANIFEST - prints, one per line, the
@@ -108,36 +374,57 @@ resolve_pending_migrations() {
     if ! version_le "$v" "$from" && version_le "$v" "$to"; then
       echo "$v"
     fi
-  done < <(jq -r '.migrations[]? // empty' <<<"$manifest" | sort -V)
+  done < <(jq -r '.migrations[]? // empty' <<<"$manifest")
 }
 
 # Prints the profiles this stack was generated with, one per line. The
 # generated compose file has no profiles: key left in it, so this has to come
 # from what generate-compose.sh recorded.
 resolve_applied_profiles() {
+  local -a profiles=() words=() unique=()
+  local line header services service p
+
   if [ -s "$APPLIED_PROFILES_FILE" ]; then
-    sed '/^$/d' "$APPLIED_PROFILES_FILE"
-    return 0
+    while IFS= read -r line; do
+      [[ -n "${line//[[:space:]]/}" ]] || continue
+      read -r -a words <<<"$line"
+      profiles+=("${words[@]}")
+    done < "$APPLIED_PROFILES_FILE"
+  else
+    # OVAs built before .applied-profiles existed: the generator's header comment.
+    header="$(sed -n 's/^# Selected profiles: //p' "$COMPOSE_FILE" | head -n1)"
+    if [ -n "$header" ]; then
+      read -r -a profiles <<<"$header"
+    else
+      # Last resort: infer from the service list.
+      services="$(compose config --services 2>/dev/null)" \
+        || die "could not inspect the Compose service list"
+      for service in $services; do
+        case "$service" in
+          core|db) profiles+=(core) ;;
+          edge) profiles+=(edge) ;;
+          gateway) profiles+=(gateway) ;;
+          dockge) profiles+=(dockge) ;;
+        esac
+      done
+    fi
   fi
 
-  # OVAs built before .applied-profiles existed: the generator's header comment.
-  local header
-  header="$(sed -n 's/^# Selected profiles: //p' "$COMPOSE_FILE" | head -n1)"
-  if [ -n "$header" ]; then
-    tr '[:space:]' '\n' <<<"$header" | sed '/^$/d'
-    return 0
-  fi
-
-  # Last resort: infer from the service list.
-  local services profiles=()
-  services="$(compose config --services 2>/dev/null | tr '\n' ' ')" || true
-  case " $services " in *" core "*) profiles+=(core) ;; esac
-  case " $services " in *" edge "*) profiles+=(edge) ;; esac
-  case " $services " in *" gateway "*) profiles+=(gateway) ;; esac
-  case " $services " in *" dockge "*) profiles+=(dockge) ;; esac
   [ "${#profiles[@]}" -gt 0 ] \
     || die "cannot determine which profiles this stack runs; create $APPLIED_PROFILES_FILE (one profile per line) and retry"
-  printf '%s\n' "${profiles[@]}"
+
+  local -A seen=()
+  for p in "${profiles[@]}"; do
+    case "$p" in
+      core|edge|gateway|dockge) ;;
+      *) die "unknown applied profile '$p'; expected core, edge, gateway, or dockge" ;;
+    esac
+    if [ -z "${seen[$p]+x}" ]; then
+      unique+=("$p")
+      seen[$p]=1
+    fi
+  done
+  printf '%s\n' "${unique[@]}"
 }
 
 has_profile() {
@@ -150,13 +437,65 @@ has_profile() {
 backup_id_now() {
   local label="${1:-}"
   local id
+  [ -z "$label" ] || [[ "$label" =~ ^[A-Za-z0-9._-]+$ ]] \
+    || die "backup label may contain only letters, numbers, '.', '_' and '-'"
   id="$(date -u +%Y%m%d-%H%M%SZ)"
   [ -n "$label" ] && id="$id-$label"
   echo "$id"
 }
 
+stack_has_running() {
+  local output running
+  output="$(compose ps --format json 2>/dev/null)" || return 2
+  [ -n "$output" ] || return 1
+  running="$(jq -rs 'flatten | any(.[]?; .State == "running")' <<<"$output")" \
+    || return 2
+  [ "$running" = true ]
+}
+
+assert_stack_stopped() {
+  local output running
+  output="$(compose ps --format json 2>/dev/null)" \
+    || die "could not verify that the Compose stack stopped"
+  [ -z "$output" ] && return 0
+  running="$(jq -rs 'flatten | any(.[]?; .State == "running")' <<<"$output")" \
+    || die "could not parse the Compose container state"
+  [ "$running" != true ] \
+    || die "Compose still has running containers; refusing to replace volumes"
+}
+
+quiesce_stack() {
+  STACK_WAS_RUNNING=0
+  if stack_has_running; then
+    STACK_WAS_RUNNING=1
+  else
+    case "$?" in
+      1) ;;
+      *) die "could not inspect the running Compose stack" ;;
+    esac
+  fi
+  STACK_QUIESCED=1
+  compose stop >&2
+  assert_stack_stopped
+}
+
+atomic_install() {
+  local src="$1" dest="$2" mode="$3" owner="${4:-}" group="${5:-}" tmp
+  local -a install_args=(-m "$mode")
+  tmp="$(mktemp "${dest}.tmp.XXXXXX")"
+  [ -z "$owner" ] || install_args+=(-o "$owner")
+  [ -z "$group" ] || install_args+=(-g "$group")
+  if ! install "${install_args[@]}" "$src" "$tmp"; then
+    rm -f "$tmp"
+    return 1
+  fi
+  mv -f "$tmp" "$dest"
+}
+
 do_backup() {
-  local label="${1:-}" id dir profiles digests checksum
+  local label="${1:-}" id dir profiles digests
+  local volumes_sha stack_sha ova_sha free_kb need_kb total_kb backup_kb
+  need_zstd
   id="$(backup_id_now "$label")"
   dir="$BACKUPS_DIR/$id"
   # Same-second backups (e.g. two upgrades run back to back) would otherwise
@@ -169,15 +508,20 @@ do_backup() {
   fi
   mkdir -p "$BACKUPS_DIR"
 
-  local free_kb need_kb
   free_kb="$(df -Pk "$OVA_DIR" | awk 'NR==2 {print $4}')"
-  need_kb="$(du -sk "$STACK_DIR/.volumes" 2>/dev/null | awk '{print $1}')"
-  need_kb="${need_kb:-0}"
+  total_kb="$(du -sk "$STACK_DIR" "$OVA_DIR" 2>/dev/null | awk '{sum += $1} END {print sum}')"
+  backup_kb="$(du -sk "$BACKUPS_DIR" 2>/dev/null | awk '{sum += $1} END {print sum}')"
+  [[ "$free_kb" =~ ^[0-9]+$ ]] || die "could not determine free space in $OVA_DIR"
+  [[ "$total_kb" =~ ^[0-9]+$ ]] || die "could not estimate backup size"
+  [[ "$backup_kb" =~ ^[0-9]+$ ]] || die "could not estimate existing backup size"
+  need_kb=$((total_kb - backup_kb + 1048576))
+  [ "$need_kb" -gt 0 ] || need_kb=1048576
   if [ "$free_kb" -lt "$need_kb" ]; then
     die "not enough free space in $OVA_DIR: ${free_kb}K free, ${need_kb}K of volumes to archive"
   fi
 
   mkdir -p "$dir"
+  ACTIVE_BACKUP_DIR="$dir"
   profiles="$(resolve_applied_profiles)"
 
   # Digests first: they are only readable while the containers/images are known
@@ -186,7 +530,7 @@ do_backup() {
   echo "$digests" > "$dir/image-digests"
 
   log "stopping stack for a consistent backup" >&2
-  compose stop >&2
+  quiesce_stack
 
   log "archiving volumes" >&2
   if [ -d "$STACK_DIR/.volumes" ]; then
@@ -195,7 +539,20 @@ do_backup() {
     warn ".volumes does not exist; archiving an empty volume set"
     tar --zstd -cf "$dir/volumes.tar.zst" -C "$STACK_DIR" --files-from /dev/null
   fi
-  checksum="$(sha256sum "$dir/volumes.tar.zst" | awk '{print $1}')"
+  log "archiving stack structure" >&2
+  tar --zstd -cf "$dir/stack-structure.tar.zst" \
+    --exclude='./.volumes' -C "$STACK_DIR" .
+  log "archiving OVA structure" >&2
+  tar --zstd -cf "$dir/ova-structure.tar.zst" \
+    --exclude='./backups' \
+    --exclude='./.dg-ctl.lock' \
+    --exclude='./.dg-ctl.lock.d' \
+    --exclude='./dg-ctl' \
+    --exclude='./install-dg-ctl.sh' \
+    -C "$OVA_DIR" .
+  volumes_sha="$(sha256sum "$dir/volumes.tar.zst" | awk '{print $1}')"
+  stack_sha="$(sha256sum "$dir/stack-structure.tar.zst" | awk '{print $1}')"
+  ova_sha="$(sha256sum "$dir/ova-structure.tar.zst" | awk '{print $1}')"
 
   cp "$ENV_FILE" "$dir/env"
   chmod 600 "$dir/env"
@@ -203,6 +560,7 @@ do_backup() {
   printf '%s\n' "$profiles" > "$dir/applied-profiles"
 
   jq -n \
+    --argjson format_version 2 \
     --arg id "$id" \
     --arg label "$label" \
     --arg created "$(date -u +%FT%TZ)" \
@@ -211,24 +569,39 @@ do_backup() {
     --arg core "$(env_value DEFGUARD_CORE_TAG)" \
     --arg proxy "$(env_value DEFGUARD_PROXY_TAG)" \
     --arg gateway "$(env_value DEFGUARD_GATEWAY_TAG)" \
-    --arg checksum "$checksum" \
-    '{id: $id, label: $label, created: $created, host: $host, ova_version: $ova_version,
+    --arg volumes_sha "$volumes_sha" \
+    --arg stack_sha "$stack_sha" \
+    --arg ova_sha "$ova_sha" \
+    '{format_version: $format_version, id: $id, label: $label, created: $created, host: $host, ova_version: $ova_version,
       tags: {core: $core, proxy: $proxy, gateway: $gateway},
-      volumes_sha256: $checksum}' > "$dir/meta.json"
+      volumes_sha256: $volumes_sha, stack_sha256: $stack_sha, ova_sha256: $ova_sha}' > "$dir/meta.json"
 
+  if [ "$LEAVE_STACK_STOPPED" != 1 ]; then
+    if [ "$STACK_WAS_RUNNING" = 1 ]; then
+      compose up -d --remove-orphans
+    fi
+    STACK_QUIESCED=0
+  fi
   log "backup written to $dir" >&2
+  BACKUP_ID_RESULT="$id"
+  ACTIVE_BACKUP_DIR=""
   echo "$id"
 }
 
 prune_backups() {
-  local keep="$KEEP_BACKUPS" all old
+  local keep="$KEEP_BACKUPS" all old b
   [ "$keep" -gt 0 ] 2>/dev/null || return 0
-  # Backup ids are generated timestamps, so ls is safe here.
-  # shellcheck disable=SC2012
-  mapfile -t all < <(ls -1 "$BACKUPS_DIR" 2>/dev/null | LC_ALL=C sort)
+  local listing
+  listing="$(find "$BACKUPS_DIR" -mindepth 1 -maxdepth 1 -type d -exec basename {} \; \
+    | LC_ALL=C sort)" || die "could not enumerate backups"
+  all=()
+  while IFS= read -r b; do
+    [ -n "$b" ] || continue
+    valid_backup_id "$b" || { warn "ignoring invalid backup directory $b"; continue; }
+    all+=("$b")
+  done <<<"$listing"
   [ "${#all[@]}" -gt "$keep" ] || return 0
   old=("${all[@]:0:${#all[@]}-keep}")
-  local b
   for b in "${old[@]}"; do
     log "pruning old backup $b (KEEP_BACKUPS=$keep)"
     rm -rf "${BACKUPS_DIR:?}/${b:?}"
@@ -237,55 +610,178 @@ prune_backups() {
 
 do_list_backups() {
   [ -d "$BACKUPS_DIR" ] || { log "no backups yet"; return 0; }
-  local b any=0
+  local b any=0 listing
+  listing="$(find "$BACKUPS_DIR" -mindepth 1 -maxdepth 1 -type d -exec basename {} \; \
+    | LC_ALL=C sort)" || die "could not enumerate backups"
   printf '%-28s %-22s %-12s %s\n' ID CREATED OVA_VERSION SIZE
-  # shellcheck disable=SC2012
-  for b in $(ls -1 "$BACKUPS_DIR" 2>/dev/null | LC_ALL=C sort); do
+  while IFS= read -r b; do
+    [ -n "$b" ] || continue
+    valid_backup_id "$b" || { warn "ignoring invalid backup directory $b"; continue; }
     any=1
     printf '%-28s %-22s %-12s %s\n' \
       "$b" \
       "$(jq -r '.created // "?"' "$BACKUPS_DIR/$b/meta.json" 2>/dev/null || echo '?')" \
       "$(jq -r '.ova_version // "?"' "$BACKUPS_DIR/$b/meta.json" 2>/dev/null || echo '?')" \
       "$(du -sh "$BACKUPS_DIR/$b" | awk '{print $1}')"
-  done
+  done <<<"$listing"
   [ "$any" = 1 ] || log "no backups yet"
 }
 
+backup_format() {
+  local dir="$1"
+  jq -r '.format_version // 1' "$dir/meta.json" 2>/dev/null \
+    || die "backup metadata is not valid JSON"
+}
+
+verify_backup() {
+  local id="$1" dir format want have
+  dir="$BACKUPS_DIR/$id"
+  if [ -z "$id" ] || ! valid_backup_id "$id"; then
+    die "invalid backup id: $id"
+  fi
+  [ -d "$dir" ] || die "no such backup: $id"
+  for f in volumes.tar.zst env docker-compose.yml image-digests meta.json; do
+    [ -f "$dir/$f" ] || die "backup $id is incomplete: missing $f"
+  done
+
+  format="$(backup_format "$dir")"
+  [[ "$format" =~ ^[12]$ ]] || die "backup $id has an unsupported format"
+  want="$(jq -r '.volumes_sha256 // ""' "$dir/meta.json")"
+  have="$(sha256sum "$dir/volumes.tar.zst" | awk '{print $1}')"
+  [ -n "$want" ] || die "backup $id has no volume checksum; refusing to restore"
+  [ "$want" = "$have" ] \
+    || die "backup $id is corrupt: volumes.tar.zst checksum mismatch"
+
+  if [ "$format" -ge 2 ]; then
+    local archive key
+    for archive in stack-structure.tar.zst ova-structure.tar.zst; do
+      [ -f "$dir/$archive" ] || die "backup $id is incomplete: missing $archive"
+      case "$archive" in
+        stack-structure.tar.zst) key=stack_sha256 ;;
+        ova-structure.tar.zst) key=ova_sha256 ;;
+      esac
+      want="$(jq -r --arg k "$key" '.[$k] // ""' "$dir/meta.json")"
+      have="$(sha256sum "$dir/$archive" | awk '{print $1}')"
+      [ -n "$want" ] || die "backup $id has no checksum for $archive"
+      [ "$want" = "$have" ] \
+        || die "backup $id is corrupt: $archive checksum mismatch"
+    done
+  fi
+}
+
+restore_image_digests() {
+  local file="$1" rows row repository tag digest image_id source
+  [ -f "$file" ] || {
+    warn "backup is missing image-digests; image identity cannot be verified"
+    return 0
+  }
+
+  rows="$(jq -c 'if type == "array" then .[] else . end' "$file" 2>/dev/null)" \
+    || die "backup image-digests is not valid JSON"
+  while IFS= read -r row; do
+    [ -n "$row" ] || continue
+    repository="$(jq -r '.Repository // empty' <<<"$row")"
+    tag="$(jq -r '.Tag // empty' <<<"$row")"
+    digest="$(jq -r '.Digest // empty' <<<"$row")"
+    image_id="$(jq -r '.ID // empty' <<<"$row")"
+    [ -n "$repository" ] && [ "$repository" != "<none>" ] || continue
+    [ -n "$tag" ] && [ "$tag" != "<none>" ] || continue
+
+    if [[ "$digest" =~ ^sha256:[0-9a-fA-F]{64}$ ]]; then
+      source="$repository@$digest"
+      if ! docker image inspect "$source" >/dev/null 2>&1; then
+        docker pull "$source" >/dev/null \
+          || die "could not retrieve image $source required by the backup"
+      fi
+    elif [[ "$image_id" =~ ^sha256:[0-9a-fA-F]{64}$ ]]; then
+      source="$image_id"
+      docker image inspect "$source" >/dev/null 2>&1 \
+        || die "image $source required by the backup is not available locally"
+    else
+      die "backup has no restorable image digest for $repository:$tag"
+    fi
+    docker image tag "$source" "$repository:$tag" >/dev/null \
+      || die "could not restore image tag $repository:$tag from the backup"
+  done <<<"$rows"
+}
+
+restore_backup() {
+  local id="$1" dir="$BACKUPS_DIR/$1" format
+  need_zstd
+  verify_backup "$id"
+  format="$(backup_format "$dir")"
+
+  log "restoring backup $id"
+  STACK_QUIESCED=1
+  compose stop || die "could not stop the Compose stack for rollback"
+  assert_stack_stopped
+  compose down --remove-orphans \
+    || die "could not remove the current Compose stack for rollback"
+
+  if [ "$format" -ge 2 ]; then
+    [ "$STACK_DIR" != "/" ] && [ "$OVA_DIR" != "/" ] \
+      || die "refusing to restore into /"
+
+    # Structural archives are complete snapshots of the migration-owned
+    # directories. Removing current non-volume contents also removes files
+    # introduced by a failed migration that did not exist in the backup.
+    find "$STACK_DIR" -mindepth 1 -maxdepth 1 ! -name .volumes \
+      -exec rm -rf -- {} + \
+      || die "could not clear the current stack structure for rollback"
+    rm -rf "$STACK_DIR/.volumes" \
+      || die "could not clear the current stack volumes for rollback"
+    tar --zstd -xf "$dir/stack-structure.tar.zst" -C "$STACK_DIR" \
+      || die "could not restore the stack structure from backup"
+    tar --zstd -xf "$dir/volumes.tar.zst" -C "$STACK_DIR" \
+      || die "could not restore the volumes from backup"
+
+    find "$OVA_DIR" -mindepth 1 -maxdepth 1 \
+      ! -name backups ! -name .dg-ctl.lock ! -name .dg-ctl.lock.d ! -name dg-ctl \
+      ! -name install-dg-ctl.sh -exec rm -rf -- {} + \
+      || die "could not clear the current OVA structure for rollback"
+    tar --zstd -xf "$dir/ova-structure.tar.zst" -C "$OVA_DIR" \
+      || die "could not restore the OVA structure from backup"
+    [ ! -f "$STATE_FILE" ] || chmod 600 "$STATE_FILE" \
+      || die "could not secure restored state.json"
+  else
+    warn "backup $id uses the legacy format; structural migration files and state cannot be restored"
+    rm -rf "$STACK_DIR/.volumes" \
+      || die "could not clear the current stack volumes for rollback"
+    tar --zstd -xf "$dir/volumes.tar.zst" -C "$STACK_DIR" \
+      || die "could not restore the volumes from backup"
+    atomic_install "$dir/env" "$ENV_FILE" 600 \
+      || die "could not restore the stack environment from backup"
+    atomic_install "$dir/docker-compose.yml" "$COMPOSE_FILE" 640 \
+      || die "could not restore the Compose file from backup"
+    if [ -f "$dir/applied-profiles" ]; then
+      mkdir -p "$INIT_DIR"
+      atomic_install "$dir/applied-profiles" "$APPLIED_PROFILES_FILE" 640 \
+        || die "could not restore applied profiles from backup"
+    fi
+  fi
+
+  restore_image_digests "$dir/image-digests"
+  if [ "$RESTORE_START_STACK" = 1 ]; then
+    compose up -d --remove-orphans \
+      || die "could not start the restored Compose stack"
+    STACK_QUIESCED=0
+  else
+    log "backup restored; leaving the stack stopped because it was stopped before the failed operation"
+  fi
+}
+
 do_rollback() {
-  local id="" skip_tests=0 dir
+  local id="" skip_tests=0
   while [ $# -gt 0 ]; do
     case "$1" in
       --skip-tests) skip_tests=1; shift ;;
       -*) die "unknown option for rollback: $1" ;;
-      *) id="$1"; shift ;;
+      *) [ -z "$id" ] || die "rollback accepts exactly one backup id"; id="$1"; shift ;;
     esac
   done
   [ -n "$id" ] || die "usage: dg-ctl rollback [--skip-tests] <backup-id> (see: dg-ctl list-backups)"
-  dir="$BACKUPS_DIR/$id"
-  [ -d "$dir" ] || die "no such backup: $id"
-  for f in volumes.tar.zst env docker-compose.yml meta.json; do
-    [ -f "$dir/$f" ] || die "backup $id is incomplete: missing $f"
-  done
 
-  # Verify before deleting anything.
-  local want have
-  want="$(jq -r '.volumes_sha256 // ""' "$dir/meta.json")"
-  have="$(sha256sum "$dir/volumes.tar.zst" | awk '{print $1}')"
-  [ -n "$want" ] || die "backup $id has no checksum recorded; refusing to restore"
-  [ "$want" = "$have" ] || die "backup $id is corrupt: volumes.tar.zst checksum mismatch"
-
-  log "rolling back to $id"
-  compose stop || true
-  compose down --remove-orphans || true
-
-  rm -rf "$STACK_DIR/.volumes"
-  tar --zstd -xf "$dir/volumes.tar.zst" -C "$STACK_DIR"
-  install -m 600 "$dir/env" "$ENV_FILE"
-  cp "$dir/docker-compose.yml" "$COMPOSE_FILE"
-  [ -f "$dir/applied-profiles" ] && { mkdir -p "$INIT_DIR"; cp "$dir/applied-profiles" "$APPLIED_PROFILES_FILE"; }
-
-  compose up -d --remove-orphans
-
+  restore_backup "$id"
   if [ "$skip_tests" = 1 ]; then
     log "rollback to $id complete; run '$0 test' when the stack has settled"
   elif do_test; then
@@ -312,6 +808,7 @@ check() {
 }
 
 retry_until() {
+  [[ "$HEALTH_TIMEOUT" =~ ^[0-9]+$ ]] || return 1
   local deadline=$(( $(date +%s) + HEALTH_TIMEOUT ))
   while :; do
     "$@" && return 0
@@ -330,8 +827,11 @@ service_running() {
 restart_count() {
   local svc="$1" cid
   cid="$(compose ps -q "$svc" 2>/dev/null | head -n1)"
-  [ -n "$cid" ] || { echo -1; return 0; }
-  docker inspect -f '{{.RestartCount}}' "$cid" 2>/dev/null || echo -1
+  [ -n "$cid" ] || return 1
+  local count
+  count="$(docker inspect -f '{{.RestartCount}}' "$cid" 2>/dev/null)" || return 1
+  [[ "$count" =~ ^[0-9]+$ ]] || return 1
+  printf '%s\n' "$count"
 }
 
 core_health() { curl -fsS http://localhost:8000/api/v1/health >/dev/null 2>&1; }
@@ -346,18 +846,35 @@ db_ready() {
 edge_grpc_published() { compose port edge 50051 >/dev/null 2>&1; }
 
 no_fatal_logs() {
-  local tag="$1" since="$2"
+  local tag="$1" since="$2" logs
   command -v journalctl >/dev/null 2>&1 || return 0
-  ! journalctl -t "$tag" --since "$since" --no-pager 2>/dev/null \
-    | grep -Eq 'FATAL|panicked at|thread .* panicked'
+  logs="$(journalctl -t "$tag" --since "$since" --no-pager 2>/dev/null)" || return 1
+  ! grep -Eq 'FATAL|panicked at|thread .* panicked' <<<"$logs"
 }
 
 # do_test [since] - since is a journalctl timestamp bounding the log scan.
 do_test() {
   local since="${1:--5 min}"
-  local -a profiles services
-  mapfile -t profiles < <(resolve_applied_profiles)
-  mapfile -t services < <(compose config --services)
+  local -a profiles=() services=()
+  local profile_text service_text line
+
+  profile_text="$(resolve_applied_profiles)" || {
+    log "health checks could not resolve applied profiles"
+    return 1
+  }
+  service_text="$(compose config --services)" || {
+    log "health checks could not inspect Compose services"
+    return 1
+  }
+  while IFS= read -r line; do
+    [ -n "$line" ] && profiles+=("$line")
+  done <<<"$profile_text"
+  while IFS= read -r line; do
+    [ -n "$line" ] && services+=("$line")
+  done <<<"$service_text"
+  [ "${#profiles[@]}" -gt 0 ] || { log "health checks resolved no profiles"; return 1; }
+  [ "${#services[@]}" -gt 0 ] || { log "health checks resolved no Compose services"; return 1; }
+  [[ "$HEALTH_SETTLE" =~ ^[0-9]+$ ]] || { log "HEALTH_SETTLE must be a non-negative integer"; return 1; }
 
   log "health checks (profiles: ${profiles[*]})"
   local failed=0 svc
@@ -365,7 +882,10 @@ do_test() {
   local -A before=()
   for svc in "${services[@]}"; do
     check "$svc is running" retry_until service_running "$svc" || failed=1
-    before[$svc]="$(restart_count "$svc")"
+    if ! before[$svc]="$(restart_count "$svc")"; then
+      echo "  FAIL  $svc restart count is readable"
+      failed=1
+    fi
   done
 
   if has_profile core "${profiles[@]}"; then
@@ -388,8 +908,12 @@ do_test() {
   sleep "$HEALTH_SETTLE"
   for svc in "${services[@]}"; do
     local now
-    now="$(restart_count "$svc")"
-    check "$svc did not restart" [ "$now" = "${before[$svc]}" ] || failed=1
+    if now="$(restart_count "$svc")"; then
+      check "$svc did not restart" [ "$now" = "${before[$svc]}" ] || failed=1
+    else
+      echo "  FAIL  $svc restart count is readable"
+      failed=1
+    fi
   done
 
   for svc in "${services[@]}"; do
@@ -401,12 +925,22 @@ do_test() {
 }
 
 set_env_tag() {
-  local key="$1" value="$2"
-  if grep -q "^$key=" "$ENV_FILE"; then
-    sed -i.bak "s|^$key=.*|$key=$value|" "$ENV_FILE" && rm -f "$ENV_FILE.bak"
-  else
-    printf '%s=%s\n' "$key" "$value" >> "$ENV_FILE"
+  local file="$1" key="$2" value="$3" tmp found=0 line
+  valid_tag "$value" || die "invalid Docker image tag for $key: $value"
+  tmp="$(mktemp "${file}.tmp.XXXXXX")"
+  while IFS= read -r line || [ -n "$line" ]; do
+    if [[ "$line" == "$key="* ]]; then
+      printf '%s=%s\n' "$key" "$value" >>"$tmp"
+      found=1
+    else
+      printf '%s\n' "$line" >>"$tmp"
+    fi
+  done <"$file"
+  if [ "$found" = 0 ]; then
+    printf '%s=%s\n' "$key" "$value" >>"$tmp"
   fi
+  chmod 600 "$tmp"
+  mv -f "$tmp" "$file"
 }
 
 do_upgrade() {
@@ -426,25 +960,48 @@ do_upgrade() {
     esac
   done
 
-  command -v zstd >/dev/null 2>&1 || die "zstd is required for backups (apt-get install zstd)"
+  [ "$skip_backup" = 1 ] || need_zstd
 
-  local manifest ova_version
+  local manifest ova_version resolved_ref from_version
   manifest="$(read_manifest)"
-  ova_version="$(jq -r '.ova_version // "unknown"' <<<"$manifest")"
-  : "${ref:=$(jq -r '.template_ref // "main"' <<<"$manifest")}"
+  validate_manifest "$manifest"
+  ova_version="$(jq -r '.ova_version' <<<"$manifest")"
+  : "${ref:=$(jq -r '.template_ref // "ova-upgrade-process"' <<<"$manifest")}"
   : "${core_tag:=$(jq -r '.core_tag // empty' <<<"$manifest")}"
   : "${proxy_tag:=$(jq -r '.proxy_tag // empty' <<<"$manifest")}"
   : "${gateway_tag:=$(jq -r '.gateway_tag // empty' <<<"$manifest")}"
-  [ -n "$core_tag" ] && [ -n "$proxy_tag" ] && [ -n "$gateway_tag" ] \
-    || die "manifest is missing image tags and none were given on the command line"
+  valid_ref "$ref" || die "invalid template ref: $ref"
+  valid_tag "$core_tag" || die "invalid Docker image tag for DEFGUARD_CORE_TAG: $core_tag"
+  valid_tag "$proxy_tag" || die "invalid Docker image tag for DEFGUARD_PROXY_TAG: $proxy_tag"
+  valid_tag "$gateway_tag" || die "invalid Docker image tag for DEFGUARD_GATEWAY_TAG: $gateway_tag"
 
-  local -a profiles
-  mapfile -t profiles < <(resolve_applied_profiles)
+  if [ -f "$STATE_FILE" ]; then
+    jq -e 'type == "object" and (.ova_version? | type == "string")' "$STATE_FILE" \
+      >/dev/null || die "$STATE_FILE is corrupt; refusing to guess the installed version"
+  fi
+  from_version="$(state_value ova_version)"
+  if [[ "$from_version" != "unknown" && "$from_version" != *-unknown* ]]; then
+    valid_version "$from_version" \
+      || die "installed OVA version is invalid: $from_version"
+    if version_le "$ova_version" "$from_version" && [ "$ova_version" != "$from_version" ]; then
+      die "target OVA version $ova_version is older than installed version $from_version"
+    fi
+  fi
+
+  resolved_ref="$(resolve_template_ref "$ref")"
+
+  local -a profiles=()
+  local profile_text profile_line
+  profile_text="$(resolve_applied_profiles)" || die "could not resolve applied profiles"
+  while IFS= read -r profile_line; do
+    [ -n "$profile_line" ] && profiles+=("$profile_line")
+  done <<<"$profile_text"
+  [ "${#profiles[@]}" -gt 0 ] || die "no applied profiles were resolved"
 
   cat <<EOF
 [dg-ctl] upgrade plan
   profiles:  ${profiles[*]}
-  template:  $ref (from $OVA_REPO)
+  template:  $resolved_ref (from $OVA_REPO)
   core:      $(env_value DEFGUARD_CORE_TAG) -> $core_tag
   proxy:     $(env_value DEFGUARD_PROXY_TAG) -> $proxy_tag
   gateway:   $(env_value DEFGUARD_GATEWAY_TAG) -> $gateway_tag
@@ -458,16 +1015,21 @@ EOF
   WORK_DIR="$(mktemp -d)"
   local work="$WORK_DIR"
   local new_init="$work/init"
+  local staged_stack="$work/staged-stack"
+  local new_env="$work/.env"
+  local staged_compose="$staged_stack/docker-compose.yml"
   mkdir -p "$new_init"
 
-  log "fetching compose template and generator at $ref"
+  log "fetching compose template and generator at $resolved_ref"
   local f
   for f in docker-compose.template.yaml lib.sh generate-compose.sh; do
-    fetch_ova_file "$ref" "$f" "$new_init/$f" || die "could not fetch ova/files/$f at ref $ref"
+    fetch_ova_file "$resolved_ref" "$f" "$new_init/$f" \
+      || die "could not fetch ova/files/$f at ref $resolved_ref"
+  done
+  for f in lib.sh generate-compose.sh; do
+    bash -n "$new_init/$f" || die "fetched ova/files/$f does not parse"
   done
 
-  local from_version
-  from_version="$(state_value ova_version)"
   local -a pending_migrations
   mapfile -t pending_migrations < <(resolve_pending_migrations "$from_version" "$ova_version" "$manifest")
   if [ "${#pending_migrations[@]}" -gt 0 ]; then
@@ -475,29 +1037,57 @@ EOF
     mkdir -p "$work/migrations"
     local m
     for m in "${pending_migrations[@]}"; do
-      fetch_ova_file "$ref" "migrations/$m.sh" "$work/migrations/$m.sh" \
-        || die "could not fetch migration $m at ref $ref"
+      fetch_ova_file "$resolved_ref" "migrations/$m.sh" "$work/migrations/$m.sh" \
+        || die "could not fetch migration $m at ref $resolved_ref"
       bash -n "$work/migrations/$m.sh" || die "migration $m does not parse; nothing was changed"
     done
   fi
 
-  # Validate before touching the stack: a broken template must not cost downtime.
+  cp "$ENV_FILE" "$new_env"
+  set_env_tag "$new_env" DEFGUARD_CORE_TAG "$core_tag"
+  set_env_tag "$new_env" DEFGUARD_PROXY_TAG "$proxy_tag"
+  set_env_tag "$new_env" DEFGUARD_GATEWAY_TAG "$gateway_tag"
+  chmod 600 "$new_env"
+
+  # Validate both the raw template and the generated, flattened compose file
+  # before touching the live stack.
   local -a profile_args=()
   for f in "${profiles[@]}"; do profile_args+=(--profile "$f"); done
   docker compose -f "$new_init/docker-compose.template.yaml" \
-    --project-directory "$STACK_DIR" --env-file "$ENV_FILE" "${profile_args[@]}" \
+    --project-directory "$STACK_DIR" --env-file "$new_env" "${profile_args[@]}" \
     config -q >/dev/null 2>&1 \
-    || die "fetched template at ref $ref does not parse; nothing was changed"
+    || die "fetched template at ref $resolved_ref does not parse; nothing was changed"
+
+  mkdir -p "$staged_stack"
+  cp "$new_env" "$staged_stack/.env"
+  local -a stack_profiles=()
+  for f in "${profiles[@]}"; do
+    [ "$f" = "dockge" ] && continue
+    stack_profiles+=("$f")
+  done
+  printf '%s\n' "${stack_profiles[@]}" > "$staged_stack/active-profiles"
+  if has_profile dockge "${profiles[@]}"; then
+    touch "$staged_stack/enable-docker-management"
+  fi
+  DEFGUARD_STACK_DIR="$staged_stack" DEFGUARD_INIT_DIR="$new_init" \
+    bash "$new_init/generate-compose.sh" \
+    || die "compose generation failed for ref $resolved_ref; nothing was changed"
+  [ -f "$staged_compose" ] || die "compose generator produced no docker-compose.yml"
+  docker compose -f "$staged_compose" --project-directory "$staged_stack" \
+    --env-file "$staged_stack/.env" config -q >/dev/null 2>&1 \
+    || die "generated compose at ref $resolved_ref does not parse; nothing was changed"
 
   local backup_id="none"
   if [ "$skip_backup" = 1 ]; then
-    warn "--no-backup given: no rollback point will exist"
+    warn "--no-backup given: no rollback point will exist; the stack will still be stopped for migration safety"
+    quiesce_stack
   else
-    backup_id="$(do_backup upgrade)"
+    LEAVE_STACK_STOPPED=1
+    do_backup upgrade
+    backup_id="$BACKUP_ID_RESULT"
+    RECOVERY_ACTIVE=1
+    RECOVERY_BACKUP_ID="$backup_id"
   fi
-
-  local started_at
-  started_at="$(date -u +'%Y-%m-%d %H:%M:%S')"
 
   if [ "${#pending_migrations[@]}" -gt 0 ]; then
     local m
@@ -509,66 +1099,68 @@ EOF
         die "migration $m failed; stack left as-is. Restore data with: $0 rollback $backup_id"
       fi
     done
+
+    # Migrations are allowed to add or change environment entries. Refresh the
+    # staged copy after they finish so the atomic install does not discard
+    # those changes; the target image tags remain authoritative.
+    log "refreshing staged environment after migrations"
+    cp "$ENV_FILE" "$new_env"
+    set_env_tag "$new_env" DEFGUARD_CORE_TAG "$core_tag"
+    set_env_tag "$new_env" DEFGUARD_PROXY_TAG "$proxy_tag"
+    set_env_tag "$new_env" DEFGUARD_GATEWAY_TAG "$gateway_tag"
+    chmod 600 "$new_env"
   fi
 
-  log "updating image tags in $ENV_FILE"
-  set_env_tag DEFGUARD_CORE_TAG "$core_tag"
-  set_env_tag DEFGUARD_PROXY_TAG "$proxy_tag"
-  set_env_tag DEFGUARD_GATEWAY_TAG "$gateway_tag"
-  chmod 600 "$ENV_FILE"
-
-  log "regenerating $COMPOSE_FILE"
-  cp "$COMPOSE_FILE" "$work/previous-docker-compose.yml"
-  # generate-compose.sh is a no-op when the file exists, and reads its profile
-  # selection from the flag files it then deletes - so recreate that input.
-  rm -f "$COMPOSE_FILE"
-  local -a stack_profiles=()
-  for f in "${profiles[@]}"; do
-    [ "$f" = "dockge" ] && continue
-    stack_profiles+=("$f")
-  done
-  printf '%s\n' "${stack_profiles[@]}" > "$STACK_DIR/active-profiles"
-  if has_profile dockge "${profiles[@]}"; then
-    touch "$STACK_DIR/enable-docker-management"
-  fi
-
-  if ! DEFGUARD_STACK_DIR="$STACK_DIR" DEFGUARD_INIT_DIR="$new_init" \
-       bash "$new_init/generate-compose.sh"; then
-    cp "$work/previous-docker-compose.yml" "$COMPOSE_FILE"
-    rm -f "$STACK_DIR/active-profiles" "$STACK_DIR/enable-docker-management"
-    die "compose regeneration failed; previous docker-compose.yml restored. Restore data with: $0 rollback $backup_id"
-  fi
-  # The regenerated file is the new source of truth for the profile set.
+  log "installing staged environment and compose files"
+  atomic_install "$new_env" "$ENV_FILE" 600
+  atomic_install "$staged_compose" "$COMPOSE_FILE" 640
   mkdir -p "$INIT_DIR"
-  printf '%s\n' "${profiles[@]}" > "$APPLIED_PROFILES_FILE"
+  printf '%s\n' "${profiles[@]}" > "$work/applied-profiles"
+  atomic_install "$work/applied-profiles" "$APPLIED_PROFILES_FILE" 640
+  rm -f "$STACK_DIR/active-profiles" "$STACK_DIR/enable-docker-management"
 
   log "pulling images"
   compose pull
+  local started_at
+  started_at="$(date -u +'%Y-%m-%d %H:%M:%S')"
   log "starting stack"
   compose up -d --remove-orphans
-
-  jq -n \
-    --arg ova_version "$ova_version" \
-    --arg ref "$ref" \
-    --arg core "$core_tag" --arg proxy "$proxy_tag" --arg gateway "$gateway_tag" \
-    --arg upgraded_at "$(date -u +%FT%TZ)" \
-    --arg backup "$backup_id" \
-    --arg cli "$DG_CTL_VERSION" \
-    --argjson migrations "$(printf '%s\n' "${pending_migrations[@]:-}" | jq -R 'select(length > 0)' | jq -s .)" \
-    '{ova_version: $ova_version, template_ref: $ref, cli_version: $cli,
-      tags: {core: $core, proxy: $proxy, gateway: $gateway},
-      upgraded_at: $upgraded_at, backup_id: $backup, migrations_applied: $migrations}' > "$STATE_FILE"
 
   if [ "$skip_tests" = 1 ]; then
     log "--skip-tests given; run '$0 test' when the stack has settled"
   elif ! do_test "$started_at"; then
     echo >&2
-    warn "the upgraded stack did not pass health checks"
-    if [ "$backup_id" != "none" ]; then
-      echo "[dg-ctl] roll back with: $0 rollback $backup_id" >&2
-    fi
+    warn "the upgraded stack did not pass health checks; automatic rollback will be attempted"
     exit 1
   fi
+
+  log "installing upgraded init assets"
+  atomic_install "$new_init/docker-compose.template.yaml" "$INIT_DIR/docker-compose.template.yaml" 640
+  atomic_install "$new_init/lib.sh" "$INIT_DIR/lib.sh" 640
+  atomic_install "$new_init/generate-compose.sh" "$INIT_DIR/generate-compose.sh" 750
+
+  local migrations_json state_tmp
+  migrations_json="$(printf '%s\n' "${pending_migrations[@]:-}" \
+    | jq -R 'select(length > 0)' | jq -s .)"
+  state_tmp="$(mktemp "$WORK_DIR/state.json.XXXXXX")"
+  jq -n \
+    --arg ova_version "$ova_version" \
+    --arg ref "$resolved_ref" \
+    --arg core "$core_tag" --arg proxy "$proxy_tag" --arg gateway "$gateway_tag" \
+    --arg upgraded_at "$(date -u +%FT%TZ)" \
+    --arg backup "$backup_id" \
+    --arg cli "$DG_CTL_VERSION" \
+    --argjson migrations "$migrations_json" \
+    '{ova_version: $ova_version, template_ref: $ref, cli_version: $cli,
+      tags: {core: $core, proxy: $proxy, gateway: $gateway},
+      upgraded_at: $upgraded_at, backup_id: $backup, migrations_applied: $migrations}' \
+    >"$state_tmp"
+  atomic_install "$state_tmp" "$STATE_FILE" 600
+
+  RECOVERY_ACTIVE=0
+  RECOVERY_BACKUP_ID=""
+  LEAVE_STACK_STOPPED=0
+  STACK_QUIESCED=0
 
   prune_backups
   log "upgrade to $ova_version complete"
@@ -593,15 +1185,19 @@ do_version() {
 }
 
 do_self_update() {
-  local manifest ref tmp
+  local manifest ref resolved_ref tmp
   manifest="$(read_manifest)"
-  ref="$(jq -r '.template_ref // "main"' <<<"$manifest")"
+  validate_manifest "$manifest"
+  ref="$(jq -r '.template_ref // "ova-upgrade-process"' <<<"$manifest")"
+  resolved_ref="$(resolve_template_ref "$ref")"
   tmp="$(mktemp)"
-  fetch_ova_file "$ref" "dg-ctl" "$tmp" || { rm -f "$tmp"; die "could not fetch dg-ctl at ref $ref"; }
+  fetch_ova_file "$resolved_ref" "dg-ctl" "$tmp" \
+    || { rm -f "$tmp"; die "could not fetch dg-ctl at ref $resolved_ref"; }
   bash -n "$tmp" || { rm -f "$tmp"; die "fetched dg-ctl does not parse; keeping the current one"; }
-  install -m 750 -o root -g root "$tmp" "$OVA_DIR/dg-ctl"
+  atomic_install "$tmp" "$OVA_DIR/dg-ctl" 750 root root \
+    || { rm -f "$tmp"; die "could not atomically install the updated CLI"; }
   rm -f "$tmp"
-  log "CLI updated from ref $ref: $("$OVA_DIR/dg-ctl" --version 2>/dev/null || true)"
+  log "CLI updated from ref $resolved_ref: $("$OVA_DIR/dg-ctl" --version 2>/dev/null || true)"
 }
 
 usage() {
@@ -610,9 +1206,9 @@ usage: dg-ctl <command> [options]
 
   upgrade [--ref REF] [--core-tag T] [--proxy-tag T] [--gateway-tag T]
           [--yes] [--no-backup] [--skip-tests]
-                        back up, run any pending structural migrations, refresh
+                        stop safely, back up, run pending migrations, refresh
                         the stack from the release manifest, then health-test it
-  backup [--label L]    cold full backup of volumes, .env and compose file
+  backup [--label L]    cold full backup of volumes, structure, state and config
   list-backups          show local backups
   rollback [--skip-tests] <id>
                         restore a backup and bring that stack back up
@@ -625,6 +1221,8 @@ environment:
   DEFGUARD_OVA_MANIFEST_URL  release manifest (default: $OVA_REPO@ova-upgrade-process)
   DEFGUARD_OVA_SOURCE_DIR    take ova/files/* from a local checkout
   KEEP_BACKUPS               backups to keep after an upgrade (default 3)
+  FETCH_CONNECT_TIMEOUT      network connection timeout in seconds (default 10)
+  FETCH_TIMEOUT              network transfer timeout in seconds (default 60)
 EOF
 }
 
@@ -632,19 +1230,20 @@ main() {
   local cmd="${1:-help}"
   [ $# -gt 0 ] && shift || true
   case "$cmd" in
-    upgrade)       need_root "$cmd"; need_stack; do_upgrade "$@" ;;
+    upgrade)       need_root "$cmd"; need_stack; validate_safe_paths; acquire_lock; do_upgrade "$@" ;;
     backup)
-      need_root "$cmd"; need_stack
+      need_root "$cmd"; need_stack; validate_safe_paths; acquire_lock
       local label=""
       [ "${1:-}" = "--label" ] && { label="${2:?--label needs a value}"; shift 2; }
+      [ "$#" -eq 0 ] || die "unknown option for backup: $1"
       mkdir -p "$BACKUPS_DIR"
       do_backup "$label"
       ;;
     list-backups)  do_list_backups ;;
-    rollback)      need_root "$cmd"; need_stack; do_rollback "$@" ;;
+    rollback)      need_root "$cmd"; need_stack; validate_safe_paths; acquire_lock; do_rollback "$@" ;;
     test)          need_stack; do_test "$@" ;;
     version|--version|-v) do_version ;;
-    self-update)   need_root "$cmd"; do_self_update ;;
+    self-update)   need_root "$cmd"; validate_safe_paths; acquire_lock; do_self_update ;;
     help|--help|-h) usage ;;
     *) usage >&2; die "unknown command: $cmd" ;;
   esac

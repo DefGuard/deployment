@@ -67,7 +67,7 @@ wait_for_health() {
   OVA_HOME="$(mktemp -d)"
   cat > "$OVA_HOME/manifest.json" <<EOF
 {
-  "ova_version": "integration-test",
+"ova_version": "9.9.9-integration",
   "core_tag": "${UPGRADE_CORE_TAG:-${CORE_TAG:-2}}",
   "proxy_tag": "${UPGRADE_PROXY_TAG:-${PROXY_TAG:-2}}",
   "gateway_tag": "${UPGRADE_GATEWAY_TAG:-${GATEWAY_TAG:-2}}",
@@ -82,7 +82,7 @@ EOF
     bash "$FILES_DIR/dg-ctl" upgrade --yes
 
   [ "$(psql -c 'SELECT v FROM ova_upgrade_probe;' | tr -d '[:space:]')" = "survived" ]
-  [ "$(jq -r '.ova_version' "$OVA_HOME/state.json")" = "integration-test" ]
+  [ "$(jq -r '.ova_version' "$OVA_HOME/state.json")" = "9.9.9-integration" ]
   [ -f "$OVA_HOME/backups/$(jq -r '.backup_id' "$OVA_HOME/state.json")/volumes.tar.zst" ]
   rm -rf "$OVA_HOME"
 }

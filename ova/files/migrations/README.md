@@ -16,12 +16,16 @@ a new required `.env` var, dropping a new file under `init/`, etc).
    - `OVA_DIR` - the OVA CLI directory (`/opt/defguard`)
    - `ENV_FILE` - `$STACK_DIR/.env`
    - `FROM_VERSION` / `TO_VERSION` - the OVA versions being upgraded between
-4. Exit non-zero to abort the upgrade. The pre-upgrade backup has already been
-   taken by this point, and the compose file/tags have not yet been touched,
-   so `dg-ctl rollback <id>` is always safe to run after a failed migration.
+4. Exit non-zero to abort the upgrade. The stack is stopped before migrations
+   run. The pre-upgrade backup includes the stack structure, OVA state and
+   volumes, so `dg-ctl rollback <id>` can restore side effects from a failed
+   migration.
 5. Scripts must be idempotent: `dg-ctl upgrade` can be re-run after a partial
    failure, and `resolve_pending_migrations` decides what's pending from the
    *target* OVA version, not from what actually ran last time.
+
+`--no-backup` still stops the stack before migrations, but disables automatic
+rollback. Use it only when an external backup and recovery plan already exist.
 
 `dg-ctl` only runs migrations with `FROM_VERSION < version <= TO_VERSION`
 (string `FROM_VERSION`/`TO_VERSION` of `unknown` or `*-unknown`, from OVAs

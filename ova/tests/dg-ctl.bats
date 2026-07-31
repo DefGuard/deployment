@@ -33,10 +33,13 @@ teardown() {
   id="${lines[-1]}"
   dir="$OVA_HOME/backups/$id"
 
-  for f in volumes.tar.zst env docker-compose.yml applied-profiles image-digests meta.json; do
+  for f in volumes.tar.zst stack-structure.tar.zst ova-structure.tar.zst env docker-compose.yml applied-profiles image-digests meta.json; do
     [ -f "$dir/$f" ]
   done
   [ "$(jq -r '.volumes_sha256' "$dir/meta.json")" = "$(sha256sum "$dir/volumes.tar.zst" | awk '{print $1}')" ]
+  [ "$(jq -r '.format_version' "$dir/meta.json")" = "2" ]
+  [ "$(jq -r '.stack_sha256' "$dir/meta.json")" = "$(sha256sum "$dir/stack-structure.tar.zst" | awk '{print $1}')" ]
+  [ "$(jq -r '.ova_sha256' "$dir/meta.json")" = "$(sha256sum "$dir/ova-structure.tar.zst" | awk '{print $1}')" ]
   [ "$(jq -r '.tags.core' "$dir/meta.json")" = "2" ]
   [ "$(cat "$dir/applied-profiles")" = "core" ]
   [ "$(file_mode "$dir/env")" = "600" ]
@@ -181,13 +184,16 @@ teardown() {
 
 @test "a failing health check exits non-zero and prints the rollback command" {
   seed_stack gateway
+  jq -n '{ova_version: "2.1.0", template_ref: "old-ref"}' > "$OVA_HOME/state.json"
+  chmod 600 "$OVA_HOME/state.json"
   write_manifest
   DOCKER_STUB_STATE=exited run bash "$CLI" upgrade --yes
   [ "$status" -ne 0 ]
   [[ "$output" == *"FAIL"* ]]
   [[ "$output" == *"rollback"* ]]
-  # The upgrade itself happened; only the verdict failed.
+  # Automatic recovery restores the prior state as well as the stack.
   [ -f "$OVA_HOME/state.json" ]
+  [ "$(jq -r '.ova_version' "$OVA_HOME/state.json")" = "2.1.0" ]
 }
 
 @test "--no-backup takes no backup" {
@@ -210,6 +216,16 @@ teardown() {
   [ -f "$STACK_DIR/migration-ran" ]
   [[ "$(cat "$STACK_DIR/migration-ran")" == "migrated unknown -> 5.0.0" ]]
   [ "$(jq -r '.migrations_applied | join(",")' "$OVA_HOME/state.json")" = "5.0.0" ]
+}
+
+@test "migration changes to .env survive the staged install" {
+  seed_stack core
+  write_manifest 5.0.0 5 5 5 '["5.0.0"]'
+  stage_migration 5.0.0 'printf "MIGRATION_ADDED=value\\n" >> "$ENV_FILE"'
+
+  run bash "$CLI" upgrade --yes --skip-tests
+  [ "$status" -eq 0 ]
+  [ "$(sed -n 's/^MIGRATION_ADDED=//p' "$STACK_DIR/.env")" = "value" ]
 }
 
 @test "upgrade does not re-run a migration already covered by the current version" {
@@ -245,6 +261,144 @@ teardown() {
   [ "$(sha256sum "$STACK_DIR/docker-compose.yml" | awk '{print $1}')" = "$before" ]
   # a backup was taken before the migration ran, so rollback is possible
   [ "$(ls -1 "$OVA_HOME/backups" | wc -l)" -eq 1 ]
+}
+
+@test "pull failure automatically restores the old stack and state" {
+  seed_stack core
+  jq -n '{ova_version: "2.1.0", template_ref: "old-ref"}' > "$OVA_HOME/state.json"
+  chmod 600 "$OVA_HOME/state.json"
+  write_manifest 3.0.0 3 3 3
+  before_env="$(sha256sum "$STACK_DIR/.env" | awk '{print $1}')"
+
+  DOCKER_STUB_PULL_FAIL=1 run bash "$CLI" upgrade --yes --skip-tests
+  [ "$status" -ne 0 ]
+  [ "$(jq -r '.ova_version' "$OVA_HOME/state.json")" = "2.1.0" ]
+  [ "$(sha256sum "$STACK_DIR/.env" | awk '{print $1}')" = "$before_env" ]
+  [ "$(cat "$DOCKER_STUB_STATE_FILE")" = "running" ]
+}
+
+@test "automatic rollback preserves a previously stopped stack" {
+  seed_stack core
+  printf '%s\n' exited > "$DOCKER_STUB_STATE_FILE"
+  jq -n '{ova_version: "2.1.0", template_ref: "old-ref"}' > "$OVA_HOME/state.json"
+  chmod 600 "$OVA_HOME/state.json"
+  write_manifest 3.0.0 3 3 3
+
+  DOCKER_STUB_PULL_FAIL=1 run bash "$CLI" upgrade --yes --skip-tests
+  [ "$status" -ne 0 ]
+  [ "$(cat "$DOCKER_STUB_STATE_FILE")" = "exited" ]
+}
+
+@test "automatic rollback reports failure when Compose down fails" {
+  seed_stack core
+  jq -n '{ova_version: "2.1.0", template_ref: "old-ref"}' > "$OVA_HOME/state.json"
+  chmod 600 "$OVA_HOME/state.json"
+  write_manifest 3.0.0 3 3 3
+
+  DOCKER_STUB_PULL_FAIL=1 DOCKER_STUB_DOWN_FAIL=1 run bash "$CLI" upgrade --yes --skip-tests
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"automatic rollback failed"* ]]
+}
+
+@test "rollback reapplies the saved image digest tag" {
+  seed_stack core
+  export DOCKER_STUB_IMAGES_JSON='[{"Repository":"example/app","Tag":"2","Digest":"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","ID":"sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"}]'
+  id="$(bash "$CLI" backup 2>/dev/null | tail -n1)"
+
+  run bash "$CLI" rollback --skip-tests "$id"
+  [ "$status" -eq 0 ]
+  [[ "$(cat "$DOCKER_STUB_LOG")" == *"image tag example/app@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa example/app:2"* ]]
+}
+
+@test "rollback refuses to delete volumes when stop fails" {
+  seed_stack core
+  id="$(bash "$CLI" backup 2>/dev/null | tail -n1)"
+  echo damaged > "$STACK_DIR/.volumes/db/marker"
+
+  DOCKER_STUB_STOP_FAIL=1 run bash "$CLI" rollback --skip-tests "$id"
+  [ "$status" -ne 0 ]
+  [ "$(cat "$STACK_DIR/.volumes/db/marker")" = "damaged" ]
+}
+
+@test "automatic rollback removes migration side effects outside volumes" {
+  seed_stack core
+  write_manifest 5.0.0 5 5 5 '["5.0.0"]'
+  stage_migration 5.0.0 'touch "$OVA_DIR/migration-side-effect"'
+
+  DOCKER_STUB_PULL_FAIL=1 run bash "$CLI" upgrade --yes --skip-tests
+  [ "$status" -ne 0 ]
+  [ ! -e "$OVA_HOME/migration-side-effect" ]
+}
+
+@test "invalid manifest tags are rejected before backup" {
+  seed_stack core
+  write_manifest 3.0.0 'bad&tag' 3 3
+
+  run bash "$CLI" upgrade --yes --skip-tests
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"invalid Docker image tag"* ]]
+  [ "$(ls -1 "$OVA_HOME/backups" | wc -l)" -eq 0 ]
+}
+
+@test "backup rejects unexpected arguments" {
+  seed_stack core
+
+  run bash "$CLI" backup --label unit unexpected
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"unknown option for backup"* ]]
+  [ "$(ls -1 "$OVA_HOME/backups" | wc -l)" -eq 0 ]
+}
+
+@test "very large semver components do not overflow version comparison" {
+  seed_stack core
+  jq -n '{ova_version: "1.0.0", template_ref: "old-ref"}' > "$OVA_HOME/state.json"
+  chmod 600 "$OVA_HOME/state.json"
+  write_manifest 999999999999999999999999999999.0.0 3 3 3
+
+  run bash "$CLI" upgrade --yes --skip-tests --no-backup
+  [ "$status" -eq 0 ]
+  [ "$(jq -r '.ova_version' "$OVA_HOME/state.json")" = "999999999999999999999999999999.0.0" ]
+}
+
+@test "malformed migration metadata is rejected" {
+  seed_stack core
+  write_manifest 3.0.0 3 3 3 '"not-an-array"'
+
+  run bash "$CLI" upgrade --yes --skip-tests
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"invalid schema"* ]]
+  [ "$(ls -1 "$OVA_HOME/backups" | wc -l)" -eq 0 ]
+}
+
+@test "downgrades are rejected before backup" {
+  seed_stack core
+  jq -n '{ova_version: "5.0.0", template_ref: "old-ref"}' > "$OVA_HOME/state.json"
+  chmod 600 "$OVA_HOME/state.json"
+  write_manifest 4.0.0 4 4 4
+
+  run bash "$CLI" upgrade --yes --skip-tests
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"older than installed version"* ]]
+  [ "$(ls -1 "$OVA_HOME/backups" | wc -l)" -eq 0 ]
+}
+
+@test "upgrades persist the fetched init assets" {
+  seed_stack core
+  write_manifest 3.0.0 3 3 3
+  expected="$(sha256sum "$FILES_DIR/generate-compose.sh" | awk '{print $1}')"
+
+  run bash "$CLI" upgrade --yes --skip-tests
+  [ "$status" -eq 0 ]
+  [ "$(sha256sum "$INIT_DIR/generate-compose.sh" | awk '{print $1}')" = "$expected" ]
+}
+
+@test "health checks fail when Compose service discovery fails" {
+  seed_stack core
+  echo 'not valid compose' > "$STACK_DIR/docker-compose.yml"
+
+  run bash "$CLI" test
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"could not inspect Compose services"* ]]
 }
 
 @test "version reports installed and available versions" {

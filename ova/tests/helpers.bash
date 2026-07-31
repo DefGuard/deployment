@@ -50,6 +50,7 @@ stub_docker() {
   DOCKER_REAL="$(command -v docker)"
   export DOCKER_REAL
   export DOCKER_STUB_LOG="$STUB_BIN/calls.log"
+  export DOCKER_STUB_STATE_FILE="$STUB_BIN/state"
   cp "$STUB_DIR/docker-stub" "$STUB_BIN/docker"
   chmod +x "$STUB_BIN/docker"
   PATH="$STUB_BIN:$PATH"

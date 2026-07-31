@@ -10,6 +10,20 @@ set -uo pipefail
 : "${DOCKER_REAL:?DOCKER_REAL must point at the real docker binary}"
 [ -n "${DOCKER_STUB_LOG:-}" ] && printf '%s\n' "$*" >> "$DOCKER_STUB_LOG"
 
+stub_state() {
+  if [ -n "${DOCKER_STUB_STATE:-}" ]; then
+    printf '%s\n' "$DOCKER_STUB_STATE"
+  elif [ -f "${DOCKER_STUB_STATE_FILE:-}" ]; then
+    cat "$DOCKER_STUB_STATE_FILE"
+  else
+    printf '%s\n' running
+  fi
+}
+
+set_stub_state() {
+  [ -n "${DOCKER_STUB_STATE:-}" ] || printf '%s\n' "$1" >"$DOCKER_STUB_STATE_FILE"
+}
+
 passthrough() { exec "$DOCKER_REAL" "$@"; }
 
 verb=""
@@ -31,6 +45,13 @@ if [ "$seen_compose" != 1 ]; then
       printf '%s\n' "${DOCKER_STUB_RESTARTS:-0}"
       exit 0
       ;;
+    image)
+      case "${2:-}" in
+        inspect|tag) exit 0 ;;
+        *) passthrough "$@" ;;
+      esac
+      ;;
+    pull) exit "${DOCKER_STUB_PULL_FAIL:-0}" ;;
     *) passthrough "$@" ;;
   esac
 fi
@@ -38,8 +59,10 @@ fi
 case "$verb" in
   version|config) passthrough "$@" ;;
   pull)           exit "${DOCKER_STUB_PULL_FAIL:-0}" ;;
-  up|stop|down|start|restart) exit 0 ;;
-  images)         echo '[]'; exit 0 ;;
+  up|start|restart) set_stub_state running; exit 0 ;;
+  stop)             exit "${DOCKER_STUB_STOP_FAIL:-$(set_stub_state exited; printf 0)}" ;;
+  down)             exit "${DOCKER_STUB_DOWN_FAIL:-$(set_stub_state exited; printf 0)}" ;;
+  images)         printf '%s\n' "${DOCKER_STUB_IMAGES_JSON:-[]}"; exit 0 ;;
   port)           exit 1 ;;
   exec)           exit "${DOCKER_STUB_EXEC_FAIL:-0}" ;;
   ps)
@@ -47,7 +70,7 @@ case "$verb" in
     if [[ " $* " == *" -q "* ]]; then
       echo "stubcontainerid"
     else
-      printf '{"Service":"stub","State":"%s"}\n' "${DOCKER_STUB_STATE:-running}"
+      printf '{"Service":"stub","State":"%s"}\n' "$(stub_state)"
     fi
     exit 0
     ;;
