@@ -2,13 +2,13 @@
 # Installs the defguard OVA maintenance CLI onto an already-deployed OVA VM,
 # which shipped without it. Idempotent - re-running just refreshes the CLI.
 #
-#   curl -fsSL https://raw.githubusercontent.com/DefGuard/deployment/ova-upgrade-process/ova/files/install-dg-ctl.sh | sudo bash
+#   curl -fsSL https://raw.githubusercontent.com/DefGuard/deployment/main/ova/files/install-dg-ctl.sh | sudo bash
 set -euo pipefail
 
 STACK_DIR="${DEFGUARD_STACK_DIR:-/opt/stacks/defguard}"
 OVA_DIR="${DEFGUARD_OVA_DIR:-/opt/defguard}"
 OVA_REPO="${DEFGUARD_OVA_REPO:-DefGuard/deployment}"
-MANIFEST_URL="${DEFGUARD_OVA_MANIFEST_URL:-https://raw.githubusercontent.com/$OVA_REPO/ova-upgrade-process/ova/manifest.json}"
+MANIFEST_URL="${DEFGUARD_OVA_MANIFEST_URL:-https://raw.githubusercontent.com/$OVA_REPO/main/ova/manifest.json}"
 SOURCE_DIR="${DEFGUARD_OVA_SOURCE_DIR:-}"
 
 log() { echo "[dg-ctl-install] $*"; }
@@ -44,7 +44,7 @@ work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
 fetch "$MANIFEST_URL" "$work/manifest.json" || die "could not fetch manifest from $MANIFEST_URL"
-REF="$(jq -r '.template_ref // "ova-upgrade-process"' "$work/manifest.json")"
+REF="$(jq -r '.template_ref // "main"' "$work/manifest.json")"
 
 if [ -n "$SOURCE_DIR" ]; then
   cp "$SOURCE_DIR/ova/files/dg-ctl" "$work/dg-ctl"

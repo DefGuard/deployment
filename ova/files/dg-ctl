@@ -19,7 +19,7 @@ DEPLOYMENT_MODE="auto"
 INIT_SERVICE_FILE="${DEFGUARD_INIT_SERVICE_FILE:-/etc/systemd/system/defguard-init.service}"
 
 OVA_REPO="${DEFGUARD_OVA_REPO:-DefGuard/deployment}"
-MANIFEST_URL="${DEFGUARD_OVA_MANIFEST_URL:-https://raw.githubusercontent.com/$OVA_REPO/ova-upgrade-process/ova/manifest.json}"
+MANIFEST_URL="${DEFGUARD_OVA_MANIFEST_URL:-https://raw.githubusercontent.com/$OVA_REPO/main/ova/manifest.json}"
 SOURCE_DIR="${DEFGUARD_OVA_SOURCE_DIR:-}"
 
 KEEP_BACKUPS="${KEEP_BACKUPS:-3}"
@@ -1111,7 +1111,7 @@ do_upgrade() {
   manifest="$(read_manifest)"
   validate_manifest "$manifest"
   ova_version="$(jq -r '.ova_version' <<<"$manifest")"
-  : "${ref:=$(jq -r '.template_ref // "ova-upgrade-process"' <<<"$manifest")}"
+  : "${ref:=$(jq -r '.template_ref // "main"' <<<"$manifest")}"
   : "${core_tag:=$(jq -r '.core_tag // empty' <<<"$manifest")}"
   : "${proxy_tag:=$(jq -r '.proxy_tag // empty' <<<"$manifest")}"
   : "${gateway_tag:=$(jq -r '.gateway_tag // empty' <<<"$manifest")}"
@@ -1414,7 +1414,7 @@ do_self_update() {
   local manifest ref resolved_ref tmp
   manifest="$(read_manifest)"
   validate_manifest "$manifest"
-  ref="$(jq -r '.template_ref // "ova-upgrade-process"' <<<"$manifest")"
+  ref="$(jq -r '.template_ref // "main"' <<<"$manifest")"
   resolved_ref="$(resolve_template_ref "$ref")"
   tmp="$(mktemp)"
   fetch_ova_file "$resolved_ref" "dg-ctl" "$tmp" \
@@ -1444,7 +1444,7 @@ usage: dg-ctl <command> [options]
   help                  this text
 
 environment:
-  DEFGUARD_OVA_MANIFEST_URL  release manifest (default: $OVA_REPO@ova-upgrade-process)
+  DEFGUARD_OVA_MANIFEST_URL  release manifest (default: $OVA_REPO@main)
   DEFGUARD_OVA_SOURCE_DIR    take ova/files/* from a local checkout
   KEEP_BACKUPS               backups to keep after an upgrade (default 3)
   FETCH_CONNECT_TIMEOUT      network connection timeout in seconds (default 10)
