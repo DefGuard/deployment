@@ -131,7 +131,7 @@ verify_mode() {
 }
 
 upgrade_mode() {
-  local mode="$1" ip="$2" names probe
+  local mode="$1" ip="$2" names probe backup_id expected_mode
   [ "${SKIP_UPGRADE_TEST:-0}" = "1" ] && { log "$mode: skipping upgrade test"; return 0; }
 
   log "$mode: exercising /opt/defguard/dg-ctl upgrade"
@@ -150,8 +150,27 @@ upgrade_mode() {
 
   vm_ssh "$ip" "sudo test -f /opt/defguard/state.json" \
     || { log "$mode: upgrade did not record /opt/defguard/state.json"; return 1; }
-  vm_ssh "$ip" "sudo /opt/defguard/dg-ctl list-backups | grep -q Z" \
-    || { log "$mode: upgrade left no backup behind"; return 1; }
+  backup_id="$(vm_ssh "$ip" "sudo jq -r '.backup_id // \"none\"' /opt/defguard/state.json")" \
+    || { log "$mode: could not read the upgrade backup id"; return 1; }
+  [ "$backup_id" != none ] \
+    || { log "$mode: upgrade did not record a backup id"; return 1; }
+  vm_ssh "$ip" "for f in volumes.tar.zst stack-structure.tar.zst ova-structure.tar.zst env docker-compose.yml image-digests meta.json; do sudo test -f /opt/defguard/backups/$backup_id/\$f || exit 1; done" \
+    || { log "$mode: upgrade backup is missing a required artifact"; return 1; }
+
+  expected_mode=segmented
+  [ "$mode" = full ] && expected_mode=full
+  vm_ssh "$ip" "sudo grep -qx '$expected_mode' /opt/stacks/defguard/init/.deployment-mode" \
+    || { log "$mode: upgrade did not preserve the deployment mode"; return 1; }
+  local applied_profile
+  if [ "$mode" = full ]; then
+    for applied_profile in core edge gateway; do
+      vm_ssh "$ip" "sudo grep -qx '$applied_profile' /opt/stacks/defguard/init/.applied-profiles" \
+        || { log "$mode: upgrade did not preserve the $applied_profile profile"; return 1; }
+    done
+  else
+    vm_ssh "$ip" "sudo grep -qx '$mode' /opt/stacks/defguard/init/.applied-profiles" \
+      || { log "$mode: upgrade did not preserve the applied profile"; return 1; }
+  fi
 
   names="$(wait_services "$ip" "${EXPECT[$mode]}")" \
     || { log "$mode: upgrade: expected services did not come back; running: $(tr '\n' ' ' <<<"$names")"; return 1; }
@@ -171,6 +190,66 @@ upgrade_mode() {
 
   vm_ssh "$ip" "sudo /opt/defguard/dg-ctl test" \
     || { log "$mode: post-upgrade health checks failed"; return 1; }
+
+  [ "$mode" = full ] || return 0
+  legacy_upgrade_mode "$mode" "$ip"
+}
+
+legacy_upgrade_mode() {
+  local mode="$1" ip="$2" output backup_id names probe applied_profile
+  [ "${SKIP_UPGRADE_TEST:-0}" = "1" ] && return 0
+
+  log "$mode: exercising legacy-layout migration through /opt/defguard/dg-ctl upgrade"
+
+  # Turn the already-running full deployment into the pre-simplification
+  # layout. The containers stay up while the upgrader discovers the legacy
+  # files, then the upgrade itself performs the cold backup and migration.
+  vm_ssh "$ip" "sudo cp /opt/stacks/defguard/docker-compose.yml /opt/stacks/defguard/docker-compose.yaml && \
+    sudo rm -f /opt/stacks/defguard/docker-compose.yml /opt/stacks/defguard/docker-compose.standalone.yaml \
+      /opt/stacks/defguard/active-profiles /opt/stacks/defguard/enable-docker-management && \
+    sudo rm -rf /opt/stacks/defguard/init && \
+    sudo touch /opt/stacks/defguard/start.sh && \
+    sudo sed -i 's#/opt/stacks/defguard/init/generate-compose.sh#/opt/stacks/defguard/start.sh#' \
+      /etc/systemd/system/defguard-init.service" \
+    || { log "$mode: could not prepare the legacy layout"; return 1; }
+
+  output="$(vm_ssh "$ip" "sudo ${UPGRADE_ENV:-} /opt/defguard/dg-ctl upgrade --yes")" \
+    || { log "$mode: legacy-layout upgrade failed"; return 1; }
+  [[ "$output" == *"layout:    legacy -> current (migration)"* ]] \
+    || { log "$mode: upgrade did not report the legacy-layout migration"; return 1; }
+
+  vm_ssh "$ip" "sudo test -f /opt/stacks/defguard/docker-compose.yml && \
+    sudo test ! -e /opt/stacks/defguard/docker-compose.yaml && \
+    sudo test ! -e /opt/stacks/defguard/docker-compose.standalone.yaml && \
+    sudo test ! -e /opt/stacks/defguard/start.sh && \
+    sudo test -f /opt/stacks/defguard/init/generate-env.sh && \
+    sudo grep -Fq '/opt/stacks/defguard/init/generate-compose.sh' \
+      /etc/systemd/system/defguard-init.service" \
+    || { log "$mode: legacy-layout artifacts were not migrated"; return 1; }
+  for applied_profile in core edge gateway; do
+    vm_ssh "$ip" "sudo grep -qx '$applied_profile' /opt/stacks/defguard/init/.applied-profiles" \
+      || { log "$mode: legacy migration lost the $applied_profile profile"; return 1; }
+  done
+
+  backup_id="$(vm_ssh "$ip" "sudo jq -r '.backup_id // \"none\"' /opt/defguard/state.json")" \
+    || { log "$mode: could not read the legacy migration backup id"; return 1; }
+  vm_ssh "$ip" "sudo test -f /opt/defguard/backups/$backup_id/defguard-init.service" \
+    || { log "$mode: legacy migration backup did not capture defguard-init.service"; return 1; }
+
+  names="$(wait_services "$ip" "${EXPECT[$mode]}")" \
+    || { log "$mode: legacy migration services did not come back; running: $(tr '\n' ' ' <<<"$names")"; return 1; }
+  local svc
+  for svc in ${FORBID[$mode]}; do
+    has_service "$names" "$svc" \
+      && { log "$mode: legacy migration started unexpected service '$svc'"; return 1; }
+  done
+
+  probe="$(vm_ssh "$ip" "sudo docker compose -f /opt/stacks/defguard/docker-compose.yml exec -T db \
+    psql -qtAX -U defguard -d defguard -c 'SELECT v FROM ova_upgrade_probe;'" | tr -d '[:space:]')"
+  [ "$probe" = survived ] \
+    || { log "$mode: legacy migration lost database state (probe returned '$probe')"; return 1; }
+  vm_ssh "$ip" "sudo /opt/defguard/dg-ctl test" \
+    || { log "$mode: post-migration health checks failed"; return 1; }
 
   return 0
 }
