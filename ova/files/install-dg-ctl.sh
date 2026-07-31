@@ -15,8 +15,10 @@ log() { echo "[dg-ctl-install] $*"; }
 die() { echo "[dg-ctl-install] ERROR: $*" >&2; exit 1; }
 
 [ "$(id -u)" = "0" ] || die "run as root (pipe into 'sudo bash')"
-[ -f "$STACK_DIR/docker-compose.yml" ] \
-  || die "$STACK_DIR/docker-compose.yml not found; this does not look like a defguard OVA host"
+if [ ! -f "$STACK_DIR/docker-compose.yml" ] \
+  && [ ! -f "$STACK_DIR/docker-compose.yaml" ]; then
+  die "$STACK_DIR/docker-compose.yml or $STACK_DIR/docker-compose.yaml not found; this does not look like a defguard OVA host"
+fi
 
 # jq and zstd are baked into OVA 2.1 images but not into earlier ones.
 missing=()
