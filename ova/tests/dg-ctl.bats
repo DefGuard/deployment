@@ -118,6 +118,7 @@ teardown() {
 
   run bash "$CLI" upgrade --yes --skip-tests
   [ "$status" -eq 0 ]
+  [[ "$output" == *"layout:    current"* ]]
   [ "$(sed -n 's/^DEFGUARD_CORE_TAG=//p' "$STACK_DIR/.env")" = "9.1" ]
   [ "$(sed -n 's/^DEFGUARD_PROXY_TAG=//p' "$STACK_DIR/.env")" = "9.2" ]
   [ "$(sed -n 's/^DEFGUARD_GATEWAY_TAG=//p' "$STACK_DIR/.env")" = "9.3" ]
@@ -143,6 +144,8 @@ teardown() {
 
   run bash "$CLI" upgrade --yes --skip-tests
   [ "$status" -eq 0 ]
+  upgrade_output="$output"
+  [[ "$upgrade_output" == *"layout:    legacy -> current (migration)"* ]]
   [ -f "$STACK_DIR/docker-compose.yml" ]
   [ ! -e "$STACK_DIR/docker-compose.yaml" ]
   [ ! -e "$STACK_DIR/docker-compose.standalone.yaml" ]

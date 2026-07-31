@@ -1143,7 +1143,8 @@ do_upgrade() {
   done <<<"$profile_text"
   [ "${#profiles[@]}" -gt 0 ] || die "no applied profiles were resolved"
 
-  local was_legacy="$LEGACY_LAYOUT" deployment_mode="$DEPLOYMENT_MODE"
+  local was_legacy="$LEGACY_LAYOUT" deployment_mode="$DEPLOYMENT_MODE" layout="current"
+  [ "$was_legacy" = 1 ] && layout="legacy -> current (migration)"
   if [ "$deployment_mode" = auto ]; then
     if has_profile core "${profiles[@]}" \
       && has_profile edge "${profiles[@]}" \
@@ -1161,6 +1162,8 @@ do_upgrade() {
   cat <<EOF
 [dg-ctl] upgrade plan
   profiles:  ${profiles[*]}
+  layout:    $layout
+  mode:      $deployment_mode
   template:  $resolved_ref (from $OVA_REPO)
   core:      $(env_value DEFGUARD_CORE_TAG) -> $core_tag
   proxy:     $(env_value DEFGUARD_PROXY_TAG) -> $proxy_tag
