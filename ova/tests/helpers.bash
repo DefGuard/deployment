@@ -38,6 +38,9 @@ make_ova_home() {
   mkdir -p "$OVA_HOME/backups"
   export DEFGUARD_OVA_DIR="$OVA_HOME"
   export DEFGUARD_OVA_ALLOW_NONROOT=1
+  # Keep tests from touching the host's systemd unit while exercising the
+  # legacy-layout backup/upgrade path.
+  export DEFGUARD_INIT_SERVICE_FILE="$OVA_HOME/defguard-init.service"
 }
 
 teardown_ova_home() {
@@ -71,6 +74,84 @@ seed_stack() {
   bash "$FILES_DIR/generate-compose.sh" >/dev/null
   mkdir -p "$STACK_DIR/.volumes/db" "$STACK_DIR/.volumes/certs"
   echo "seeded-db-file" > "$STACK_DIR/.volumes/db/marker"
+}
+
+# Recreates the layout emitted before commit ff0bce1 (the Compose
+# simplification): static full/standalone files, root startup scripts, and no
+# init directory. The segmented fixture deliberately selects all three
+# profiles because that was still a distinct standalone layout before the
+# simplification.
+seed_legacy_stack() {
+  local mode="$1"
+  write_env "2" "2" "2"
+  write_image_tags 2 2 2
+  cat > "$STACK_DIR/docker-compose.yaml" <<'EOF'
+services:
+  core:
+    image: ghcr.io/defguard/defguard:${DEFGUARD_CORE_TAG:?DEFGUARD_CORE_TAG is required}
+    env_file: .env
+    environment:
+      DEFGUARD_DB_HOST: db
+      DEFGUARD_DB_PORT: 5432
+      DEFGUARD_ADOPT_EDGE: "edge:50051"
+      DEFGUARD_ADOPT_GATEWAY: "host.docker.internal:50066"
+    depends_on: [db, edge, gateway]
+  edge:
+    image: ghcr.io/defguard/defguard-proxy:${DEFGUARD_PROXY_TAG:?DEFGUARD_PROXY_TAG is required}
+    ports: ["8080:8080", "443:443", "80:80"]
+  gateway:
+    image: ghcr.io/defguard/gateway:${DEFGUARD_GATEWAY_TAG:?DEFGUARD_GATEWAY_TAG is required}
+    network_mode: host
+  dockge:
+    image: louislam/dockge:1
+    profiles: [dockge]
+  db:
+    image: postgres:18-alpine
+    env_file: .env
+EOF
+  cat > "$STACK_DIR/docker-compose.standalone.yaml" <<'EOF'
+services:
+  core:
+    profiles: [core]
+    image: ghcr.io/defguard/defguard:${DEFGUARD_CORE_TAG:?DEFGUARD_CORE_TAG is required}
+    env_file: .env
+    depends_on: [db]
+  edge:
+    profiles: [edge]
+    image: ghcr.io/defguard/defguard-proxy:${DEFGUARD_PROXY_TAG:?DEFGUARD_PROXY_TAG is required}
+    ports: ["8080:8080", "50051:50051", "443:443", "80:80"]
+  gateway:
+    profiles: [gateway]
+    image: ghcr.io/defguard/gateway:${DEFGUARD_GATEWAY_TAG:?DEFGUARD_GATEWAY_TAG is required}
+    network_mode: host
+  dockge:
+    profiles: [dockge]
+    image: louislam/dockge:1
+  db:
+    profiles: [core]
+    image: postgres:18-alpine
+    env_file: .env
+EOF
+  cat > "$STACK_DIR/generate-env.sh" <<'EOF'
+#!/bin/bash
+exit 0
+EOF
+  cat > "$STACK_DIR/start.sh" <<'EOF'
+#!/bin/bash
+docker compose up -d
+EOF
+  chmod +x "$STACK_DIR/generate-env.sh" "$STACK_DIR/start.sh"
+  if [ "$mode" = segmented ]; then
+    printf 'core\nedge\ngateway\n' > "$STACK_DIR/active-profiles"
+  fi
+  mkdir -p "$STACK_DIR/.volumes/db"
+  echo "seeded-db-file" > "$STACK_DIR/.volumes/db/marker"
+  cat > "$DEFGUARD_INIT_SERVICE_FILE" <<'EOF'
+[Service]
+Type=oneshot
+ExecStart=/bin/bash /opt/stacks/defguard/generate-env.sh
+ExecStart=/bin/bash /opt/stacks/defguard/start.sh
+EOF
 }
 
 # A file:// manifest, so upgrades can be exercised without network access.

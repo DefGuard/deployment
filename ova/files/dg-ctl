@@ -13,6 +13,10 @@ COMPOSE_FILE="$STACK_DIR/docker-compose.yml"
 ENV_FILE="$STACK_DIR/.env"
 INIT_DIR="$STACK_DIR/init"
 APPLIED_PROFILES_FILE="$INIT_DIR/.applied-profiles"
+LEGACY_LAYOUT=0
+LEGACY_COMPOSE_MODE=""
+DEPLOYMENT_MODE="auto"
+INIT_SERVICE_FILE="${DEFGUARD_INIT_SERVICE_FILE:-/etc/systemd/system/defguard-init.service}"
 
 OVA_REPO="${DEFGUARD_OVA_REPO:-DefGuard/deployment}"
 MANIFEST_URL="${DEFGUARD_OVA_MANIFEST_URL:-https://raw.githubusercontent.com/$OVA_REPO/ova-upgrade-process/ova/manifest.json}"
@@ -77,8 +81,68 @@ log()  { echo "[dg-ctl] $*"; }
 warn() { echo "[dg-ctl] WARNING: $*" >&2; }
 die()  { echo "[dg-ctl] ERROR: $*" >&2; exit 1; }
 
+legacy_active_profiles_csv() {
+  [ -f "$STACK_DIR/active-profiles" ] || return 0
+  tr '[:space:]' '\n' < "$STACK_DIR/active-profiles" \
+    | sed '/^$/d' | tr '\n' ',' | sed 's/,$//'
+}
+
+legacy_compose_profiles_csv() {
+  local profiles
+  profiles="$(legacy_active_profiles_csv)"
+  if [ -f "$STACK_DIR/enable-docker-management" ]; then
+    [ -n "$profiles" ] && profiles+=','
+    profiles+=dockge
+  fi
+  printf '%s\n' "$profiles"
+}
+
+detect_stack_layout() {
+  COMPOSE_FILE="$STACK_DIR/docker-compose.yml"
+  INIT_DIR="$STACK_DIR/init"
+  APPLIED_PROFILES_FILE="$INIT_DIR/.applied-profiles"
+  LEGACY_LAYOUT=0
+  LEGACY_COMPOSE_MODE=""
+  DEPLOYMENT_MODE="auto"
+
+  if [ -f "$COMPOSE_FILE" ]; then
+    if [ -f "$INIT_DIR/.deployment-mode" ]; then
+      DEPLOYMENT_MODE="$(tr -d '[:space:]' < "$INIT_DIR/.deployment-mode")"
+      case "$DEPLOYMENT_MODE" in
+        full|segmented) ;;
+        *) die "invalid deployment mode in $INIT_DIR/.deployment-mode" ;;
+      esac
+    fi
+    return 0
+  fi
+
+  if [ -f "$STACK_DIR/docker-compose.yaml" ]; then
+    LEGACY_LAYOUT=1
+    COMPOSE_FILE="$STACK_DIR/docker-compose.yaml"
+    if [ -n "$(legacy_active_profiles_csv)" ]; then
+      [ -f "$STACK_DIR/docker-compose.standalone.yaml" ] \
+        || die "legacy standalone Compose file is missing"
+      LEGACY_COMPOSE_MODE=standalone
+      DEPLOYMENT_MODE=segmented
+    else
+      LEGACY_COMPOSE_MODE=full
+      DEPLOYMENT_MODE=full
+    fi
+    return 0
+  fi
+}
+
 compose() {
-  docker compose -f "$COMPOSE_FILE" --project-directory "$STACK_DIR" "$@"
+  if [ "$LEGACY_LAYOUT" = 1 ]; then
+    local legacy_compose_file="$COMPOSE_FILE"
+    [ "$LEGACY_COMPOSE_MODE" = standalone ] \
+      && legacy_compose_file="$STACK_DIR/docker-compose.standalone.yaml"
+    COMPOSE_PROFILES="$(legacy_compose_profiles_csv)" \
+      docker compose -f "$legacy_compose_file" \
+        --project-directory "$STACK_DIR" "$@"
+  else
+    docker compose -f "$COMPOSE_FILE" --project-directory "$STACK_DIR" "$@"
+  fi
 }
 
 need_root() {
@@ -156,9 +220,11 @@ validate_safe_paths() {
   APPLIED_PROFILES_FILE="$INIT_DIR/.applied-profiles"
   LOCK_FILE="$OVA_DIR/.dg-ctl.lock"
   LOCK_DIR="$OVA_DIR/.dg-ctl.lock.d"
+  detect_stack_layout
 }
 
 need_stack() {
+  detect_stack_layout
   [ -f "$COMPOSE_FILE" ] || die "$COMPOSE_FILE not found; this does not look like a defguard OVA host"
   [ -f "$ENV_FILE" ] || die "$ENV_FILE not found"
   docker compose version >/dev/null 2>&1 || die "docker compose v2 is not available"
@@ -384,7 +450,18 @@ resolve_applied_profiles() {
   local -a profiles=() words=() unique=()
   local line header services service p
 
-  if [ -s "$APPLIED_PROFILES_FILE" ]; then
+  if [ "$LEGACY_LAYOUT" = 1 ]; then
+    if [ "$LEGACY_COMPOSE_MODE" = full ]; then
+      profiles+=(core edge gateway)
+    else
+      while IFS= read -r line; do
+        [ -n "${line//[[:space:]]/}" ] || continue
+        read -r -a words <<<"$line"
+        profiles+=("${words[@]}")
+      done < "$STACK_DIR/active-profiles"
+    fi
+    [ -f "$STACK_DIR/enable-docker-management" ] && profiles+=(dockge)
+  elif [ -s "$APPLIED_PROFILES_FILE" ]; then
     while IFS= read -r line; do
       [[ -n "${line//[[:space:]]/}" ]] || continue
       read -r -a words <<<"$line"
@@ -494,7 +571,7 @@ atomic_install() {
 
 do_backup() {
   local label="${1:-}" id dir profiles digests
-  local volumes_sha stack_sha ova_sha free_kb need_kb total_kb backup_kb
+  local volumes_sha stack_sha ova_sha init_service_sha free_kb need_kb total_kb backup_kb
   need_zstd
   id="$(backup_id_now "$label")"
   dir="$BACKUPS_DIR/$id"
@@ -558,9 +635,14 @@ do_backup() {
   chmod 600 "$dir/env"
   cp "$COMPOSE_FILE" "$dir/docker-compose.yml"
   printf '%s\n' "$profiles" > "$dir/applied-profiles"
+  init_service_sha=""
+  if [ -f "$INIT_SERVICE_FILE" ]; then
+    cp "$INIT_SERVICE_FILE" "$dir/defguard-init.service"
+    init_service_sha="$(sha256sum "$dir/defguard-init.service" | awk '{print $1}')"
+  fi
 
   jq -n \
-    --argjson format_version 2 \
+    --argjson format_version 3 \
     --arg id "$id" \
     --arg label "$label" \
     --arg created "$(date -u +%FT%TZ)" \
@@ -572,9 +654,11 @@ do_backup() {
     --arg volumes_sha "$volumes_sha" \
     --arg stack_sha "$stack_sha" \
     --arg ova_sha "$ova_sha" \
+    --arg init_service_sha "$init_service_sha" \
     '{format_version: $format_version, id: $id, label: $label, created: $created, host: $host, ova_version: $ova_version,
       tags: {core: $core, proxy: $proxy, gateway: $gateway},
-      volumes_sha256: $volumes_sha, stack_sha256: $stack_sha, ova_sha256: $ova_sha}' > "$dir/meta.json"
+      volumes_sha256: $volumes_sha, stack_sha256: $stack_sha, ova_sha256: $ova_sha,
+      init_service_sha256: $init_service_sha}' > "$dir/meta.json"
 
   if [ "$LEAVE_STACK_STOPPED" != 1 ]; then
     if [ "$STACK_WAS_RUNNING" = 1 ]; then
@@ -645,7 +729,7 @@ verify_backup() {
   done
 
   format="$(backup_format "$dir")"
-  [[ "$format" =~ ^[12]$ ]] || die "backup $id has an unsupported format"
+  [[ "$format" =~ ^[123]$ ]] || die "backup $id has an unsupported format"
   want="$(jq -r '.volumes_sha256 // ""' "$dir/meta.json")"
   have="$(sha256sum "$dir/volumes.tar.zst" | awk '{print $1}')"
   [ -n "$want" ] || die "backup $id has no volume checksum; refusing to restore"
@@ -667,6 +751,36 @@ verify_backup() {
         || die "backup $id is corrupt: $archive checksum mismatch"
     done
   fi
+
+  if [ "$format" -ge 3 ]; then
+    local init_service_sha
+    init_service_sha="$(jq -r '.init_service_sha256 // ""' "$dir/meta.json")"
+    if [ -n "$init_service_sha" ]; then
+      [ -f "$dir/defguard-init.service" ] \
+        || die "backup $id is incomplete: missing defguard-init.service"
+      have="$(sha256sum "$dir/defguard-init.service" | awk '{print $1}')"
+      [ "$init_service_sha" = "$have" ] \
+        || die "backup $id is corrupt: defguard-init.service checksum mismatch"
+    fi
+  fi
+}
+
+install_init_service() {
+  local src="$1"
+  mkdir -p "$(dirname "$INIT_SERVICE_FILE")"
+  if [ "$INIT_SERVICE_FILE" = "/etc/systemd/system/defguard-init.service" ]; then
+    atomic_install "$src" "$INIT_SERVICE_FILE" 644 root root \
+      || die "could not install $INIT_SERVICE_FILE"
+  else
+    atomic_install "$src" "$INIT_SERVICE_FILE" 644 \
+      || die "could not install $INIT_SERVICE_FILE"
+  fi
+}
+
+reload_init_service() {
+  [ "$INIT_SERVICE_FILE" = "/etc/systemd/system/defguard-init.service" ] || return 0
+  command -v systemctl >/dev/null 2>&1 || die "systemctl is required to reload defguard-init.service"
+  systemctl daemon-reload || die "could not reload systemd after changing defguard-init.service"
 }
 
 restore_image_digests() {
@@ -759,6 +873,19 @@ restore_backup() {
         || die "could not restore applied profiles from backup"
     fi
   fi
+
+  if [ "$format" -ge 3 ]; then
+    local init_service_sha
+    init_service_sha="$(jq -r '.init_service_sha256 // ""' "$dir/meta.json")"
+    if [ -n "$init_service_sha" ]; then
+      install_init_service "$dir/defguard-init.service"
+      reload_init_service
+    fi
+  fi
+
+  # A structural rollback can switch between the new .yml layout and the old
+  # .yaml/.standalone layout. Re-select the restored Compose file before start.
+  detect_stack_layout
 
   restore_image_digests "$dir/image-digests"
   if [ "$RESTORE_START_STACK" = 1 ]; then
@@ -943,6 +1070,24 @@ set_env_tag() {
   mv -f "$tmp" "$file"
 }
 
+set_env_value() {
+  local file="$1" key="$2" value="$3" tmp found=0 line
+  tmp="$(mktemp "${file}.tmp.XXXXXX")"
+  while IFS= read -r line || [ -n "$line" ]; do
+    if [[ "$line" == "$key="* ]]; then
+      printf '%s=%s\n' "$key" "$value" >>"$tmp"
+      found=1
+    else
+      printf '%s\n' "$line" >>"$tmp"
+    fi
+  done <"$file"
+  if [ "$found" = 0 ]; then
+    printf '%s=%s\n' "$key" "$value" >>"$tmp"
+  fi
+  chmod 600 "$tmp"
+  mv -f "$tmp" "$file"
+}
+
 do_upgrade() {
   local ref="" core_tag="" proxy_tag="" gateway_tag=""
   local assume_yes=0 skip_backup=0 skip_tests=0
@@ -998,6 +1143,21 @@ do_upgrade() {
   done <<<"$profile_text"
   [ "${#profiles[@]}" -gt 0 ] || die "no applied profiles were resolved"
 
+  local was_legacy="$LEGACY_LAYOUT" deployment_mode="$DEPLOYMENT_MODE"
+  if [ "$deployment_mode" = auto ]; then
+    if has_profile core "${profiles[@]}" \
+      && has_profile edge "${profiles[@]}" \
+      && has_profile gateway "${profiles[@]}"; then
+      deployment_mode=full
+    else
+      deployment_mode=segmented
+    fi
+  fi
+  if [ "$was_legacy" = 1 ]; then
+    [ -f "$INIT_SERVICE_FILE" ] \
+      || die "legacy OVA is missing $INIT_SERVICE_FILE; refusing an upgrade without a rollbackable startup unit"
+  fi
+
   cat <<EOF
 [dg-ctl] upgrade plan
   profiles:  ${profiles[*]}
@@ -1018,7 +1178,9 @@ EOF
   local staged_stack="$work/staged-stack"
   local new_env="$work/.env"
   local staged_compose="$staged_stack/docker-compose.yml"
+  local new_service="$work/defguard-init.service"
   mkdir -p "$new_init"
+  printf '%s\n' "$deployment_mode" > "$new_init/.deployment-mode"
 
   log "fetching compose template and generator at $resolved_ref"
   local f
@@ -1029,6 +1191,16 @@ EOF
   for f in lib.sh generate-compose.sh; do
     bash -n "$new_init/$f" || die "fetched ova/files/$f does not parse"
   done
+  if [ "$was_legacy" = 1 ]; then
+    fetch_ova_file "$resolved_ref" generate-env.sh "$new_init/generate-env.sh" \
+      || die "could not fetch ova/files/generate-env.sh at ref $resolved_ref"
+    fetch_ova_file "$resolved_ref" defguard-init.service "$new_service" \
+      || die "could not fetch ova/files/defguard-init.service at ref $resolved_ref"
+    bash -n "$new_init/generate-env.sh" \
+      || die "fetched ova/files/generate-env.sh does not parse"
+    grep -Fq '/opt/stacks/defguard/init/generate-compose.sh' "$new_service" \
+      || die "fetched defguard-init.service does not use the simplified init layout"
+  fi
 
   local -a pending_migrations
   mapfile -t pending_migrations < <(resolve_pending_migrations "$from_version" "$ova_version" "$manifest")
@@ -1047,6 +1219,12 @@ EOF
   set_env_tag "$new_env" DEFGUARD_CORE_TAG "$core_tag"
   set_env_tag "$new_env" DEFGUARD_PROXY_TAG "$proxy_tag"
   set_env_tag "$new_env" DEFGUARD_GATEWAY_TAG "$gateway_tag"
+  if [ "$was_legacy" = 1 ] && [ "$deployment_mode" = full ]; then
+    # The old all-in-one Compose file hard-coded these values; they were not
+    # present in its .env and would otherwise become empty in the new template.
+    set_env_value "$new_env" DEFGUARD_ADOPT_EDGE edge:50051
+    set_env_value "$new_env" DEFGUARD_ADOPT_GATEWAY host.docker.internal:50066
+  fi
   chmod 600 "$new_env"
 
   # Validate both the raw template and the generated, flattened compose file
@@ -1069,7 +1247,8 @@ EOF
   if has_profile dockge "${profiles[@]}"; then
     touch "$staged_stack/enable-docker-management"
   fi
-  DEFGUARD_STACK_DIR="$staged_stack" DEFGUARD_INIT_DIR="$new_init" \
+  DEFGUARD_DEPLOYMENT_MODE="$deployment_mode" \
+    DEFGUARD_STACK_DIR="$staged_stack" DEFGUARD_INIT_DIR="$new_init" \
     bash "$new_init/generate-compose.sh" \
     || die "compose generation failed for ref $resolved_ref; nothing was changed"
   [ -f "$staged_compose" ] || die "compose generator produced no docker-compose.yml"
@@ -1108,11 +1287,38 @@ EOF
     set_env_tag "$new_env" DEFGUARD_CORE_TAG "$core_tag"
     set_env_tag "$new_env" DEFGUARD_PROXY_TAG "$proxy_tag"
     set_env_tag "$new_env" DEFGUARD_GATEWAY_TAG "$gateway_tag"
+    if [ "$was_legacy" = 1 ] && [ "$deployment_mode" = full ]; then
+      set_env_value "$new_env" DEFGUARD_ADOPT_EDGE edge:50051
+      set_env_value "$new_env" DEFGUARD_ADOPT_GATEWAY host.docker.internal:50066
+    fi
     chmod 600 "$new_env"
+    cp "$new_env" "$staged_stack/.env"
+    chmod 600 "$staged_stack/.env"
+
+    # Migrations may alter interpolation inputs. Rebuild the staged Compose
+    # file after refreshing .env, restoring the profile flags consumed by the
+    # first generation pass.
+    rm -f "$staged_compose"
+    printf '%s\n' "${stack_profiles[@]}" > "$staged_stack/active-profiles"
+    if has_profile dockge "${profiles[@]}"; then
+      touch "$staged_stack/enable-docker-management"
+    fi
+    DEFGUARD_DEPLOYMENT_MODE="$deployment_mode" \
+      DEFGUARD_STACK_DIR="$staged_stack" DEFGUARD_INIT_DIR="$new_init" \
+      bash "$new_init/generate-compose.sh" \
+      || die "compose regeneration after migrations failed; nothing was changed"
+    docker compose -f "$staged_compose" --project-directory "$staged_stack" \
+      --env-file "$staged_stack/.env" config -q >/dev/null 2>&1 \
+      || die "generated compose after migrations does not parse; nothing was changed"
   fi
 
   log "installing staged environment and compose files"
   atomic_install "$new_env" "$ENV_FILE" 600
+  # From this point onward the live stack uses the new canonical filename.
+  COMPOSE_FILE="$STACK_DIR/docker-compose.yml"
+  LEGACY_LAYOUT=0
+  LEGACY_COMPOSE_MODE=""
+  DEPLOYMENT_MODE="$deployment_mode"
   atomic_install "$staged_compose" "$COMPOSE_FILE" 640
   mkdir -p "$INIT_DIR"
   printf '%s\n' "${profiles[@]}" > "$work/applied-profiles"
@@ -1135,9 +1341,26 @@ EOF
   fi
 
   log "installing upgraded init assets"
+  local image_tags_tmp="$WORK_DIR/image-tags"
+  printf 'DEFGUARD_CORE_TAG=%s\nDEFGUARD_PROXY_TAG=%s\nDEFGUARD_GATEWAY_TAG=%s\n' \
+    "$core_tag" "$proxy_tag" "$gateway_tag" > "$image_tags_tmp"
+  chmod 640 "$image_tags_tmp"
   atomic_install "$new_init/docker-compose.template.yaml" "$INIT_DIR/docker-compose.template.yaml" 640
   atomic_install "$new_init/lib.sh" "$INIT_DIR/lib.sh" 640
   atomic_install "$new_init/generate-compose.sh" "$INIT_DIR/generate-compose.sh" 750
+  atomic_install "$image_tags_tmp" "$INIT_DIR/.image-tags" 640
+  atomic_install "$new_init/.deployment-mode" "$INIT_DIR/.deployment-mode" 640
+  if [ "$was_legacy" = 1 ]; then
+    atomic_install "$new_init/generate-env.sh" "$INIT_DIR/generate-env.sh" 750
+    install_init_service "$new_service"
+    reload_init_service
+    rm -f \
+      "$STACK_DIR/docker-compose.yaml" \
+      "$STACK_DIR/docker-compose.standalone.yaml" \
+      "$STACK_DIR/start.sh" \
+      "$STACK_DIR/generate-env.sh" \
+      "$STACK_DIR/.image-tags"
+  fi
 
   local migrations_json state_tmp
   migrations_json="$(printf '%s\n' "${pending_migrations[@]:-}" \

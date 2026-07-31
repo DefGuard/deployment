@@ -37,7 +37,7 @@ teardown() {
     [ -f "$dir/$f" ]
   done
   [ "$(jq -r '.volumes_sha256' "$dir/meta.json")" = "$(sha256sum "$dir/volumes.tar.zst" | awk '{print $1}')" ]
-  [ "$(jq -r '.format_version' "$dir/meta.json")" = "2" ]
+  [ "$(jq -r '.format_version' "$dir/meta.json")" = "3" ]
   [ "$(jq -r '.stack_sha256' "$dir/meta.json")" = "$(sha256sum "$dir/stack-structure.tar.zst" | awk '{print $1}')" ]
   [ "$(jq -r '.ova_sha256' "$dir/meta.json")" = "$(sha256sum "$dir/ova-structure.tar.zst" | awk '{print $1}')" ]
   [ "$(jq -r '.tags.core' "$dir/meta.json")" = "2" ]
@@ -136,6 +136,65 @@ teardown() {
   [ "$(cat "$INIT_DIR/.applied-profiles")" = "core" ]
 }
 
+@test "upgrade migrates a pre-simplification full OVA" {
+  seed_legacy_stack full
+  write_manifest 3.0.0 3 3 3
+  before_service="$(sha256sum "$DEFGUARD_INIT_SERVICE_FILE" | awk '{print $1}')"
+
+  run bash "$CLI" upgrade --yes --skip-tests
+  [ "$status" -eq 0 ]
+  [ -f "$STACK_DIR/docker-compose.yml" ]
+  [ ! -e "$STACK_DIR/docker-compose.yaml" ]
+  [ ! -e "$STACK_DIR/docker-compose.standalone.yaml" ]
+  [ ! -e "$STACK_DIR/start.sh" ]
+  [ -f "$STACK_DIR/init/generate-env.sh" ]
+  [ "$(sed -n 's/^DEFGUARD_CORE_TAG=//p' "$STACK_DIR/init/.image-tags")" = "3" ]
+  [ "$(cat "$STACK_DIR/init/.deployment-mode")" = full ]
+  [ "$(sed -n 's/^DEFGUARD_ADOPT_EDGE=//p' "$STACK_DIR/.env")" = "edge:50051" ]
+  [ "$(sed -n 's/^DEFGUARD_ADOPT_GATEWAY=//p' "$STACK_DIR/.env")" = "host.docker.internal:50066" ]
+  [ "$(docker compose -f "$STACK_DIR/docker-compose.yml" config --services | sort | xargs)" = "core db edge gateway" ]
+  grep -Fq '/opt/stacks/defguard/init/generate-compose.sh' "$DEFGUARD_INIT_SERVICE_FILE"
+  backup_id="$(jq -r '.backup_id' "$OVA_HOME/state.json")"
+  [ -f "$OVA_HOME/backups/$backup_id/defguard-init.service" ]
+
+  run bash "$CLI" rollback --skip-tests "$backup_id"
+  [ "$status" -eq 0 ]
+  [ -f "$STACK_DIR/docker-compose.yaml" ]
+  [ ! -e "$STACK_DIR/docker-compose.yml" ]
+  [ "$(sha256sum "$DEFGUARD_INIT_SERVICE_FILE" | awk '{print $1}')" = "$before_service" ]
+}
+
+@test "upgrade preserves the legacy standalone mode when all profiles are selected" {
+  seed_legacy_stack segmented
+  write_manifest 3.0.0 3 3 3
+
+  run bash "$CLI" upgrade --yes --skip-tests
+  [ "$status" -eq 0 ]
+  [ "$(cat "$STACK_DIR/init/.deployment-mode")" = segmented ]
+  deps="$(docker compose -f "$STACK_DIR/docker-compose.yml" config --format json \
+    | jq -r 'if (.services.core.depends_on | type) == "array" then .services.core.depends_on[] else (.services.core.depends_on | keys[]) end' \
+    | sort | xargs)"
+  [ "$deps" = db ]
+  docker compose -f "$STACK_DIR/docker-compose.yml" config --format json \
+    | jq -e '.services.edge.ports[] | select(.published == "50051")' >/dev/null
+  [ -z "$(sed -n 's/^DEFGUARD_ADOPT_EDGE=//p' "$STACK_DIR/.env")" ]
+}
+
+@test "failed legacy upgrade restores the old layout and startup unit" {
+  seed_legacy_stack segmented
+  write_manifest 3.0.0 3 3 3
+  before_service="$(sha256sum "$DEFGUARD_INIT_SERVICE_FILE" | awk '{print $1}')"
+
+  DOCKER_STUB_PULL_FAIL=1 run bash "$CLI" upgrade --yes --skip-tests
+  [ "$status" -ne 0 ]
+  [ -f "$STACK_DIR/docker-compose.yaml" ]
+  [ -f "$STACK_DIR/docker-compose.standalone.yaml" ]
+  [ ! -e "$STACK_DIR/docker-compose.yml" ]
+  [ -f "$STACK_DIR/start.sh" ]
+  [ "$(sha256sum "$DEFGUARD_INIT_SERVICE_FILE" | awk '{print $1}')" = "$before_service" ]
+  [ "$(cat "$STACK_DIR/.volumes/db/marker")" = "seeded-db-file" ]
+}
+
 @test "upgrade command line tags override the manifest" {
   seed_stack core
   write_manifest 9.9.9 9 9 9
@@ -226,6 +285,17 @@ teardown() {
   run bash "$CLI" upgrade --yes --skip-tests
   [ "$status" -eq 0 ]
   [ "$(sed -n 's/^MIGRATION_ADDED=//p' "$STACK_DIR/.env")" = "value" ]
+}
+
+@test "migration environment changes feed regenerated Compose interpolation" {
+  seed_stack core
+  write_manifest 5.0.0 5 5 5 '["5.0.0"]'
+  stage_migration 5.0.0 'printf "DEFGUARD_ADOPT_EDGE=migrated-edge\\n" >> "$ENV_FILE"'
+
+  run bash "$CLI" upgrade --yes --skip-tests
+  [ "$status" -eq 0 ]
+  docker compose -f "$STACK_DIR/docker-compose.yml" config --format json \
+    | jq -e '.services.core.environment.DEFGUARD_ADOPT_EDGE == "migrated-edge"' >/dev/null
 }
 
 @test "upgrade does not re-run a migration already covered by the current version" {

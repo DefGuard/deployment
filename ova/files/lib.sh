@@ -44,3 +44,17 @@ is_full_stack() {
   done
   [ "$has_core" = 1 ] && [ "$has_edge" = 1 ] && [ "$has_gateway" = 1 ]
 }
+
+# Reads the persisted deployment mode used by generate-compose.sh. Older
+# layouts have no marker, so callers fall back to profile-based inference.
+deployment_mode() {
+  local init_dir="$1" mode=""
+  if [ -f "$init_dir/.deployment-mode" ]; then
+    mode="$(tr -d '[:space:]' < "$init_dir/.deployment-mode")"
+  fi
+  case "$mode" in
+    "") echo auto ;;
+    full|segmented) echo "$mode" ;;
+    *) return 1 ;;
+  esac
+}

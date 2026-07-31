@@ -6,6 +6,8 @@ set -euo pipefail
 STACK_DIR="${DEFGUARD_STACK_DIR:-/opt/stacks/defguard}"
 INIT_DIR="${DEFGUARD_INIT_DIR:-$STACK_DIR/init}"
 ENV_FILE="$STACK_DIR/.env"
+PROFILES_FILE="$STACK_DIR/active-profiles"
+DEPLOYMENT_MODE_FILE="$INIT_DIR/.deployment-mode"
 
 if [ -f "$ENV_FILE" ]; then
   echo "DefGuard: .env already exists, skipping generation."
@@ -31,9 +33,24 @@ fi
 # co-located on this host; segmented deployments must fill these in manually
 # since edge/gateway live on other VMs entirely.
 mapfile -t _profiles < <(resolve_profiles "$STACK_DIR")
+PERSISTED_MODE="$(deployment_mode "$INIT_DIR")" \
+  || { echo "DefGuard: invalid deployment mode in $DEPLOYMENT_MODE_FILE" >&2; exit 1; }
+if [ -n "${DEFGUARD_DEPLOYMENT_MODE:-}" ]; then
+  MODE="$DEFGUARD_DEPLOYMENT_MODE"
+elif [ "$PERSISTED_MODE" = segmented ]; then
+  MODE=segmented
+elif [ -f "$PROFILES_FILE" ]; then
+  MODE=auto
+else
+  MODE="$PERSISTED_MODE"
+fi
+case "$MODE" in
+  auto|full|segmented) ;;
+  *) echo "DefGuard: invalid deployment mode '$MODE'" >&2; exit 1 ;;
+esac
 ADOPT_EDGE=""
 ADOPT_GATEWAY=""
-if is_full_stack "${_profiles[@]}"; then
+if [ "$MODE" = full ] || { [ "$MODE" = auto ] && is_full_stack "${_profiles[@]}"; }; then
   ADOPT_EDGE="edge:50051"
   ADOPT_GATEWAY="host.docker.internal:50066"
 fi

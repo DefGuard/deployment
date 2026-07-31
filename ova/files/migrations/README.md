@@ -3,7 +3,9 @@
 `dg-ctl upgrade` runs these when it needs to change the layout of
 `/opt/stacks/defguard` or `/opt/defguard` in a way the compose template
 regeneration alone can't express (moving/renaming a volume directory, seeding
-a new required `.env` var, dropping a new file under `init/`, etc).
+a new required `.env` var, dropping a new file under `init/`, etc). The
+upgrader also recognizes the pre-simplification OVA layout from commit
+`8192f5a` and migrates its static Compose files and startup unit first.
 
 ## Adding one
 
@@ -17,9 +19,9 @@ a new required `.env` var, dropping a new file under `init/`, etc).
    - `ENV_FILE` - `$STACK_DIR/.env`
    - `FROM_VERSION` / `TO_VERSION` - the OVA versions being upgraded between
 4. Exit non-zero to abort the upgrade. The stack is stopped before migrations
-   run. The pre-upgrade backup includes the stack structure, OVA state and
-   volumes, so `dg-ctl rollback <id>` can restore side effects from a failed
-   migration.
+   run. The pre-upgrade backup includes the stack structure, OVA state, volumes,
+   and the `defguard-init.service` unit when present, so `dg-ctl rollback <id>`
+   can restore side effects from a failed migration.
 5. Scripts must be idempotent: `dg-ctl upgrade` can be re-run after a partial
    failure, and `resolve_pending_migrations` decides what's pending from the
    *target* OVA version, not from what actually ran last time.
