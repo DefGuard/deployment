@@ -19,6 +19,6 @@ dependencies:
     # repository: "file://../defguard-proxy"
   - name: defguard-gateway
     condition: defguard-gateway.enabled
-    version: 2.0.2
+    version: 2.0.4
     repository: https://defguard.github.io/deployment
     # repository: "file://../defguard-gateway"
