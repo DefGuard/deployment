@@ -4,8 +4,8 @@ description: Defguard is an open-source enterprise WireGuard VPN with MFA and SS
 icon: https://defguard.net/favicon/favicon-512x512.png
 
 type: application
-version: 2.0.3
-appVersion: 2.0.2
+version: 2.0.4
+appVersion: 2.0.3
 
 dependencies:
   - name: postgresql
