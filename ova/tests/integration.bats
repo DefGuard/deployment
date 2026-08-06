@@ -18,9 +18,19 @@ setup() {
 
 teardown() {
   if [ "${RUN_INTEGRATION:-0}" = "1" ] && [ -n "${STACK_DIR:-}" ] && command -v docker >/dev/null 2>&1; then
-    docker compose -f "$STACK_DIR/docker-compose.yml" down -v >/dev/null 2>&1 || true
+    if command -v sudo >/dev/null 2>&1; then
+      sudo docker compose -f "$STACK_DIR/docker-compose.yml" down -v >/dev/null 2>&1 || true
+    else
+      docker compose -f "$STACK_DIR/docker-compose.yml" down -v >/dev/null 2>&1 || true
+    fi
   fi
-  teardown_stack
+  if command -v sudo >/dev/null 2>&1; then
+    [ -z "${STACK_DIR:-}" ] || sudo rm -rf -- "$STACK_DIR"
+    [ -z "${OVA_HOME:-}" ] || sudo rm -rf -- "$OVA_HOME"
+  else
+    [ -z "${STACK_DIR:-}" ] || rm -rf -- "$STACK_DIR"
+    [ -z "${OVA_HOME:-}" ] || rm -rf -- "$OVA_HOME"
+  fi
 }
 
 bring_up() {
@@ -51,4 +61,41 @@ wait_for_health() {
   echo "core" > "$STACK_DIR/active-profiles"
   bring_up
   wait_for_health
+}
+
+# Upgrade the core-only profile in place: cheaper than the full stack and it is
+# the profile that owns the database, which is what an upgrade must not lose.
+@test "dg-ctl upgrade keeps database state and passes its own health checks" {
+  command -v zstd >/dev/null 2>&1 || skip "zstd not installed"
+  command -v sudo >/dev/null 2>&1 || skip "sudo not installed"
+  echo "core" > "$STACK_DIR/active-profiles"
+  bring_up
+  wait_for_health
+
+  psql() { sudo docker compose -f "$STACK_DIR/docker-compose.yml" exec -T db psql -qtAX -U defguard -d defguard "$@"; }
+  psql -c "CREATE TABLE ova_upgrade_probe (v text); INSERT INTO ova_upgrade_probe VALUES ('survived');"
+
+  OVA_HOME="$(mktemp -d)"
+  cat > "$OVA_HOME/manifest.json" <<EOF
+{
+"ova_version": "9.9.9-integration",
+  "core_tag": "${UPGRADE_CORE_TAG:-${CORE_TAG:-2}}",
+  "proxy_tag": "${UPGRADE_PROXY_TAG:-${PROXY_TAG:-2}}",
+  "gateway_tag": "${UPGRADE_GATEWAY_TAG:-${GATEWAY_TAG:-2}}",
+  "template_ref": "worktree"
+}
+EOF
+
+  sudo env \
+    "DEFGUARD_STACK_DIR=$STACK_DIR" \
+    "DEFGUARD_OVA_DIR=$OVA_HOME" \
+    "DEFGUARD_OVA_MANIFEST_URL=file://$OVA_HOME/manifest.json" \
+    "DEFGUARD_OVA_SOURCE_DIR=$(cd "$OVA_DIR/.." && pwd)" \
+    "DEFGUARD_INIT_SERVICE_FILE=$OVA_HOME/defguard-init.service" \
+    bash "$FILES_DIR/dg-ctl" upgrade --yes
+
+  [ "$(psql -c 'SELECT v FROM ova_upgrade_probe;' | tr -d '[:space:]')" = "survived" ]
+  [ "$(sudo jq -r '.ova_version' "$OVA_HOME/state.json")" = "9.9.9-integration" ]
+  backup_id="$(sudo jq -r '.backup_id' "$OVA_HOME/state.json")"
+  sudo test -f "$OVA_HOME/backups/$backup_id/volumes.tar.zst"
 }

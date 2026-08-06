@@ -74,6 +74,15 @@ teardown() {
   grep -qx 'DEFGUARD_ADOPT_GATEWAY=host.docker.internal:50066' "$STACK_DIR/.env"
 }
 
+@test "segmented deployment marker suppresses all-in-one adoption defaults" {
+  printf 'core\nedge\ngateway\n' > "$STACK_DIR/active-profiles"
+  printf 'segmented\n' > "$INIT_DIR/.deployment-mode"
+  write_image_tags
+  bash "$FILES_DIR/generate-env.sh"
+  grep -qx 'DEFGUARD_ADOPT_EDGE=' "$STACK_DIR/.env"
+  grep -qx 'DEFGUARD_ADOPT_GATEWAY=' "$STACK_DIR/.env"
+}
+
 @test "active-profiles='core gateway' (no edge) -> ADOPT_EDGE/ADOPT_GATEWAY left blank" {
   printf 'core gateway\n' > "$STACK_DIR/active-profiles"
   write_image_tags

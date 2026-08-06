@@ -59,6 +59,14 @@ generated_json() {
   [ "$(generated_json | jq '[.services[] | select(has("profiles"))] | length')" -eq 0 ]
 }
 
+@test "certificate bind paths stay relative to the installed stack" {
+  run bash "$FILES_DIR/generate-compose.sh"
+  [ "$status" -eq 0 ]
+  grep -Fq 'source: ./.volumes/certs/edge' "$STACK_DIR/docker-compose.yml"
+  grep -Fq 'source: ./.volumes/certs/gateway' "$STACK_DIR/docker-compose.yml"
+  ! grep -Fq "$STACK_DIR/.volumes/certs" "$STACK_DIR/docker-compose.yml"
+}
+
 @test "full stack: core.depends_on includes edge and gateway" {
   run bash "$FILES_DIR/generate-compose.sh"
   [ "$status" -eq 0 ]
