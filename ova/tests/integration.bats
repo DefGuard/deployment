@@ -87,6 +87,7 @@ wait_for_health() {
 EOF
 
   sudo env \
+    "DEFGUARD_STACK_DIR=$STACK_DIR" \
     "DEFGUARD_OVA_DIR=$OVA_HOME" \
     "DEFGUARD_OVA_MANIFEST_URL=file://$OVA_HOME/manifest.json" \
     "DEFGUARD_OVA_SOURCE_DIR=$(cd "$OVA_DIR/.." && pwd)" \
