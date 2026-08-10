@@ -972,10 +972,25 @@ db_ready() {
 # 50051 is only published in segmented deployments.
 edge_grpc_published() { compose port edge 50051 >/dev/null 2>&1; }
 
+service_started_at() {
+  local svc="$1" cid raw
+  cid="$(compose ps -q "$svc" 2>/dev/null | head -n1)"
+  [ -n "$cid" ] || return 1
+  raw="$(docker inspect -f '{{.State.StartedAt}}' "$cid" 2>/dev/null)" || return 1
+  [ -n "$raw" ] || return 1
+  date -u -d "$raw" +'%Y-%m-%d %H:%M:%S' 2>/dev/null
+}
+
+# Scans from the container's own start so a previous generation's shutdown
+# noise (postgres logs FATAL when its connections are terminated) is never
+# mistaken for a fault in the running stack.
 no_fatal_logs() {
-  local tag="$1" since="$2" logs
+  local svc="$1" since="$2" started logs
   command -v journalctl >/dev/null 2>&1 || return 0
-  logs="$(journalctl -t "$tag" --since "$since" --no-pager 2>/dev/null)" || return 1
+  if started="$(service_started_at "$svc")" && [ -n "$started" ]; then
+    since="$started"
+  fi
+  logs="$(journalctl -t "defguard-$svc" --since "$since" --no-pager 2>/dev/null)" || return 1
   ! grep -Eq 'FATAL|panicked at|thread .* panicked' <<<"$logs"
 }
 
@@ -1044,7 +1059,7 @@ do_test() {
   done
 
   for svc in "${services[@]}"; do
-    check "$svc logged no fatal errors" no_fatal_logs "defguard-$svc" "$since" || failed=1
+    check "$svc logged no fatal errors" no_fatal_logs "$svc" "$since" || failed=1
   done
 
   [ "$failed" = 0 ] || return 1
