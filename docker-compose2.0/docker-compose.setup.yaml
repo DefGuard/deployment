@@ -1,10 +1,10 @@
 services:
   core:
     restart: unless-stopped
-    logging:
-      driver: journald
-      options:
-        tag: "defguard-core"
+    # logging:
+    #   driver: journald
+    #   options:
+    #     tag: "defguard-core"
     image: ghcr.io/defguard/defguard:${DEFGUARD_CORE_TAG:?DEFGUARD_CORE_TAG is required}
     env_file: .env
     environment:
@@ -21,10 +21,10 @@ services:
 
   edge:
     restart: unless-stopped
-    logging:
-      driver: journald
-      options:
-        tag: "defguard-edge"
+    # logging:
+    #   driver: journald
+    #   options:
+    #     tag: "defguard-edge"
     image: ghcr.io/defguard/defguard-proxy:${DEFGUARD_PROXY_TAG:?DEFGUARD_PROXY_TAG is required}
     env_file: .env
     volumes:
@@ -36,10 +36,10 @@ services:
 
   gateway:
     restart: unless-stopped
-    logging:
-      driver: journald
-      options:
-        tag: "defguard-gateway"
+    # logging:
+    #   driver: journald
+    #   options:
+    #     tag: "defguard-gateway"
     image: ghcr.io/defguard/gateway:${DEFGUARD_GATEWAY_TAG:?DEFGUARD_GATEWAY_TAG is required}
     env_file: .env
     cap_add:
@@ -54,10 +54,10 @@ services:
 
   db:
     restart: unless-stopped
-    logging:
-      driver: journald
-      options:
-        tag: "defguard-db"
+    # logging:
+    #   driver: journald
+    #   options:
+    #     tag: "defguard-db"
     image: postgres:18-alpine
     env_file: .env
     volumes:
