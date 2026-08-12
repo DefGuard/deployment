@@ -209,6 +209,29 @@ download_compose_file() {
   success "Compose file downloaded."
 }
 
+journald_available() {
+  # Docker Desktop runs the daemon in a VM with no journal, even when the host has one.
+  [[ "$(docker info --format '{{.OperatingSystem}}' 2>/dev/null)" != *"Docker Desktop"* ]] \
+    && [[ -S /run/systemd/journal/socket ]]
+}
+
+configure_logging() {
+  if ! grep -q '#journald ' "$COMPOSE_FILE"; then
+    return
+  fi
+
+  if ! journald_available; then
+    warn "journald not available – using Docker's default log driver."
+    return
+  fi
+
+  local tmp
+  tmp=$(mktemp)
+  sed 's/^\([[:space:]]*\)#journald /\1/' "$COMPOSE_FILE" > "$tmp"
+  mv "$tmp" "$COMPOSE_FILE"
+  success "journald found – container logs go to the system journal."
+}
+
 write_env() {
   section "Generating configuration"
 
@@ -290,6 +313,7 @@ main() {
   check_deps
   check_volumes
   download_compose_file
+  configure_logging
   write_env
   launch
   show_wizard_info
