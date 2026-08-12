@@ -216,18 +216,20 @@ journald_available() {
 }
 
 configure_logging() {
-  local tmp
-  tmp=$(mktemp)
-
-  if journald_available; then
-    sed '/# *logging:/,/# *tag: "defguard-/ s/^\([[:space:]]*\)# \{0,1\}/\1/' "$COMPOSE_FILE" > "$tmp"
-    success "journald found – container logs go to the system journal."
-  else
-    sed '/^[[:space:]]*logging:/,/^[[:space:]]*tag: "defguard-/ s/^\([[:space:]]*\)/\1# /' "$COMPOSE_FILE" > "$tmp"
-    warn "journald not available – using Docker's default log driver."
+  if ! grep -q '#journald ' "$COMPOSE_FILE"; then
+    return
   fi
 
+  if ! journald_available; then
+    warn "journald not available – using Docker's default log driver."
+    return
+  fi
+
+  local tmp
+  tmp=$(mktemp)
+  sed 's/^\([[:space:]]*\)#journald /\1/' "$COMPOSE_FILE" > "$tmp"
   mv "$tmp" "$COMPOSE_FILE"
+  success "journald found – container logs go to the system journal."
 }
 
 write_env() {
