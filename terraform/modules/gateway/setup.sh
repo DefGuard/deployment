@@ -25,7 +25,10 @@ log "Installing curl..."
 apt install -y curl
 
 log "Downloading defguard-gateway package..."
-curl -fsSL -o /tmp/defguard-gateway.deb https://github.com/DefGuard/gateway/releases/download/v${package_version}/defguard-gateway_${package_version}_${arch}-unknown-linux-gnu.deb
+if ! curl -fsSL -o /tmp/defguard-gateway.deb https://github.com/DefGuard/gateway/releases/download/v${package_version}/defguard-gateway-${package_version}-${arch}-unknown-linux-gnu.deb; then
+  log "Trying legacy defguard-gateway package filename..."
+  curl -fsSL -o /tmp/defguard-gateway.deb https://github.com/DefGuard/gateway/releases/download/v${package_version}/defguard-gateway_${package_version}_${arch}-unknown-linux-gnu.deb
+fi
 
 log "Installing defguard-gateway package..."
 dpkg -i /tmp/defguard-gateway.deb
