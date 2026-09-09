@@ -109,6 +109,9 @@ locals {
   postgres_instance_type = "t3.medium"
   postgres_storage_gb    = 100
 
+  # Dedicated client/load-generator instance. Increase to a non-burstable type before scored runs.
+  load_generator_instance_type = "t3.medium"
+
   ############################ VPC configuration ############################
 
   # The name of the VPC that will be created for the Defguard infrastructure.
@@ -322,6 +325,70 @@ module "postgres" {
 }
 
 ###########################################################################
+######################## Load-generator configuration ####################
+###########################################################################
+
+resource "aws_security_group" "load_generator" {
+  name        = "defguard-load-tests-generator-sg"
+  description = "Load-generator access"
+  vpc_id      = module.vpc.vpc_id
+
+  dynamic "ingress" {
+    for_each = local.ssh_admin_cidr == null ? [] : [1]
+    content {
+      description = "SSH from the admin IP"
+      from_port   = 22
+      to_port     = 22
+      protocol    = "tcp"
+      cidr_blocks = [local.ssh_admin_cidr]
+    }
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
+resource "aws_network_interface" "load_generator" {
+  subnet_id       = module.vpc.public_subnets[0]
+  security_groups = [aws_security_group.load_generator.id]
+
+  tags = {
+    Name = "defguard-load-tests-generator-network-interface"
+  }
+}
+
+resource "aws_eip" "load_generator" {
+  domain = "vpc"
+
+  tags = {
+    Name = "defguard-load-tests-generator"
+  }
+}
+
+resource "aws_eip_association" "load_generator" {
+  network_interface_id = aws_network_interface.load_generator.id
+  allocation_id        = aws_eip.load_generator.id
+}
+
+resource "aws_instance" "load_generator" {
+  ami           = data.aws_ami.ubuntu[local.core_arch].id
+  instance_type = local.load_generator_instance_type
+  key_name      = local.ssh_key_name
+
+  primary_network_interface {
+    network_interface_id = aws_network_interface.load_generator.id
+  }
+
+  tags = {
+    Name = "defguard-load-tests-generator"
+  }
+}
+
+###########################################################################
 ################################# Outputs #################################
 ###########################################################################
 # First-access steps after apply:
@@ -364,4 +431,14 @@ output "defguard_gateway_private_address" {
 output "postgres_private_address" {
   description = "Private IP address of the self-managed PostgreSQL instance"
   value       = module.postgres.private_address
+}
+
+output "load_generator_private_address" {
+  description = "Private IP address of the load-generator instance"
+  value       = aws_network_interface.load_generator.private_ip
+}
+
+output "load_generator_public_address" {
+  description = "Public IP address of the load-generator instance"
+  value       = aws_eip.load_generator.public_ip
 }
