@@ -135,6 +135,8 @@ resource "aws_security_group" "edge" {
 }
 
 resource "aws_security_group" "db" {
+  count = var.enable_rds ? 1 : 0
+
   name        = "${var.name_prefix}-db-sg"
   description = "Access to the database"
   vpc_id      = var.vpc_id
@@ -220,7 +222,7 @@ resource "aws_db_instance" "core" {
   skip_final_snapshot     = true
   allocated_storage       = var.db_storage
   db_subnet_group_name    = aws_db_subnet_group.core[0].name
-  vpc_security_group_ids  = [aws_security_group.db.id]
+  vpc_security_group_ids  = [aws_security_group.db[0].id]
   parameter_group_name    = aws_db_parameter_group.core[0].name
   storage_encrypted       = true
   backup_retention_period = 7
