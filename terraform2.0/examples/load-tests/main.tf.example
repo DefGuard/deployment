@@ -134,7 +134,7 @@ locals {
   vpc_public_subnets = ["10.20.1.0/24"]
 
   # The availability zones for the VPC. This is used mainly for the database instance to ensure high availability.
-  azs = ["eu-central-1a", "eu-central-1b"]
+  azs = ["eu-west-3a", "eu-west-3b"]
 }
 
 variable "key_name" {
