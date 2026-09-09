@@ -81,6 +81,9 @@ EOF
 chown defguard:defguard /etc/defguard/core.conf
 chmod 640 /etc/defguard/core.conf
 
+log "Waiting for PostgreSQL to become reachable..."
+wait_for_port "${db_address}" "${db_port}" 60
+
 log "Waiting for gateway and edge gRPC servers to become reachable..."
 wait_for_port "${gateway_address}" "${gateway_grpc_port}" 60 || true
 wait_for_port "${edge_address}" "${edge_grpc_port}" 60 || true

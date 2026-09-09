@@ -107,6 +107,12 @@ variable "db_port" {
   default     = 5432
 }
 
+variable "enable_rds" {
+  description = "Whether this module provisions its RDS PostgreSQL instance. Set false when a separate self-managed PostgreSQL module supplies Core's database."
+  type        = bool
+  default     = true
+}
+
 variable "db_engine_version" {
   description = "Major PostgreSQL engine version. The parameter group family is derived from this."
   type        = string

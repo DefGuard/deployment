@@ -93,10 +93,6 @@ locals {
 
   ########################## Database configuration #########################
 
-  # The major PostgreSQL engine version for the RDS instance. The parameter group family
-  # (postgres<version>) is derived from this, so the two always match.
-  db_engine_version = "18"
-
   # The name of the database that will be created for the Defguard Core.
   db_name = "defguard"
 
@@ -109,11 +105,9 @@ locals {
   # The password for the database user. This will be used by the Defguard Core to connect to the database.
   db_password = "defguard"
 
-  # The amount of storage allocated for the database in GB. The minimum amount for this example required by AWS is 20 GB.
-  db_storage = 20 # GB
-
-  # The instance class for the database. This defines the performance characteristics of the database instance.
-  db_instance_class = "db.t3.medium"
+  # Self-managed PostgreSQL runs on a dedicated private EC2 instance.
+  postgres_instance_type = "t3.medium"
+  postgres_storage_gb    = 100
 
   ############################ VPC configuration ############################
 
@@ -130,9 +124,8 @@ locals {
     Name = local.vpc_name
   }
 
-  # The private subnets for the VPC. The Core runs in the first one (no public IP, egress via
-  # NAT); both are used by the RDS subnet group. Note: 2 subnets in different AZs are required
-  # for the database subnet group.
+  # The private subnets for the VPC. Core uses the first and self-managed PostgreSQL the second;
+  # both reach package repositories through the NAT gateway.
   vpc_private_subnets = ["10.20.2.0/24", "10.20.3.0/24"]
 
   # The public subnet for the internet-facing components: the Gateway (WireGuard UDP) and the
@@ -216,7 +209,7 @@ module "defguard_core" {
   edge_address   = module.network.edge_private_ip
   edge_grpc_port = local.edge_grpc_port
 
-  db_details           = module.network.db_details
+  db_details           = module.postgres.db_details
   key_name             = local.ssh_key_name
   network_interface_id = module.network.core_network_interface_id
   # log_level            = "info"
@@ -288,6 +281,7 @@ module "network" {
   source = "../../modules/network"
 
   name_prefix      = "defguard-load-tests"
+  enable_rds       = false
   vpc_id           = module.vpc.vpc_id
   vpc_cidr         = local.vpc_cidr
   public_subnet_id = module.vpc.public_subnets[0]
@@ -306,9 +300,25 @@ module "network" {
   db_username       = local.db_username
   db_password       = local.db_password
   db_port           = local.db_port
-  db_engine_version = local.db_engine_version
-  db_storage        = local.db_storage
-  db_instance_class = local.db_instance_class
+}
+
+module "postgres" {
+  source = "../../modules/postgres"
+
+  ami                    = data.aws_ami.ubuntu[local.core_arch].id
+  instance_type          = local.postgres_instance_type
+  key_name               = local.ssh_key_name
+  vpc_id                 = module.vpc.vpc_id
+  vpc_cidr               = local.vpc_cidr
+  subnet_id              = module.vpc.private_subnets[1]
+  core_security_group_id = module.network.core_security_group_id
+  enable_ssh             = local.ssh_admin_cidr != null
+  name_prefix            = "defguard-load-tests"
+  db_name                = local.db_name
+  db_username            = local.db_username
+  db_password            = local.db_password
+  db_port                = local.db_port
+  storage_gb             = local.postgres_storage_gb
 }
 
 ###########################################################################
@@ -349,4 +359,9 @@ output "defguard_gateway_public_address" {
 output "defguard_gateway_private_address" {
   description = "Private IP address of Defguard Gateway instance"
   value       = module.network.gateway_private_ip
+}
+
+output "postgres_private_address" {
+  description = "Private IP address of the self-managed PostgreSQL instance"
+  value       = module.postgres.private_address
 }

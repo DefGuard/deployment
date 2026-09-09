@@ -208,6 +208,8 @@ resource "aws_eip_association" "edge" {
 ###########################################################################
 
 resource "aws_db_instance" "core" {
+  count = var.enable_rds ? 1 : 0
+
   engine                  = "postgres"
   engine_version          = var.db_engine_version
   instance_class          = var.db_instance_class
@@ -217,15 +219,17 @@ resource "aws_db_instance" "core" {
   port                    = var.db_port
   skip_final_snapshot     = true
   allocated_storage       = var.db_storage
-  db_subnet_group_name    = aws_db_subnet_group.core.name
+  db_subnet_group_name    = aws_db_subnet_group.core[0].name
   vpc_security_group_ids  = [aws_security_group.db.id]
-  parameter_group_name    = aws_db_parameter_group.core.name
+  parameter_group_name    = aws_db_parameter_group.core[0].name
   storage_encrypted       = true
   backup_retention_period = 7
   deletion_protection     = false
 }
 
 resource "aws_db_parameter_group" "core" {
+  count = var.enable_rds ? 1 : 0
+
   name   = "${var.name_prefix}-db-parameter-group"
   family = "postgres${var.db_engine_version}"
 
@@ -236,6 +240,8 @@ resource "aws_db_parameter_group" "core" {
 }
 
 resource "aws_db_subnet_group" "core" {
+  count = var.enable_rds ? 1 : 0
+
   name       = "${var.name_prefix}-db-subnet-group"
   subnet_ids = var.db_subnet_ids
 }

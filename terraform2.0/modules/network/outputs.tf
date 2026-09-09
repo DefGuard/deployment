@@ -3,6 +3,11 @@ output "core_network_interface_id" {
   value       = aws_network_interface.core.id
 }
 
+output "core_security_group_id" {
+  description = "Security group ID attached to Core"
+  value       = aws_security_group.core.id
+}
+
 output "gateway_network_interface_id" {
   description = "Network interface ID for the Gateway instance"
   value       = aws_network_interface.gateway.id
@@ -39,13 +44,13 @@ output "edge_public_ip" {
 }
 
 output "db_details" {
-  description = "Database connection details, in the shape the Core module expects"
+  description = "RDS database connection details, or null when RDS is disabled"
   sensitive   = true
-  value = {
+  value = var.enable_rds ? {
     name     = var.db_name
     username = var.db_username
     password = var.db_password
     port     = var.db_port
-    address  = aws_db_instance.core.address
-  }
+    address  = aws_db_instance.core[0].address
+  } : null
 }
