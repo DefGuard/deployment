@@ -44,7 +44,7 @@ locals {
   core_arch = "x86_64"
 
   # The instance type for the Defguard Core server.
-  core_instance_type = "t3.medium"
+  core_instance_type = "m7i.xlarge"
 
   ############################ Edge configuration ###########################
 
@@ -65,7 +65,7 @@ locals {
   edge_arch = "x86_64"
 
   # The instance type for the Defguard Edge server.
-  edge_instance_type = "t3.medium"
+  edge_instance_type = "m7i.xlarge"
 
   ###################### VPN and Gateway configuration ######################
 
@@ -89,7 +89,7 @@ locals {
   gateway_arch = "x86_64"
 
   # The instance type for the Defguard Gateway server.
-  gateway_instance_type = "t3.medium"
+  gateway_instance_type = "m7i.xlarge"
 
   ########################## Database configuration #########################
 
@@ -106,11 +106,11 @@ locals {
   db_password = "defguard"
 
   # Self-managed PostgreSQL runs on a dedicated private EC2 instance.
-  postgres_instance_type = "t3.medium"
+  postgres_instance_type = "m7i.xlarge"
   postgres_storage_gb    = 100
 
   # Dedicated client/load-generator instance. Increase to a non-burstable type before scored runs.
-  load_generator_instance_type = "t3.medium"
+  load_generator_instance_type = "m7i.xlarge"
 
   ############################ VPC configuration ############################
 
@@ -378,6 +378,15 @@ resource "aws_instance" "load_generator" {
   ami           = data.aws_ami.ubuntu[local.core_arch].id
   instance_type = local.load_generator_instance_type
   key_name      = local.ssh_key_name
+
+  user_data = <<-CLOUD_INIT
+    #cloud-config
+    package_update: true
+    packages:
+      - build-essential
+      - pkg-config
+      - libssl-dev
+  CLOUD_INIT
 
   primary_network_interface {
     network_interface_id = aws_network_interface.load_generator.id
