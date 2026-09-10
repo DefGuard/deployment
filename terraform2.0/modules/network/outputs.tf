@@ -8,6 +8,16 @@ output "core_security_group_id" {
   value       = aws_security_group.core.id
 }
 
+output "gateway_security_group_id" {
+  description = "Security group ID attached to Gateway"
+  value       = aws_security_group.gateway.id
+}
+
+output "edge_security_group_id" {
+  description = "Security group ID attached to Edge"
+  value       = aws_security_group.edge.id
+}
+
 output "gateway_network_interface_id" {
   description = "Network interface ID for the Gateway instance"
   value       = aws_network_interface.gateway.id

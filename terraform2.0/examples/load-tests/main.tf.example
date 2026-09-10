@@ -112,6 +112,10 @@ locals {
   # Dedicated client/load-generator instance. Increase to a non-burstable type before scored runs.
   load_generator_instance_type = "m7i.xlarge"
 
+  # Private Prometheus host; Grafana is intentionally not deployed.
+  prometheus_instance_type = "m7i.large"
+  prometheus_storage_gb    = 100
+
   ############################ VPC configuration ############################
 
   # The name of the VPC that will be created for the Defguard infrastructure.
@@ -386,6 +390,11 @@ resource "aws_instance" "load_generator" {
       - build-essential
       - pkg-config
       - libssl-dev
+      - prometheus-node-exporter
+      - prometheus-process-exporter
+    runcmd:
+      - [systemctl, enable, --now, prometheus-node-exporter]
+      - [systemctl, enable, --now, prometheus-process-exporter]
   CLOUD_INIT
 
   primary_network_interface {
@@ -395,6 +404,99 @@ resource "aws_instance" "load_generator" {
   tags = {
     Name = "defguard-load-tests-generator"
   }
+}
+
+module "prometheus" {
+  source = "../../modules/monitoring"
+
+  ami                       = data.aws_ami.ubuntu[local.core_arch].id
+  instance_type             = local.prometheus_instance_type
+  key_name                  = local.ssh_key_name
+  vpc_id                    = module.vpc.vpc_id
+  subnet_id                 = module.vpc.private_subnets[0]
+  gateway_security_group_id = module.network.gateway_security_group_id
+  name_prefix               = "defguard-load-tests"
+  storage_gb                = local.prometheus_storage_gb
+  scrape_interval           = "5s"
+
+  scrape_targets = {
+    core = [
+      "${module.network.core_private_ip}:9100",
+      "${module.network.core_private_ip}:9256",
+    ]
+    edge = [
+      "${module.network.edge_private_ip}:9100",
+      "${module.network.edge_private_ip}:9256",
+    ]
+    gateway = [
+      "${module.network.gateway_private_ip}:9100",
+      "${module.network.gateway_private_ip}:9256",
+    ]
+    postgres = [
+      "${module.postgres.private_address}:9100",
+      "${module.postgres.private_address}:9256",
+      "${module.postgres.private_address}:9187",
+    ]
+    load_generator = [
+      "${aws_network_interface.load_generator.private_ip}:9100",
+      "${aws_network_interface.load_generator.private_ip}:9256",
+    ]
+  }
+}
+
+resource "aws_security_group_rule" "core_exporters_from_prometheus" {
+  for_each                 = { node = 9100, process = 9256 }
+  type                     = "ingress"
+  security_group_id        = module.network.core_security_group_id
+  source_security_group_id = module.prometheus.security_group_id
+  from_port                = each.value
+  to_port                  = each.value
+  protocol                 = "tcp"
+  description              = "Monitoring ${each.key} exporter from Prometheus"
+}
+
+resource "aws_security_group_rule" "edge_exporters_from_prometheus" {
+  for_each                 = { node = 9100, process = 9256 }
+  type                     = "ingress"
+  security_group_id        = module.network.edge_security_group_id
+  source_security_group_id = module.prometheus.security_group_id
+  from_port                = each.value
+  to_port                  = each.value
+  protocol                 = "tcp"
+  description              = "Monitoring ${each.key} exporter from Prometheus"
+}
+
+resource "aws_security_group_rule" "gateway_exporters_from_prometheus" {
+  for_each                 = { node = 9100, process = 9256 }
+  type                     = "ingress"
+  security_group_id        = module.network.gateway_security_group_id
+  source_security_group_id = module.prometheus.security_group_id
+  from_port                = each.value
+  to_port                  = each.value
+  protocol                 = "tcp"
+  description              = "Monitoring ${each.key} exporter from Prometheus"
+}
+
+resource "aws_security_group_rule" "postgres_exporters_from_prometheus" {
+  for_each                 = { node = 9100, process = 9256, postgres = 9187 }
+  type                     = "ingress"
+  security_group_id        = module.postgres.security_group_id
+  source_security_group_id = module.prometheus.security_group_id
+  from_port                = each.value
+  to_port                  = each.value
+  protocol                 = "tcp"
+  description              = "Monitoring ${each.key} exporter from Prometheus"
+}
+
+resource "aws_security_group_rule" "load_generator_exporters_from_prometheus" {
+  for_each                 = { node = 9100, process = 9256 }
+  type                     = "ingress"
+  security_group_id        = aws_security_group.load_generator.id
+  source_security_group_id = module.prometheus.security_group_id
+  from_port                = each.value
+  to_port                  = each.value
+  protocol                 = "tcp"
+  description              = "Monitoring ${each.key} exporter from Prometheus"
 }
 
 ###########################################################################
@@ -450,4 +552,9 @@ output "load_generator_private_address" {
 output "load_generator_public_address" {
   description = "Public IP address of the load-generator instance"
   value       = aws_eip.load_generator.public_ip
+}
+
+output "prometheus_private_address" {
+  description = "Private IP address of Prometheus"
+  value       = module.prometheus.private_address
 }

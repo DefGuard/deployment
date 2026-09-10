@@ -11,7 +11,8 @@ log() {
 log "Installing PostgreSQL..."
 export DEBIAN_FRONTEND=noninteractive
 apt update
-apt install -y postgresql
+apt install -y postgresql prometheus-node-exporter prometheus-process-exporter prometheus-postgres-exporter
+systemctl enable --now prometheus-node-exporter prometheus-process-exporter
 
 config_file=$(find /etc/postgresql -path '*/main/postgresql.conf' -print -quit)
 hba_file=$(find /etc/postgresql -path '*/main/pg_hba.conf' -print -quit)
@@ -41,6 +42,13 @@ sudo -u postgres psql --set=ON_ERROR_STOP=1 \
 CREATE ROLE :"db_username" LOGIN PASSWORD :'db_password';
 CREATE DATABASE :"db_name" OWNER :"db_username";
 SQL
+
+log "Configuring PostgreSQL exporter..."
+cat >/etc/default/prometheus-postgres-exporter <<EOF
+DATA_SOURCE_NAME=postgresql://${db_username}:${db_password}@127.0.0.1:${db_port}/${db_name}?sslmode=disable
+EOF
+chmod 0600 /etc/default/prometheus-postgres-exporter
+systemctl enable --now prometheus-postgres-exporter
 
 log "PostgreSQL setup completed."
 ) 2>&1 | tee -a "$LOG_FILE"
