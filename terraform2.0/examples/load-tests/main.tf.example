@@ -390,15 +390,27 @@ resource "aws_instance" "load_generator" {
       - build-essential
       - pkg-config
       - libssl-dev
+      - git
+      - curl
       - prometheus-node-exporter
       - prometheus-process-exporter
     runcmd:
       - [systemctl, enable, --now, prometheus-node-exporter]
       - [systemctl, enable, --now, prometheus-process-exporter]
+      - [bash, -lc, "runuser -u ubuntu -- env HOME=/home/ubuntu bash -lc 'curl --proto =https --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable'"]
+      - [bash, -lc, "runuser -u ubuntu -- git clone --recurse-submodules https://github.com/DefGuard/defguard.git /home/ubuntu/defguard"]
   CLOUD_INIT
+
+  user_data_replace_on_change = true
 
   primary_network_interface {
     network_interface_id = aws_network_interface.load_generator.id
+  }
+
+  root_block_device {
+    volume_type = "gp3"
+    volume_size = 100
+    encrypted   = true
   }
 
   tags = {
@@ -475,6 +487,16 @@ resource "aws_security_group_rule" "gateway_exporters_from_prometheus" {
   to_port                  = each.value
   protocol                 = "tcp"
   description              = "Monitoring ${each.key} exporter from Prometheus"
+}
+
+resource "aws_security_group_rule" "postgres_from_load_generator" {
+  type                     = "ingress"
+  security_group_id        = module.postgres.security_group_id
+  source_security_group_id = aws_security_group.load_generator.id
+  from_port                = 5432
+  to_port                  = 5432
+  protocol                 = "tcp"
+  description              = "Load generator database access"
 }
 
 resource "aws_security_group_rule" "postgres_exporters_from_prometheus" {
