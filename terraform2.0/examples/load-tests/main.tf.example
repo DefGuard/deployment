@@ -112,9 +112,10 @@ locals {
   # Dedicated client/load-generator instance. Increase to a non-burstable type before scored runs.
   load_generator_instance_type = "m7i.xlarge"
 
-  # Private Prometheus host; Grafana is intentionally not deployed.
+  # Private monitoring host running Prometheus and Grafana.
   prometheus_instance_type = "m7i.large"
   prometheus_storage_gb    = 100
+  grafana_admin_password   = "change-me"
 
   ############################ VPC configuration ############################
 
@@ -430,6 +431,7 @@ module "prometheus" {
   name_prefix               = "defguard-load-tests"
   storage_gb                = local.prometheus_storage_gb
   scrape_interval           = "5s"
+  grafana_admin_password    = local.grafana_admin_password
 
   scrape_targets = {
     core = [
@@ -579,4 +581,14 @@ output "load_generator_public_address" {
 output "prometheus_private_address" {
   description = "Private IP address of Prometheus"
   value       = module.prometheus.private_address
+}
+
+output "grafana_private_address" {
+  description = "Private IP address of Grafana"
+  value       = module.prometheus.grafana_private_address
+}
+
+output "grafana_admin_password_file" {
+  description = "Path to the generated Grafana admin password on the monitoring host"
+  value       = module.prometheus.grafana_admin_password_file
 }

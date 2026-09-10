@@ -50,3 +50,11 @@ variable "scrape_interval" {
   type        = string
   default     = "5s"
 }
+
+variable "grafana_admin_password" {
+  description = "Grafana admin password; generated during bootstrap when unset"
+  type        = string
+  sensitive   = true
+  nullable    = true
+  default     = null
+}

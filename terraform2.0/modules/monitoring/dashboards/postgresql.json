@@ -1,0 +1,10 @@
+{
+  "annotations":{"list":[]},"editable":false,"graphTooltip":1,
+  "panels":[
+    {"type":"timeseries","title":"Connections","gridPos":{"h":8,"w":12,"x":0,"y":0},"targets":[{"expr":"pg_stat_database_numbackends{datname!~\"template0|template1\"}","legendFormat":"{{datname}}","refId":"A"}]},
+    {"type":"timeseries","title":"Transactions per second","gridPos":{"h":8,"w":12,"x":12,"y":0},"targets":[{"expr":"rate(pg_stat_database_xact_commit[5m]) + rate(pg_stat_database_xact_rollback[5m])","legendFormat":"{{datname}}","refId":"A"}]},
+    {"type":"timeseries","title":"Cache hit ratio","gridPos":{"h":8,"w":12,"x":0,"y":8},"targets":[{"expr":"100 * sum(rate(pg_stat_database_blks_hit[5m])) / (sum(rate(pg_stat_database_blks_hit[5m])) + sum(rate(pg_stat_database_blks_read[5m])))","legendFormat":"cache hit %","refId":"A"}]},
+    {"type":"timeseries","title":"Exporter availability","gridPos":{"h":8,"w":12,"x":12,"y":8},"targets":[{"expr":"up{job=\"postgres\"}","legendFormat":"{{instance}}","refId":"A"}]}
+  ],
+  "schemaVersion":39,"tags":["defguard","postgresql"],"time":{"from":"now-1h","to":"now"},"title":"Defguard - PostgreSQL","uid":"defguard-postgresql","version":1
+}
