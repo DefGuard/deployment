@@ -11,6 +11,14 @@ resource "aws_security_group" "postgres" {
     security_groups = [var.core_security_group_id]
   }
 
+  ingress {
+    description = "PostgreSQL from the private VPC"
+    from_port   = var.db_port
+    to_port     = var.db_port
+    protocol    = "tcp"
+    cidr_blocks = [var.vpc_cidr]
+  }
+
   dynamic "ingress" {
     for_each = var.enable_ssh ? [1] : []
     content {

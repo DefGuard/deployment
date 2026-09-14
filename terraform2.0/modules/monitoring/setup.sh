@@ -87,7 +87,16 @@ DASHBOARD_JSON
       password="$(openssl rand -hex 24)"
     fi
     systemctl stop grafana-server
-    /usr/share/grafana/bin/grafana cli admin reset-admin-password "$password"
+    chown -R grafana:grafana /var/lib/grafana
+    runuser -u grafana -- env \
+      GF_PATHS_DATA=/var/lib/grafana \
+      GF_PATHS_LOGS=/var/log/grafana \
+      GF_PATHS_PLUGINS=/var/lib/grafana/plugins \
+      GF_PATHS_PROVISIONING=/etc/grafana/provisioning \
+      /usr/share/grafana/bin/grafana cli \
+        --config /etc/grafana/grafana.ini \
+        --homepath /usr/share/grafana \
+        admin reset-admin-password "$password"
     printf '%s\n' "$password" >/root/grafana-admin-password
     chmod 0600 /root/grafana-admin-password
     systemctl start grafana-server

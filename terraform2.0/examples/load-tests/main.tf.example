@@ -115,7 +115,7 @@ locals {
   # Private monitoring host running Prometheus and Grafana.
   prometheus_instance_type = "m7i.large"
   prometheus_storage_gb    = 100
-  grafana_admin_password   = "change-me"
+  grafana_admin_password   = "grafana"
 
   ############################ VPC configuration ############################
 
@@ -355,6 +355,17 @@ resource "aws_security_group" "load_generator" {
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
+
+  dynamic "ingress" {
+    for_each = [9100, 9256]
+    content {
+      description     = "Monitoring exporter from Prometheus"
+      from_port       = ingress.value
+      to_port         = ingress.value
+      protocol    = "tcp"
+      cidr_blocks = [local.vpc_cidr]
+    }
+  }
 }
 
 resource "aws_network_interface" "load_generator" {
@@ -458,70 +469,11 @@ module "prometheus" {
   }
 }
 
-resource "aws_security_group_rule" "core_exporters_from_prometheus" {
-  for_each                 = { node = 9100, process = 9256 }
-  type                     = "ingress"
-  security_group_id        = module.network.core_security_group_id
-  source_security_group_id = module.prometheus.security_group_id
-  from_port                = each.value
-  to_port                  = each.value
-  protocol                 = "tcp"
-  description              = "Monitoring ${each.key} exporter from Prometheus"
-}
 
-resource "aws_security_group_rule" "edge_exporters_from_prometheus" {
-  for_each                 = { node = 9100, process = 9256 }
-  type                     = "ingress"
-  security_group_id        = module.network.edge_security_group_id
-  source_security_group_id = module.prometheus.security_group_id
-  from_port                = each.value
-  to_port                  = each.value
-  protocol                 = "tcp"
-  description              = "Monitoring ${each.key} exporter from Prometheus"
-}
 
-resource "aws_security_group_rule" "gateway_exporters_from_prometheus" {
-  for_each                 = { node = 9100, process = 9256 }
-  type                     = "ingress"
-  security_group_id        = module.network.gateway_security_group_id
-  source_security_group_id = module.prometheus.security_group_id
-  from_port                = each.value
-  to_port                  = each.value
-  protocol                 = "tcp"
-  description              = "Monitoring ${each.key} exporter from Prometheus"
-}
 
-resource "aws_security_group_rule" "postgres_from_load_generator" {
-  type                     = "ingress"
-  security_group_id        = module.postgres.security_group_id
-  source_security_group_id = aws_security_group.load_generator.id
-  from_port                = 5432
-  to_port                  = 5432
-  protocol                 = "tcp"
-  description              = "Load generator database access"
-}
 
-resource "aws_security_group_rule" "postgres_exporters_from_prometheus" {
-  for_each                 = { node = 9100, process = 9256, postgres = 9187 }
-  type                     = "ingress"
-  security_group_id        = module.postgres.security_group_id
-  source_security_group_id = module.prometheus.security_group_id
-  from_port                = each.value
-  to_port                  = each.value
-  protocol                 = "tcp"
-  description              = "Monitoring ${each.key} exporter from Prometheus"
-}
 
-resource "aws_security_group_rule" "load_generator_exporters_from_prometheus" {
-  for_each                 = { node = 9100, process = 9256 }
-  type                     = "ingress"
-  security_group_id        = aws_security_group.load_generator.id
-  source_security_group_id = module.prometheus.security_group_id
-  from_port                = each.value
-  to_port                  = each.value
-  protocol                 = "tcp"
-  description              = "Monitoring ${each.key} exporter from Prometheus"
-}
 
 ###########################################################################
 ################################# Outputs #################################

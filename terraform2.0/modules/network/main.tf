@@ -28,6 +28,18 @@ resource "aws_security_group" "core" {
     cidr_blocks = [var.vpc_cidr]
   }
 
+
+  dynamic "ingress" {
+    for_each = [9100, 9256]
+    content {
+      description = "Monitoring exporter from within the VPC"
+      from_port   = ingress.value
+      to_port     = ingress.value
+      protocol    = "tcp"
+      cidr_blocks = [var.vpc_cidr]
+    }
+  }
+
   egress {
     from_port   = 0
     to_port     = 0
@@ -67,6 +79,18 @@ resource "aws_security_group" "gateway" {
     to_port         = var.gateway_grpc_port
     protocol        = "tcp"
     security_groups = [aws_security_group.core.id]
+  }
+
+
+  dynamic "ingress" {
+    for_each = [9100, 9256]
+    content {
+      description = "Monitoring exporter from within the VPC"
+      from_port   = ingress.value
+      to_port     = ingress.value
+      protocol    = "tcp"
+      cidr_blocks = [var.vpc_cidr]
+    }
   }
 
   egress {
@@ -124,6 +148,18 @@ resource "aws_security_group" "edge" {
     to_port         = var.edge_grpc_port
     protocol        = "tcp"
     security_groups = [aws_security_group.core.id]
+  }
+
+
+  dynamic "ingress" {
+    for_each = [9100, 9256]
+    content {
+      description = "Monitoring exporter from within the VPC"
+      from_port   = ingress.value
+      to_port     = ingress.value
+      protocol    = "tcp"
+      cidr_blocks = [var.vpc_cidr]
+    }
   }
 
   egress {
