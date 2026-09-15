@@ -20,6 +20,17 @@ resource "aws_security_group" "postgres" {
   }
 
   dynamic "ingress" {
+    for_each = [9100, 9187, 9256]
+    content {
+      description = "Monitoring exporters from within the VPC"
+      from_port   = ingress.value
+      to_port     = ingress.value
+      protocol    = "tcp"
+      cidr_blocks = [var.vpc_cidr]
+    }
+  }
+
+  dynamic "ingress" {
     for_each = var.enable_ssh ? [1] : []
     content {
       description = "SSH from within the VPC"
