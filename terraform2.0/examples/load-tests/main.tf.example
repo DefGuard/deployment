@@ -326,7 +326,7 @@ module "openldap" {
   vpc_id                    = module.vpc.vpc_id
   vpc_cidr                  = local.vpc_cidr
   subnet_id                 = module.vpc.private_subnets[0]
-  client_security_group_ids = [module.network.core_security_group_id, aws_security_group.load_generator.id]
+  client_security_group_ids = [module.network.core_security_group_id, module.network.gateway_security_group_id, aws_security_group.load_generator.id]
   enable_ssh                = local.ssh_admin_cidr != null
   name_prefix               = "defguard-load-tests"
   ldap_domain               = local.ldap_domain
