@@ -53,6 +53,9 @@ userspace = false
 cert_dir = "/etc/defguard/certs"
 # Enable automatic masquerading of traffic by the firewall
 masquerade = ${nat}
+# Seconds to wait after losing the Core connection before tearing down the WireGuard
+# interface and purging the adoption certificates
+core_disconnect_grace_period = ${core_disconnect_grace_period}
 log_level = "${log_level}"
 
 # Optional: HTTP port exposing gateway health status (200 connected, 503 not connected)
@@ -75,8 +78,12 @@ systemctl daemon-reload
 log "Enabling defguard-gateway service..."
 systemctl enable defguard-gateway
 
-log "Starting defguard-gateway service..."
-systemctl start defguard-gateway
+# The package postinst already started the service, using the gateway.toml shipped with
+# the .deb -- long before this script wrote the configuration above. `systemctl start` on
+# an already-active unit is a no-op, so the service would keep running with the packaged
+# defaults (notably `masquerade = false`) for the life of the instance. Restart instead.
+log "Restarting defguard-gateway service to apply the configuration written above..."
+systemctl restart defguard-gateway
 
 log "Setup completed."
 ) 2>&1 | tee -a "$LOG_FILE"
