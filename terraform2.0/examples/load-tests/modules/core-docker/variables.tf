@@ -7,7 +7,7 @@ variable "image" {
 }
 variable "instance_type" {
   type    = string
-  default = "t3.micro"
+  default = "m7i.xlarge"
 }
 variable "db_details" {
   sensitive = true
