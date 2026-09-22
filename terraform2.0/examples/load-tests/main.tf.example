@@ -36,9 +36,6 @@ locals {
   # are using HTTP to access the Defguard Core web UI.
   core_cookie_insecure = false
 
-  # Pin the Defguard Core deb package version. Load tests use the released 2.1.0 package.
-  core_package_version = "2.1.0"
-
   # The architecture of the Defguard Core server instance.
   # Supported values: "x86_64", "aarch64"
   core_arch = "x86_64"
@@ -56,9 +53,6 @@ locals {
 
   # The HTTPS port the Defguard Edge listens on (used after Core provisions TLS).
   edge_https_port = 443
-
-  # Pin the Defguard Edge deb package version. Load tests use the released 2.1.0 package.
-  edge_package_version = "2.1.0"
 
   # The architecture of the Defguard Edge server instance.
   # Supported values: "x86_64", "aarch64"
@@ -164,6 +158,18 @@ variable "ssh_admin_cidr" {
   default     = null
 }
 
+variable "core_image" {
+  description = "Defguard Core Docker image used by load tests. Override with TF_VAR_core_image."
+  type        = string
+  default     = "ghcr.io/defguard/defguard:dev"
+}
+
+variable "edge_image" {
+  description = "Defguard Edge Docker image used by load tests. Override with TF_VAR_edge_image."
+  type        = string
+  default     = "ghcr.io/defguard/defguard-proxy:dev"
+}
+
 terraform {
   required_version = ">= 1.5.0"
   required_providers {
@@ -209,10 +215,10 @@ provider "aws" {
 ###########################################################################
 
 module "defguard_core" {
-  source          = "../../modules/core"
-  instance_type   = local.core_instance_type
-  package_version = local.core_package_version
-  ami             = data.aws_ami.ubuntu[local.core_arch].id
+  source        = "./modules/core-docker"
+  instance_type = local.core_instance_type
+  image         = var.core_image
+  ami           = data.aws_ami.ubuntu[local.core_arch].id
 
   grpc_port       = local.core_grpc_port
   http_port       = local.core_http_port
@@ -237,13 +243,13 @@ module "defguard_core" {
 }
 
 module "defguard_edge" {
-  source = "../../modules/edge"
+  source = "./modules/edge-docker"
 
-  instance_type   = local.edge_instance_type
-  package_version = local.edge_package_version
-  grpc_port       = local.edge_grpc_port
-  http_port       = local.edge_http_port
-  https_port      = local.edge_https_port
+  instance_type = local.edge_instance_type
+  image         = var.edge_image
+  grpc_port     = local.edge_grpc_port
+  http_port     = local.edge_http_port
+  https_port    = local.edge_https_port
   # log_level       = "info"
 
   ami                  = data.aws_ami.ubuntu[local.edge_arch].id
@@ -311,10 +317,10 @@ module "network" {
   edge_http_port    = local.edge_http_port
   edge_https_port   = local.edge_https_port
 
-  db_name           = local.db_name
-  db_username       = local.db_username
-  db_password       = local.db_password
-  db_port           = local.db_port
+  db_name     = local.db_name
+  db_username = local.db_username
+  db_password = local.db_password
+  db_port     = local.db_port
 }
 
 module "openldap" {
@@ -383,9 +389,9 @@ resource "aws_security_group" "load_generator" {
   dynamic "ingress" {
     for_each = [9100, 9256]
     content {
-      description     = "Monitoring exporter from Prometheus"
-      from_port       = ingress.value
-      to_port         = ingress.value
+      description = "Monitoring exporter from Prometheus"
+      from_port   = ingress.value
+      to_port     = ingress.value
       protocol    = "tcp"
       cidr_blocks = [local.vpc_cidr]
     }
