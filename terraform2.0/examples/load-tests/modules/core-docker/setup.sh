@@ -53,6 +53,7 @@ services:
       DEFGUARD_DB_NAME: "${db_name}"
       DEFGUARD_DB_USER: "${db_username}"
       DEFGUARD_DB_PASSWORD: "${db_password}"
+      DEFGUARD_DB_POOL_SIZE: 50
     ports:
       - "${http_port}:${http_port}"
       - "${grpc_port}:${grpc_port}"
