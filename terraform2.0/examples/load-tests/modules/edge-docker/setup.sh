@@ -3,7 +3,8 @@ set -euo pipefail
 
 export DEBIAN_FRONTEND=noninteractive
 apt-get update
-apt-get install -y ca-certificates curl
+apt-get install -y ca-certificates curl prometheus-node-exporter prometheus-process-exporter
+systemctl enable --now prometheus-node-exporter prometheus-process-exporter
 curl -fsSL https://get.docker.com | sh
 
 install -d -m 0755 /opt/defguard-edge/certs

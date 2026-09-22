@@ -295,11 +295,10 @@ module "vpc" {
 ############### Network, security groups and database #####################
 ###########################################################################
 
-# All networking (security groups, NICs, EIPs) and the RDS database live in the shared
-# modules/network submodule, fed by the VPC created above. The same submodule is reused by
-# examples/existing-vpc, where the vpc_id and subnet IDs come from a customer's own VPC.
+# Load-test networking (security groups, NICs, and EIPs) lives in the local network module,
+# which disables its optional RDS resources because this stack uses self-managed PostgreSQL.
 module "network" {
-  source = "../../modules/network"
+  source = "./modules/network"
 
   name_prefix      = "defguard-load-tests"
   enable_rds       = false
