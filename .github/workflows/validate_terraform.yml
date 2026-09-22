@@ -24,9 +24,10 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
+        uses: hashicorp/setup-terraform@v4
         with:
-          terraform_version: "1.15.5"
+          terraform_version: "1.15.9"
+          terraform_wrapper: false
 
       # The .example files are skipped on purpose: their dual-source comment
       # pattern (commented local path above the live remote source) makes
