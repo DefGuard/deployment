@@ -62,3 +62,10 @@ jobs:
             terraform -chdir="$example" validate
             echo "::endgroup::"
           done
+
+          example=examples/load-tests
+          echo "::group::validate $example"
+          cp "$example/main.tf.example" "$example/main.tf"
+          terraform -chdir="$example" init -backend=false -input=false
+          terraform -chdir="$example" validate
+          echo "::endgroup::"
