@@ -10,8 +10,7 @@ log() {
 (
 log "Installing prerequisites..."
 apt update
-apt install -y ca-certificates curl prometheus-node-exporter prometheus-process-exporter
-systemctl enable --now prometheus-node-exporter prometheus-process-exporter
+apt install -y ca-certificates curl
 
 log "Adding the Defguard APT repository..."
 # The repo serves two suites: trixie (glibc >= 2.39, e.g. Ubuntu 24.04 / Debian 13) and

@@ -30,8 +30,7 @@ wait_for_port() {
 (
 log "Installing prerequisites..."
 apt update
-apt install -y ca-certificates curl prometheus-node-exporter prometheus-process-exporter
-systemctl enable --now prometheus-node-exporter prometheus-process-exporter
+apt install -y ca-certificates curl
 
 log "Adding the Defguard APT repository..."
 # The repo serves two suites: trixie (glibc >= 2.39, e.g. Ubuntu 24.04 / Debian 13) and
@@ -81,9 +80,6 @@ EOF
 
 chown defguard:defguard /etc/defguard/core.conf
 chmod 640 /etc/defguard/core.conf
-
-log "Waiting for PostgreSQL to become reachable..."
-wait_for_port "${db_address}" "${db_port}" 60
 
 log "Waiting for gateway and edge gRPC servers to become reachable..."
 wait_for_port "${gateway_address}" "${gateway_grpc_port}" 60 || true
