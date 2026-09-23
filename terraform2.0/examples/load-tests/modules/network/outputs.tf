@@ -29,17 +29,17 @@ output "edge_network_interface_id" {
 }
 
 output "core_private_ip" {
-  description = "Private IP of the Core network interface"
+  description = "Private IP address of the Core network interface"
   value       = aws_network_interface.core.private_ip
 }
 
 output "gateway_private_ip" {
-  description = "Private IP of the Gateway network interface (used as Core's adoption target)"
+  description = "Private IP address of the Gateway network interface (used as Core's adoption target)"
   value       = aws_network_interface.gateway.private_ip
 }
 
 output "edge_private_ip" {
-  description = "Private IP of the Edge network interface (used as Core's adoption target)"
+  description = "Private IP address of the Edge network interface (used as Core's adoption target)"
   value       = aws_network_interface.edge.private_ip
 }
 
