@@ -1,0 +1,66 @@
+output "core_network_interface_id" {
+  description = "Network interface ID for the Core instance"
+  value       = aws_network_interface.core.id
+}
+
+output "core_security_group_id" {
+  description = "Security group ID attached to Core"
+  value       = aws_security_group.core.id
+}
+
+output "gateway_security_group_id" {
+  description = "Security group ID attached to Gateway"
+  value       = aws_security_group.gateway.id
+}
+
+output "edge_security_group_id" {
+  description = "Security group ID attached to Edge"
+  value       = aws_security_group.edge.id
+}
+
+output "gateway_network_interface_id" {
+  description = "Network interface ID for the Gateway instance"
+  value       = aws_network_interface.gateway.id
+}
+
+output "edge_network_interface_id" {
+  description = "Network interface ID for the Edge instance"
+  value       = aws_network_interface.edge.id
+}
+
+output "core_private_ip" {
+  description = "Private IP address of the Core network interface"
+  value       = aws_network_interface.core.private_ip
+}
+
+output "gateway_private_ip" {
+  description = "Private IP address of the Gateway network interface (used as Core's adoption target)"
+  value       = aws_network_interface.gateway.private_ip
+}
+
+output "edge_private_ip" {
+  description = "Private IP address of the Edge network interface (used as Core's adoption target)"
+  value       = aws_network_interface.edge.private_ip
+}
+
+output "gateway_public_ip" {
+  description = "Public EIP of the Gateway (WireGuard endpoint for clients)"
+  value       = aws_eip.gateway.public_ip
+}
+
+output "edge_public_ip" {
+  description = "Public EIP of the Edge (enrollment / client HTTPS)"
+  value       = aws_eip.edge.public_ip
+}
+
+output "db_details" {
+  description = "RDS database connection details, or null when RDS is disabled"
+  sensitive   = true
+  value = var.enable_rds ? {
+    name     = var.db_name
+    username = var.db_username
+    password = var.db_password
+    port     = var.db_port
+    address  = aws_db_instance.core[0].address
+  } : null
+}

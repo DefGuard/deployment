@@ -1,0 +1,10 @@
+{
+  "annotations":{"list":[]},"editable":false,"graphTooltip":1,
+  "panels":[
+    {"type":"stat","title":"Targets up","gridPos":{"h":5,"w":8,"x":0,"y":0},"targets":[{"expr":"sum(up)","refId":"A"}]},
+    {"type":"stat","title":"Targets down","gridPos":{"h":5,"w":8,"x":8,"y":0},"targets":[{"expr":"count(up) - sum(up)","refId":"A"}]},
+    {"type":"timeseries","title":"Scrape duration","gridPos":{"h":8,"w":16,"x":0,"y":5},"targets":[{"expr":"scrape_duration_seconds","legendFormat":"{{job}} / {{instance}}","refId":"A"}]},
+    {"type":"timeseries","title":"Samples ingested","gridPos":{"h":8,"w":8,"x":16,"y":5},"targets":[{"expr":"rate(scrape_samples_scraped[5m])","legendFormat":"{{job}} / {{instance}}","refId":"A"}]}
+  ],
+  "schemaVersion":39,"tags":["defguard","prometheus"],"time":{"from":"now-1h","to":"now"},"title":"Defguard - Prometheus health","uid":"defguard-prometheus","version":1
+}

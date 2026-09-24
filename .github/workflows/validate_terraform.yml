@@ -24,9 +24,10 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
+        uses: hashicorp/setup-terraform@v4
         with:
-          terraform_version: "1.15.5"
+          terraform_version: "1.15.9"
+          terraform_wrapper: false
 
       # The .example files are skipped on purpose: their dual-source comment
       # pattern (commented local path above the live remote source) makes
@@ -61,3 +62,10 @@ jobs:
             terraform -chdir="$example" validate
             echo "::endgroup::"
           done
+
+          example=examples/load-tests
+          echo "::group::validate $example"
+          cp "$example/main.tf.example" "$example/main.tf"
+          terraform -chdir="$example" init -backend=false -input=false
+          terraform -chdir="$example" validate
+          echo "::endgroup::"

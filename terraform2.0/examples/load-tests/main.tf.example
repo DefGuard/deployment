@@ -1,0 +1,590 @@
+# Deploy Defguard 2.1 into a NEW, self-contained VPC for load testing.
+#
+# This example creates everything from scratch: a VPC with public/private subnets and a NAT
+# gateway, the security groups, network interfaces, EIPs and the RDS database (via the shared
+# modules/network submodule), plus the three component instances. Edit the locals below and
+# apply. To deploy into a VPC you already run instead, use examples/existing-vpc.
+#
+# Layout: the Core and database stay private (egress via NAT); the Gateway and Edge sit in the
+# public subnet with EIPs. First-access steps are documented above the outputs at the bottom.
+
+locals {
+  ############################ AWS configuration ############################
+
+  # The AWS region where the Defguard infrastructure will be deployed.
+  region = "eu-west-3"
+
+  ############################ SSH / access configuration ###################
+
+  # SSH is OFF by default: with ssh_admin_cidr = null no port-22 ingress is created at all.
+  # To enable SSH (e.g. to tunnel to the private Core via the Gateway), set BOTH:
+  #   - ssh_admin_cidr to your own public IP as a /32 (find it: curl -s https://checkip.amazonaws.com);
+  #     avoid 0.0.0.0/0, which exposes SSH to the whole internet.
+  #   - ssh_key_name to an existing EC2 key pair in this region.
+  ssh_admin_cidr = var.ssh_admin_cidr
+  ssh_key_name   = var.key_name
+
+  ############################ Core configuration ###########################
+
+  # The gRPC port for the Defguard Core.
+  core_grpc_port = 50055
+
+  # The HTTP(S) port for the Defguard Core web UI.
+  core_http_port = 8000
+
+  # Whether to allow insecure cookies for the Defguard Core web UI. Set to true if you
+  # are using HTTP to access the Defguard Core web UI.
+  core_cookie_insecure = false
+
+  # The architecture of the Defguard Core server instance.
+  # Supported values: "x86_64", "aarch64"
+  core_arch = "x86_64"
+
+  # The instance type for the Defguard Core server.
+  core_instance_type = "m7i.xlarge"
+
+  ############################ Edge configuration ###########################
+
+  # The gRPC port the Defguard Edge listens on. Core dials this to adopt and manage the edge.
+  edge_grpc_port = 50051
+
+  # The HTTP port the Defguard Edge listens on for enrollment and client communication.
+  edge_http_port = 8080
+
+  # The HTTPS port the Defguard Edge listens on (used after Core provisions TLS).
+  edge_https_port = 443
+
+  # The architecture of the Defguard Edge server instance.
+  # Supported values: "x86_64", "aarch64"
+  edge_arch = "x86_64"
+
+  # The instance type for the Defguard Edge server.
+  edge_instance_type = "m7i.xlarge"
+
+  ###################### VPN and Gateway configuration ######################
+
+  # The gRPC port the Defguard Gateway listens on. Core dials this to adopt and manage
+  # the gateway (initial adoption and the ongoing control stream).
+  gateway_grpc_port = 50066
+
+  # The UDP port for the WireGuard VPN. The gateway listens on this port for incoming VPN
+  # connections. Must match the port of the location auto-created during adoption (51820).
+  wireguard_port = 51820
+
+  # Whether to enable NAT (masquerade) on the gateway, allowing VPN clients to reach the
+  # internet and other resources through the gateway.
+  gateway_nat = true
+
+  # Pin the Defguard Gateway deb package version. Load tests use the released 2.1.0 package.
+  gateway_package_version = "2.1.0"
+
+  # The architecture of the Defguard Gateway server instance.
+  # Supported values: "x86_64", "aarch64"
+  gateway_arch = "x86_64"
+
+  # The instance type for the Defguard Gateway server.
+  gateway_instance_type = "m7i.xlarge"
+
+  ########################## Database configuration #########################
+
+  # The name of the database that will be created for the Defguard Core.
+  db_name = "defguard"
+
+  # The username for the database that will be created for the Defguard Core.
+  db_username = "defguard"
+
+  # The port on which the database will listen for incoming connections.
+  db_port = 5432
+
+  # The password for the database user. This will be used by the Defguard Core to connect to the database.
+  db_password = "defguard"
+
+  # Self-managed PostgreSQL runs on a dedicated private EC2 instance.
+  postgres_instance_type = "m7i.xlarge"
+  postgres_storage_gb    = 100
+
+  # OpenLDAP runs on a dedicated private EC2 instance.
+  openldap_instance_type = "t3.small"
+  openldap_storage_gb    = 20
+  ldap_domain            = "example.com"
+  ldap_organization      = "Defguard Load Tests"
+  ldap_admin_password    = "defguard-ldap"
+
+  # Dedicated client/load-generator instance. Increase to a non-burstable type before scored runs.
+  load_generator_instance_type = "m7i.xlarge"
+
+  # Private monitoring host running Prometheus and Grafana.
+  prometheus_instance_type = "m7i.large"
+  prometheus_storage_gb    = 100
+  grafana_admin_password   = "grafana"
+
+  ############################ VPC configuration ############################
+
+  # The name of the VPC that will be created for the Defguard infrastructure.
+  vpc_name = "defguard-load-tests-vpc"
+
+  # The CIDR block for the VPC. This defines the IP address range for the VPC and its subnets.
+  # Deliberately off 10.0.0.0/16 so it does NOT overlap the default WireGuard location range
+  # (10.0.0.1/24) that auto-adoption creates.
+  vpc_cidr = "10.20.0.0/16"
+
+  # The tags to be applied to the Defguard VPC.
+  vpc_tags = {
+    Name = local.vpc_name
+  }
+
+  # The private subnets for the VPC. Core uses the first and self-managed PostgreSQL the second;
+  # both reach package repositories through the NAT gateway.
+  vpc_private_subnets = ["10.20.2.0/24", "10.20.3.0/24"]
+
+  # The public subnet for the internet-facing components: the Gateway (WireGuard UDP) and the
+  # Edge (HTTPS enrollment). The Core stays private (see vpc_private_subnets above) and is
+  # reached only from within the VPC.
+  vpc_public_subnets = ["10.20.1.0/24"]
+
+  # The availability zones for the VPC. This is used mainly for the database instance to ensure high availability.
+  azs = ["eu-west-3a", "eu-west-3b"]
+}
+
+variable "key_name" {
+  description = "Name of the existing EC2 key pair attached to Defguard instances. Set TF_VAR_key_name or use a tfvars file."
+  type        = string
+  default     = null
+}
+
+variable "ssh_admin_cidr" {
+  description = "Single CIDR allowed to SSH into the public Edge and Gateway. Set TF_VAR_ssh_admin_cidr to your public IP with /32."
+  type        = string
+  default     = null
+}
+
+variable "core_image" {
+  description = "Defguard Core Docker image used by load tests. Override with TF_VAR_core_image."
+  type        = string
+  default     = "ghcr.io/defguard/defguard:dev"
+}
+
+variable "edge_image" {
+  description = "Defguard Edge Docker image used by load tests. Override with TF_VAR_edge_image."
+  type        = string
+  default     = "ghcr.io/defguard/defguard-proxy:dev"
+}
+
+terraform {
+  required_version = ">= 1.5.0"
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 6.0"
+    }
+  }
+}
+
+# Maps the deb package architecture (x86_64/aarch64) to the Ubuntu AMI name token
+# (amd64/arm64), so the AMI a component boots matches the package apt installs.
+locals {
+  ubuntu_ami_arch = {
+    x86_64  = "amd64"
+    aarch64 = "arm64"
+  }
+}
+
+# One lookup per distinct component architecture; each component picks
+# data.aws_ami.ubuntu[<its arch>] below. When using aarch64, also set that component's
+# instance_type to an arm64 type (e.g. t4g.micro).
+data "aws_ami" "ubuntu" {
+  for_each    = toset([local.core_arch, local.edge_arch, local.gateway_arch])
+  most_recent = true
+  owners      = ["099720109477"]
+
+  filter {
+    name   = "name"
+    values = ["ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-${local.ubuntu_ami_arch[each.value]}-server-*"]
+  }
+}
+
+# Credentials come from the standard AWS provider chain (environment variables, a shared
+# profile, SSO, or an instance role). Set e.g. AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY or
+# AWS_PROFILE before running terraform; do not hardcode keys here.
+provider "aws" {
+  region = local.region
+}
+
+###########################################################################
+########################## Defguard components ############################
+###########################################################################
+
+module "defguard_core" {
+  source        = "./modules/core-docker"
+  instance_type = local.core_instance_type
+  image         = var.core_image
+  ami           = data.aws_ami.ubuntu[local.core_arch].id
+
+  grpc_port       = local.core_grpc_port
+  http_port       = local.core_http_port
+  cookie_insecure = local.core_cookie_insecure
+
+  gateway_address   = module.network.gateway_private_ip
+  gateway_grpc_port = local.gateway_grpc_port
+
+  edge_address   = module.network.edge_private_ip
+  edge_grpc_port = local.edge_grpc_port
+
+  db_details           = module.postgres.db_details
+  key_name             = local.ssh_key_name
+  network_interface_id = module.network.core_network_interface_id
+  # log_level            = "info"
+
+  # Gateway and edge must be listening before Core's one-shot adoption runs.
+  depends_on = [
+    module.defguard_gateway,
+    module.defguard_edge,
+  ]
+}
+
+module "defguard_edge" {
+  source = "./modules/edge-docker"
+
+  instance_type = local.edge_instance_type
+  image         = var.edge_image
+  grpc_port     = local.edge_grpc_port
+  http_port     = local.edge_http_port
+  https_port    = local.edge_https_port
+  # log_level       = "info"
+
+  ami                  = data.aws_ami.ubuntu[local.edge_arch].id
+  key_name             = local.ssh_key_name
+  network_interface_id = module.network.edge_network_interface_id
+}
+
+module "defguard_gateway" {
+  source = "../../modules/gateway"
+
+  ami             = data.aws_ami.ubuntu[local.gateway_arch].id
+  instance_type   = local.gateway_instance_type
+  package_version = local.gateway_package_version
+
+  grpc_port            = local.gateway_grpc_port
+  nat                  = local.gateway_nat
+  key_name             = local.ssh_key_name
+  network_interface_id = module.network.gateway_network_interface_id
+  # log_level            = "info"
+}
+
+module "vpc" {
+  source  = "terraform-aws-modules/vpc/aws"
+  version = "~> 5.0"
+
+  name            = local.vpc_name
+  cidr            = local.vpc_cidr
+  azs             = local.azs
+  private_subnets = local.vpc_private_subnets
+  public_subnets  = local.vpc_public_subnets
+
+  enable_dns_hostnames = true
+
+  # Private Core needs NAT for outbound (apt package install at boot, license checks). Gateway/Edge
+  # are public and egress via their own EIPs.
+  enable_nat_gateway = true
+  single_nat_gateway = true
+
+  tags = local.vpc_tags
+}
+
+###########################################################################
+############### Network, security groups and database #####################
+###########################################################################
+
+# Load-test networking (security groups, NICs, and EIPs) lives in the local network module,
+# which disables its optional RDS resources because this stack uses self-managed PostgreSQL.
+module "network" {
+  source = "./modules/network"
+
+  name_prefix      = "defguard-load-tests"
+  enable_rds       = false
+  vpc_id           = module.vpc.vpc_id
+  vpc_cidr         = local.vpc_cidr
+  public_subnet_id = module.vpc.public_subnets[0]
+  core_subnet_id   = module.vpc.private_subnets[0]
+  db_subnet_ids    = module.vpc.private_subnets
+
+  ssh_admin_cidr    = local.ssh_admin_cidr
+  core_http_port    = local.core_http_port
+  gateway_grpc_port = local.gateway_grpc_port
+  wireguard_port    = local.wireguard_port
+  edge_grpc_port    = local.edge_grpc_port
+  edge_http_port    = local.edge_http_port
+  edge_https_port   = local.edge_https_port
+
+  db_name     = local.db_name
+  db_username = local.db_username
+  db_password = local.db_password
+  db_port     = local.db_port
+}
+
+module "openldap" {
+  source = "../../modules/openldap"
+
+  ami                       = data.aws_ami.ubuntu[local.core_arch].id
+  instance_type             = local.openldap_instance_type
+  key_name                  = local.ssh_key_name
+  vpc_id                    = module.vpc.vpc_id
+  vpc_cidr                  = local.vpc_cidr
+  subnet_id                 = module.vpc.private_subnets[0]
+  client_security_group_ids = [module.network.core_security_group_id, module.network.gateway_security_group_id, aws_security_group.load_generator.id]
+  enable_ssh                = local.ssh_admin_cidr != null
+  name_prefix               = "defguard-load-tests"
+  ldap_domain               = local.ldap_domain
+  ldap_organization         = local.ldap_organization
+  ldap_admin_password       = local.ldap_admin_password
+}
+
+module "postgres" {
+  source = "../../modules/postgres"
+
+  ami                    = data.aws_ami.ubuntu[local.core_arch].id
+  instance_type          = local.postgres_instance_type
+  key_name               = local.ssh_key_name
+  vpc_id                 = module.vpc.vpc_id
+  vpc_cidr               = local.vpc_cidr
+  subnet_id              = module.vpc.private_subnets[1]
+  core_security_group_id = module.network.core_security_group_id
+  enable_ssh             = local.ssh_admin_cidr != null
+  name_prefix            = "defguard-load-tests"
+  db_name                = local.db_name
+  db_username            = local.db_username
+  db_password            = local.db_password
+  db_port                = local.db_port
+  storage_gb             = local.postgres_storage_gb
+}
+
+###########################################################################
+######################## Load-generator configuration ####################
+###########################################################################
+
+resource "aws_security_group" "load_generator" {
+  name        = "defguard-load-tests-generator-sg"
+  description = "Load-generator access"
+  vpc_id      = module.vpc.vpc_id
+
+  dynamic "ingress" {
+    for_each = local.ssh_admin_cidr == null ? [] : [1]
+    content {
+      description = "SSH from the admin IP"
+      from_port   = 22
+      to_port     = 22
+      protocol    = "tcp"
+      cidr_blocks = [local.ssh_admin_cidr]
+    }
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  dynamic "ingress" {
+    for_each = [9100, 9256]
+    content {
+      description = "Monitoring exporter from Prometheus"
+      from_port   = ingress.value
+      to_port     = ingress.value
+      protocol    = "tcp"
+      cidr_blocks = [local.vpc_cidr]
+    }
+  }
+}
+
+resource "aws_network_interface" "load_generator" {
+  subnet_id       = module.vpc.public_subnets[0]
+  security_groups = [aws_security_group.load_generator.id]
+
+  tags = {
+    Name = "defguard-load-tests-generator-network-interface"
+  }
+}
+
+resource "aws_eip" "load_generator" {
+  domain = "vpc"
+
+  tags = {
+    Name = "defguard-load-tests-generator"
+  }
+}
+
+resource "aws_eip_association" "load_generator" {
+  network_interface_id = aws_network_interface.load_generator.id
+  allocation_id        = aws_eip.load_generator.id
+}
+
+resource "aws_instance" "load_generator" {
+  ami           = data.aws_ami.ubuntu[local.core_arch].id
+  instance_type = local.load_generator_instance_type
+  key_name      = local.ssh_key_name
+
+  user_data = <<-CLOUD_INIT
+    #cloud-config
+    package_update: true
+    packages:
+      - build-essential
+      - pkg-config
+      - libssl-dev
+      - git
+      - curl
+      - prometheus-node-exporter
+      - prometheus-process-exporter
+    runcmd:
+      - [systemctl, enable, --now, prometheus-node-exporter]
+      - [systemctl, enable, --now, prometheus-process-exporter]
+      - [bash, -lc, "runuser -u ubuntu -- env HOME=/home/ubuntu bash -lc 'curl --proto =https --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable'"]
+      - [bash, -lc, "runuser -u ubuntu -- git clone --recurse-submodules https://github.com/DefGuard/defguard.git /home/ubuntu/defguard"]
+  CLOUD_INIT
+
+  user_data_replace_on_change = true
+
+  primary_network_interface {
+    network_interface_id = aws_network_interface.load_generator.id
+  }
+
+  root_block_device {
+    volume_type = "gp3"
+    volume_size = 100
+    encrypted   = true
+  }
+
+  tags = {
+    Name = "defguard-load-tests-generator"
+  }
+}
+
+module "prometheus" {
+  source = "../../modules/monitoring"
+
+  ami                       = data.aws_ami.ubuntu[local.core_arch].id
+  instance_type             = local.prometheus_instance_type
+  key_name                  = local.ssh_key_name
+  vpc_id                    = module.vpc.vpc_id
+  subnet_id                 = module.vpc.private_subnets[0]
+  gateway_security_group_id = module.network.gateway_security_group_id
+  name_prefix               = "defguard-load-tests"
+  storage_gb                = local.prometheus_storage_gb
+  scrape_interval           = "5s"
+  grafana_admin_password    = local.grafana_admin_password
+
+  scrape_targets = {
+    core = [
+      "${module.network.core_private_ip}:9100",
+      "${module.network.core_private_ip}:9256",
+    ]
+    edge = [
+      "${module.network.edge_private_ip}:9100",
+      "${module.network.edge_private_ip}:9256",
+    ]
+    gateway = [
+      "${module.network.gateway_private_ip}:9100",
+      "${module.network.gateway_private_ip}:9256",
+    ]
+    postgres = [
+      "${module.postgres.private_address}:9100",
+      "${module.postgres.private_address}:9256",
+      "${module.postgres.private_address}:9187",
+    ]
+    openldap = [
+      "${module.openldap.private_address}:9100",
+      "${module.openldap.private_address}:9256",
+    ]
+    load_generator = [
+      "${aws_network_interface.load_generator.private_ip}:9100",
+      "${aws_network_interface.load_generator.private_ip}:9256",
+    ]
+  }
+}
+
+
+
+
+
+
+
+###########################################################################
+################################# Outputs #################################
+###########################################################################
+# First-access steps after apply:
+#   1. Core is private; reach its web UI and finish the setup wizard (2.0 has no admin-password
+#      env var). If you already have access to the private network (VPN, peering, bastion),
+#      open http://<defguard_core_private_address>:<core_http_port> directly. Otherwise enable
+#      SSH (set ssh_admin_cidr + ssh_key_name above) and tunnel through the gateway:
+#        ssh -L 8000:<defguard_core_private_address>:<core_http_port> ubuntu@<defguard_gateway_public_address>
+#        open http://localhost:8000
+#   2. In Core, set the WireGuard location endpoint to defguard_gateway_public_address
+#      (adoption stores the gateway's private IP) so external clients can connect.
+#   3. In Core settings, set the enrollment URL to the edge public address; users enroll via
+#      the public Edge with an admin-generated token (no Core access needed).
+
+output "defguard_core_private_address" {
+  description = "IP address of Defguard Core instance in the internal network"
+  value       = module.network.core_private_ip
+}
+
+output "defguard_edge_public_address" {
+  description = "Public IP address of Defguard Edge instance"
+  value       = module.network.edge_public_ip
+}
+
+output "defguard_edge_private_address" {
+  description = "Private IP address of Defguard Edge instance"
+  value       = module.network.edge_private_ip
+}
+
+output "defguard_gateway_public_address" {
+  description = "Public IP address of Defguard Gateway instance"
+  value       = module.network.gateway_public_ip
+}
+
+output "defguard_gateway_private_address" {
+  description = "Private IP address of Defguard Gateway instance"
+  value       = module.network.gateway_private_ip
+}
+
+output "postgres_private_address" {
+  description = "Private IP address of the self-managed PostgreSQL instance"
+  value       = module.postgres.private_address
+}
+
+output "openldap_private_address" {
+  description = "Private IP address of the OpenLDAP instance"
+  value       = module.openldap.private_address
+}
+
+output "openldap_details" {
+  description = "Connection details for the plain LDAP service"
+  sensitive   = true
+  value       = module.openldap.ldap_details
+}
+
+output "load_generator_private_address" {
+  description = "Private IP address of the load-generator instance"
+  value       = aws_network_interface.load_generator.private_ip
+}
+
+output "load_generator_public_address" {
+  description = "Public IP address of the load-generator instance"
+  value       = aws_eip.load_generator.public_ip
+}
+
+output "prometheus_private_address" {
+  description = "Private IP address of Prometheus"
+  value       = module.prometheus.private_address
+}
+
+output "grafana_private_address" {
+  description = "Private IP address of Grafana"
+  value       = module.prometheus.grafana_private_address
+}
+
+output "grafana_admin_password_file" {
+  description = "Path to the generated Grafana admin password on the monitoring host"
+  value       = module.prometheus.grafana_admin_password_file
+}
