@@ -13,6 +13,7 @@ on:
     paths:
       - "docker-compose2.0/**"
       - ".github/workflows/test2.yml"
+  workflow_dispatch:
 
 jobs:
   test:
