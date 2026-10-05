@@ -1,0 +1,101 @@
+name: Bump Helm Charts
+
+on:
+  schedule:
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  bump:
+    runs-on: [self-hosted, Linux, X64]
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      BRANCH: bump-charts
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Install Helm
+        uses: azure/setup-helm@v5
+
+      - name: Bump charts
+        run: |
+          latest() { gh api "repos/DefGuard/$1/releases/latest" --jq '.tag_name | ltrimstr("v")'; }
+          field() { awk -v k="^$1:" '$0 ~ k {print $2; exit}' "charts/$2/Chart.yaml"; }
+          # chart-releaser skips a chart version that is already published, so a chart change without a newer app version gets a patch bump.
+          next_version() {
+            if [ "$1" != "$2" ] && [ "$(printf '%s\n%s\n' "$1" "$2" | sort -V | tail -1)" = "$2" ]; then
+              echo "$2"
+            else
+              echo "$1" | awk -F. -v OFS=. '{ $3 = $3 + 1; print }'
+            fi
+          }
+          bump() {
+            sed -i "s/^appVersion: .*/appVersion: $2/; s/^version: .*/version: $(next_version "$(field version "$1")" "$2")/" "charts/$1/Chart.yaml"
+          }
+
+          for c in proxy gateway; do
+            app=$(latest "$c")
+            [ "$(field appVersion "defguard-$c")" = "$app" ] || bump "defguard-$c" "$app"
+          done
+
+          helm repo add defguard https://defguard.github.io/deployment
+          helm repo add bitnami https://charts.bitnami.com/bitnami
+          umbrella=charts/defguard/Chart.yaml
+          dep() { sed -n "/name: $1\$/,/version:/ s/^ *version: //p" "$umbrella"; }
+          deps=""
+          pending=""
+          for c in defguard-proxy defguard-gateway; do
+            v=$(field version "$c")
+            [ "$(dep "$c")" = "$v" ] && continue
+            if helm show chart "defguard/$c" --version "$v" > /dev/null 2>&1; then
+              deps="$deps $c=$v"
+            else
+              pending="$pending $c-$v"
+            fi
+          done
+
+          # The defguard chart pulls its subcharts from the published repository, so it waits until release.yml publishes them.
+          core=$(latest defguard)
+          if [ -n "$pending" ]; then
+            echo "The defguard chart waits for:$pending"
+          elif [ -n "$deps" ] || [ "$(field appVersion defguard)" != "$core" ]; then
+            for d in $deps; do
+              sed -i "/name: ${d%=*}\$/,/version:/ s/version: .*/version: ${d#*=}/" "$umbrella"
+            done
+            bump defguard "$core"
+            helm dependency update charts/defguard
+          fi
+
+      - name: Open pull request
+        run: |
+          git add -A charts
+          if git diff --cached --quiet; then
+            echo "The charts match the latest releases"
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$BRANCH"
+          git commit -m "Bump Helm charts to the latest Defguard releases"
+
+          # Chart.lock gets a new timestamp on every run, so the comparison ignores it to prevent a push with no real change.
+          if git fetch origin "$BRANCH" 2> /dev/null && git diff --quiet FETCH_HEAD -- charts ':!charts/defguard/Chart.lock'; then
+            echo "$BRANCH already has these changes"
+            exit 0
+          fi
+          git push --force origin "$BRANCH"
+
+          if [ -z "$(gh pr list --head "$BRANCH" --state open --json number --jq '.[]')" ]; then
+            body=$(printf 'Bumps the Helm charts to the GitHub releases marked as latest.\n\n```diff\n%s\n```\n' \
+              "$(git diff HEAD~1 -- 'charts/*/Chart.yaml')")
+            gh pr create --head "$BRANCH" --title "Bump Helm charts to the latest Defguard releases" --body "$body"
+          fi
