@@ -14,6 +14,18 @@ The stack creates a dedicated VPC with public and private subnets, a NAT gateway
 
 The stack creates billable AWS resources, including EC2 instances, storage, public IPs, and a NAT gateway. Review expected costs and clean up the stack after testing.
 
+## Deploy with OpenTofu
+
+OpenTofu can deploy this stack using the same `main.tf` configuration. Configure AWS credentials using the standard AWS credential chain, then run these commands from this directory after copying `main.tf.example` to `main.tf` and updating its settings:
+
+```sh
+tofu init
+tofu plan
+tofu apply
+```
+
+Review the plan before applying. To remove the stack, review and run `tofu plan -destroy` and `tofu destroy`. Do not run OpenTofu and Terraform concurrently against the same state.
+
 ## Configure and deploy
 
 1. Copy `main.tf.example` to `main.tf`.
