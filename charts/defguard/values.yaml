@@ -4,7 +4,7 @@
 proxyUrl: ""
 # this should be a URL based on ingress.web.host
 publicUrl: "http://defguard.local"
-# defguard-core pod autoscaling configuration
+# Core runs as a single instance; autoscaling must remain disabled.
 autoscaling:
   enabled: false
   minReplicas: 1
@@ -56,7 +56,7 @@ podLabels: {}
 podSecurityContext: {}
 # defguard-core container security context
 securityContext: {}
-# defguard-core container replica count
+# Keep Core at one replica; other values are rejected.
 replicaCount: 1
 # defguard-core pod resource configuration
 resources: {}
