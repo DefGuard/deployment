@@ -14,6 +14,9 @@ This Helm chart can be used to deploy the whole [Defguard](https://defguard.net/
 Check our [documentation](https://docs.defguard.net/deployment-strategies/kubernetes) for deployment
 instructions.
 
+Defguard Core runs as a single instance. Keep `replicaCount: 1` and
+`autoscaling.enabled: false`; the chart rejects values that would run multiple Core replicas.
+
 ## ⚠️ Important: Postgres image tags 
 
 Due to changes in Bitnami policy the Postgres subchart now uses the `latest` tag by default.

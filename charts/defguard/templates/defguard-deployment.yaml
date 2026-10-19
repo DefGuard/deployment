@@ -1,3 +1,9 @@
+{{- if ne (int .Values.replicaCount) 1 }}
+{{- fail "Defguard Core runs as a single instance; replicaCount must be 1." }}
+{{- end }}
+{{- if .Values.autoscaling.enabled }}
+{{- fail "Defguard Core runs as a single instance; autoscaling.enabled must be false." }}
+{{- end }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
