@@ -43,3 +43,9 @@ variable "log_level" {
   type        = string
   default     = "info"
 }
+
+variable "core_disconnect_grace_period" {
+  description = "Seconds the Gateway waits after losing the Core connection before tearing down the WireGuard interface and purging its adoption certificates. The binary defaults to 30, which is short enough that an ordinary Core restart triggers it."
+  type        = number
+  default     = 300
+}
