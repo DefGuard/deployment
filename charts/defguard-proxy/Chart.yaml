@@ -4,5 +4,5 @@ description: Defguard Edge is a public-facing proxy for Defguard Core.
 icon: https://defguard.net/favicon/favicon-512x512.png
 
 type: application
-version: 2.1.0
-appVersion: 2.1.0
+version: 2.2.0
+appVersion: 2.2.0
